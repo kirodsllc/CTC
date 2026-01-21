@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.log
+logs/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database temp files (keep dev.db)
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# PM2
+.pm2/

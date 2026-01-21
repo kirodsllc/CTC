@@ -1,0 +1,2573 @@
+import { useState, useEffect, useRef } from "react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Image as ImageIcon, X, Search, RefreshCw } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { Part } from "./PartsList";
+import { compressImage } from "@/utils/imageCompression";
+import { apiClient } from "@/lib/api";
+import { cn } from "@/lib/utils";
+
+interface ModelQuantity {
+  id: string;
+  model: string;
+  qty: number;
+}
+
+interface PartFormData {
+  masterPartNo: string;
+  partNo: string;
+  brand: string;
+  description: string;
+  category: string;
+  subCategory: string;
+  application: string;
+  hsCode: string;
+  uom: string;
+  weight: string;
+  reOrderLevel: string;
+  cost: string;
+  priceA: string;
+  priceB: string;
+  priceM: string;
+  origin: string;
+  grade: string;
+  status: string;
+  smc: string;
+  size: string;
+  remarks: string;
+}
+
+const initialFormData: PartFormData = {
+  masterPartNo: "",
+  partNo: "",
+  brand: "",
+  description: "",
+  category: "",
+  subCategory: "",
+  application: "",
+  hsCode: "",
+  uom: "NOS",
+  weight: "",
+  reOrderLevel: "",
+  cost: "",
+  priceA: "",
+  priceB: "",
+  priceM: "",
+  origin: "",
+  grade: "B",
+  status: "A",
+  smc: "",
+  size: "",
+  remarks: "",
+};
+
+interface PartEntryFormProps {
+  onSave: (part: PartFormData & { modelQuantities: ModelQuantity[]; imageP1?: string | null; imageP2?: string | null }) => void;
+  selectedPart?: Part | null;
+  onClearSelection?: () => void;
+  onPartSelected?: (masterPartNo: string | null) => void;
+  onPartNoSelected?: (partNo: string | null) => void;
+}
+
+export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSelected, onPartNoSelected }: PartEntryFormProps) => {
+  const [formData, setFormData] = useState<PartFormData>(initialFormData);
+  const [modelQuantities, setModelQuantities] = useState<ModelQuantity[]>([
+    { id: "1", model: "", qty: 0 },
+  ]);
+  const [imageP1, setImageP1] = useState<string | null>(null);
+  const [imageP2, setImageP2] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isAddingNew, setIsAddingNew] = useState(false); // Track if user clicked "New" button
+  const prevSelectedPartId = useRef<string | null>(null);
+  const fileInputP1Ref = useRef<HTMLInputElement>(null);
+  const fileInputP2Ref = useRef<HTMLInputElement>(null);
+
+  // Dropdown data
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [subcategories, setSubcategories] = useState<{ id: string; name: string; categoryId: string }[]>([]);
+  const [brands, setBrands] = useState<{ id: string; name: string }[]>([]);
+  const [brandsLoading, setBrandsLoading] = useState(true);
+
+  // Search results for dropdowns - CORRECTLY TYPED
+  // masterPartNoOptions: unique master_part_no values for Master Part No dropdown
+  const [masterPartNoOptions, setMasterPartNoOptions] = useState<{ value: string; description?: string; application?: string }[]>([]);
+  // partNoOptions: unique part_no values for Part No dropdown
+  const [partNoOptions, setPartNoOptions] = useState<{ id: string; value: string; description?: string; masterPartNo?: string }[]>([]);
+  // Family parts - parts that belong to the selected Master Part No
+  const [familyPartNoOptions, setFamilyPartNoOptions] = useState<{ id: string; value: string; description?: string; brand?: string }[]>([]);
+  const [familyPartsLoading, setFamilyPartsLoading] = useState(false);
+
+  const [masterPartSearchLoading, setMasterPartSearchLoading] = useState(false);
+  const [partNoSearchLoading, setPartNoSearchLoading] = useState(false);
+
+  // Dropdown visibility and search
+  const [showMasterPartDropdown, setShowMasterPartDropdown] = useState(false);
+  const [showPartDropdown, setShowPartDropdown] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showSubcategoryDropdown, setShowSubcategoryDropdown] = useState(false);
+  const [showBrandDropdown, setShowBrandDropdown] = useState(false);
+
+  // Flags to prevent closing dropdowns when typing
+  const [keepPartDropdownOpen, setKeepPartDropdownOpen] = useState(false);
+  const [keepSubcategoryDropdownOpen, setKeepSubcategoryDropdownOpen] = useState(false);
+
+  const [masterPartSearch, setMasterPartSearch] = useState("");
+  const [partSearch, setPartSearch] = useState("");
+  const [categorySearch, setCategorySearch] = useState("");
+  const [subcategorySearch, setSubcategorySearch] = useState("");
+  const [brandSearch, setBrandSearch] = useState("");
+
+  // Refs for dropdowns
+  const masterPartDropdownRef = useRef<HTMLDivElement>(null);
+  const masterPartInputRef = useRef<HTMLInputElement>(null);
+  const partDropdownRef = useRef<HTMLDivElement>(null);
+  const partInputRef = useRef<HTMLInputElement>(null);
+  
+  // Keyboard navigation state
+  const [masterPartHighlightedIndex, setMasterPartHighlightedIndex] = useState(-1);
+  const [partHighlightedIndex, setPartHighlightedIndex] = useState(-1);
+  const [categoryHighlightedIndex, setCategoryHighlightedIndex] = useState(-1);
+  const [subcategoryHighlightedIndex, setSubcategoryHighlightedIndex] = useState(-1);
+  const [brandHighlightedIndex, setBrandHighlightedIndex] = useState(-1);
+  const masterPartOptionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const partOptionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const categoryOptionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const subcategoryOptionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const brandOptionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const categoryInputRef = useRef<HTMLInputElement>(null);
+  const brandInputRef = useRef<HTMLInputElement>(null);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+  const subcategoryDropdownRef = useRef<HTMLDivElement>(null);
+  const subcategoryInputRef = useRef<HTMLInputElement>(null);
+  const applicationInputRef = useRef<HTMLInputElement>(null);
+  const brandDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Store IDs for category, subcategory, application, brand
+  const [categoryId, setCategoryId] = useState<string>("");
+  const [subCategoryId, setSubCategoryId] = useState<string>("");
+  const [brandId, setBrandId] = useState<string>("");
+
+  // Function to fetch brands (can be called to refresh brands list)
+  const fetchBrands = async () => {
+    setBrandsLoading(true);
+    try {
+      // Use getAllBrands to fetch all brands from attributes page
+      const brandsRes = await apiClient.getAllBrands();
+      let brandsData: { id: string; name: string }[] = [];
+      const brandsResponse = brandsRes as any;
+
+      console.log("📦 Brands API Response:", brandsResponse);
+
+      const normalizeBrands = (items: any[]) =>
+        items
+          .map((b: any, idx: number) => {
+            const name =
+              b?.name ||
+              b?.brand_name ||
+              b?.label ||
+              (typeof b === "string" ? b : "");
+            const id = b?.id || b?._id || b?.value || `brand-${idx}`;
+            return name && String(name).trim()
+              ? { id, name: String(name).trim() }
+              : null;
+          })
+          .filter(Boolean) as { id: string; name: string }[];
+
+      // Try multiple response structures
+      if ((brandsResponse as any)?.error) {
+        console.error("❌ Brands API error:", (brandsResponse as any).error);
+      } else if (Array.isArray(brandsResponse)) {
+        brandsData = normalizeBrands(brandsResponse);
+        console.log(`✅ Found ${brandsData.length} brands (direct array)`);
+      } else if (Array.isArray((brandsResponse as any)?.data)) {
+        brandsData = normalizeBrands((brandsResponse as any).data);
+        console.log(`✅ Found ${brandsData.length} brands (response.data)`);
+      } else if (Array.isArray((brandsResponse as any)?.data?.data)) {
+        brandsData = normalizeBrands((brandsResponse as any).data.data);
+        console.log(`✅ Found ${brandsData.length} brands (response.data.data)`);
+      } else if (brandsResponse && typeof brandsResponse === "object") {
+        // Try to find any array in the response object
+        const possibleArray = Object.values(brandsResponse).find((v) => Array.isArray(v)) as any[] | undefined;
+        if (possibleArray) {
+          brandsData = normalizeBrands(possibleArray);
+          console.log(`✅ Found ${brandsData.length} brands (nested array)`);
+        } else {
+          console.warn("⚠️ No array found in brands response:", brandsResponse);
+        }
+      }
+
+      // Fallback: derive unique brands from parts if API returned nothing usable
+      if (brandsData.length === 0) {
+        console.log("⚠️ No brands from API, trying fallback from parts...");
+        try {
+          const partsResponse = await apiClient.getParts({ limit: 2000 }) as any;
+          const partsData = Array.isArray(partsResponse)
+            ? partsResponse
+            : partsResponse?.data?.data || partsResponse?.data || [];
+
+          const unique = new Map<string, { id: string; name: string }>();
+          partsData.forEach((part: any, idx: number) => {
+            const name = part?.brand_name || part?.brand?.name || part?.brand;
+            if (name && typeof name === "string" && name.trim()) {
+              const key = name.trim().toUpperCase();
+              if (!unique.has(key)) {
+                unique.set(key, { id: part?.brand_id || `fallback-${idx}`, name: name.trim() });
+              }
+            }
+          });
+          brandsData = Array.from(unique.values());
+          console.log(`✅ Fallback: Found ${brandsData.length} brands from parts`);
+        } catch (fallbackErr) {
+          console.error("❌ Fallback brand fetch failed:", fallbackErr);
+        }
+      }
+
+      console.log(`✅ Total brands loaded: ${brandsData.length}`);
+      setBrands(brandsData);
+    } catch (error) {
+      console.error("Error fetching brands:", error);
+    } finally {
+      setBrandsLoading(false);
+    }
+  };
+
+  // Fetch dropdown data on mount (categories, brands, subcategories)
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        const [catsRes, allSubsRes] = await Promise.all([
+          apiClient.getCategories(),
+          apiClient.getAllSubcategories?.(),
+        ]);
+
+        // Handle categories
+        let categoriesData: any[] = [];
+        if (Array.isArray(catsRes)) {
+          categoriesData = catsRes;
+        } else if ((catsRes as any)?.data && Array.isArray((catsRes as any).data)) {
+          categoriesData = (catsRes as any).data;
+        }
+        setCategories(categoriesData);
+        console.log("✅ Categories loaded:", categoriesData.length);
+
+        // Fetch brands
+        await fetchBrands();
+
+        // Handle subcategories (unrestricted)
+        const subsData = Array.isArray((allSubsRes as any)?.data)
+          ? (allSubsRes as any).data
+          : Array.isArray(allSubsRes)
+            ? allSubsRes
+            : [];
+        setSubcategories(subsData);
+      } catch (error) {
+        console.error("Error fetching dropdown data:", error);
+      }
+    };
+
+    fetchDropdownData();
+  }, []);
+
+  // Refresh brands when dropdown is open and user is typing (to get newly added brands)
+  useEffect(() => {
+    if (showBrandDropdown && brandSearch.trim().length > 0) {
+      const timeoutId = setTimeout(() => {
+        fetchBrands();
+      }, 300); // Debounce to avoid too many API calls
+      return () => clearTimeout(timeoutId);
+    }
+  }, [showBrandDropdown, brandSearch]);
+
+  // ============================================
+  // MASTER PART NO SEARCH
+  // NOTE: Due to database column naming convention matching ItemsListView,
+  // "Master Part No" UI field searches/displays values from part_no column
+  // ============================================
+  useEffect(() => {
+    const searchMasterPartNo = async () => {
+      const searchTerm = masterPartSearch?.trim() || "";
+      if (searchTerm.length > 0) {
+        setMasterPartSearchLoading(true);
+        try {
+          // Use general search for Google-like partial matching
+          const response: any = await apiClient.getParts({
+            search: searchTerm,
+            limit: 500,
+            page: 1,
+          });
+
+          let partsData: any[] = [];
+          if (Array.isArray(response)) {
+            partsData = response;
+          } else if ((response as any).data) {
+            if (Array.isArray((response as any).data)) {
+              partsData = (response as any).data;
+            } else if ((response as any).data.data && Array.isArray((response as any).data.data)) {
+              partsData = (response as any).data.data;
+            }
+          }
+
+          // Extract UNIQUE part_no values with PARTIAL matching (like Google search)
+          // Show parts where part_no starts with or contains the search term
+          const searchLower = searchTerm.toLowerCase();
+          const uniqueMap = new Map<string, { value: string; description?: string; application?: string }>();
+          partsData.forEach((p: any) => {
+            // Use part_no field - this is what ItemsListView displays under "Master Part No" header
+            const value = (p.part_no || "").trim();
+            if (value) {
+              const valueLower = value.toLowerCase();
+              // Partial match: value starts with or contains search term (like Google autocomplete)
+              if (valueLower.startsWith(searchLower) || valueLower.includes(searchLower)) {
+                const key = value.toUpperCase();
+                if (!uniqueMap.has(key)) {
+                  uniqueMap.set(key, {
+                    value: value,
+                    description: p.description || "",
+                    application: p.application_name || p.application || "",
+                  });
+                }
+              }
+            }
+          });
+
+          const options = Array.from(uniqueMap.values());
+          // Sort: exact matches first, then starts-with matches, then contains matches
+          options.sort((a, b) => {
+            const aLower = a.value.toLowerCase();
+            const bLower = b.value.toLowerCase();
+            const aExact = aLower === searchLower;
+            const bExact = bLower === searchLower;
+            const aStarts = aLower.startsWith(searchLower);
+            const bStarts = bLower.startsWith(searchLower);
+            
+            if (aExact && !bExact) return -1;
+            if (!aExact && bExact) return 1;
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+            return a.value.localeCompare(b.value);
+          });
+          
+          console.log("🔍 Master Part No (Google-like search) Results:", options.map(o => o.value));
+          setMasterPartNoOptions(options);
+        } catch (error) {
+          console.error("Error searching master part no:", error);
+          setMasterPartNoOptions([]);
+        } finally {
+          setMasterPartSearchLoading(false);
+        }
+      } else {
+        setMasterPartNoOptions([]);
+      }
+    };
+
+    const timeoutId = setTimeout(searchMasterPartNo, 300);
+    return () => clearTimeout(timeoutId);
+  }, [masterPartSearch]);
+
+  // ============================================
+  // FETCH FAMILY PARTS when Master Part No is selected
+  // This shows all parts that belong to the selected Master Part No family
+  // ============================================
+  useEffect(() => {
+    const fetchFamilyParts = async () => {
+      if (formData.masterPartNo && formData.masterPartNo.trim().length > 0) {
+        setFamilyPartsLoading(true);
+        try {
+          // Master Part No UI = part_no column, so fetch by part_no
+          const response: any = await apiClient.getParts({
+            part_no: formData.masterPartNo.trim(),
+            limit: 500,
+            page: 1,
+          });
+
+          let partsData: any[] = [];
+          if (Array.isArray(response)) {
+            partsData = response;
+          } else if ((response as any).data) {
+            if (Array.isArray((response as any).data)) {
+              partsData = (response as any).data;
+            } else if ((response as any).data.data && Array.isArray((response as any).data.data)) {
+              partsData = (response as any).data.data;
+            }
+          }
+
+          // Extract all parts in this family - show master_part_no as "Part No" dropdown options
+          const familyParts = partsData
+            .filter((p: any) => (p.part_no || "").trim().toLowerCase() === formData.masterPartNo.trim().toLowerCase())
+            .map((p: any) => ({
+              id: p.id || "",
+              value: (p.master_part_no || "").trim(),
+              description: p.description || "",
+              brand: p.brand || "",
+            }))
+            .filter((p) => p.value); // Only include parts with a value
+
+          console.log("🏠 Family parts for Master Part No:", formData.masterPartNo, familyParts.map(p => p.value));
+          setFamilyPartNoOptions(familyParts);
+        } catch (error) {
+          console.error("Error fetching family parts:", error);
+          setFamilyPartNoOptions([]);
+        } finally {
+          setFamilyPartsLoading(false);
+        }
+      } else {
+        setFamilyPartNoOptions([]);
+      }
+    };
+
+    fetchFamilyParts();
+  }, [formData.masterPartNo]);
+
+  // ============================================
+  // PART NO SEARCH
+  // NOTE: Due to database column naming convention matching ItemsListView,
+  // "Part No" UI field searches/displays values from master_part_no column
+  // ============================================
+  useEffect(() => {
+    const searchPartNo = async () => {
+      const searchTerm = partSearch?.trim() || "";
+      if (searchTerm.length > 0) {
+        if (searchTerm === formData.partNo && !keepPartDropdownOpen) {
+          return;
+        }
+
+        setPartNoSearchLoading(true);
+        try {
+          // Use general search for Google-like partial matching
+          const response: any = await apiClient.getParts({
+            search: searchTerm,
+            limit: 500,
+            page: 1,
+          });
+
+          let partsData: any[] = [];
+          if (Array.isArray(response)) {
+            partsData = response;
+          } else if ((response as any).data) {
+            if (Array.isArray((response as any).data)) {
+              partsData = (response as any).data;
+            } else if ((response as any).data.data && Array.isArray((response as any).data.data)) {
+              partsData = (response as any).data.data;
+            }
+          }
+
+          // Extract UNIQUE master_part_no values with PARTIAL matching (like Google search)
+          // Show parts where master_part_no starts with or contains the search term
+          const searchLower = searchTerm.toLowerCase();
+          const uniqueMap = new Map<string, { id: string; value: string; description?: string; partNo?: string }>();
+          partsData.forEach((p: any) => {
+            // Use master_part_no field - this is what ItemsListView displays under "Part No" header
+            const value = (p.master_part_no || "").trim();
+            if (value) {
+              const valueLower = value.toLowerCase();
+              // Partial match: value starts with or contains search term (like Google autocomplete)
+              if (valueLower.startsWith(searchLower) || valueLower.includes(searchLower)) {
+                const key = value.toUpperCase();
+                if (!uniqueMap.has(key)) {
+                  uniqueMap.set(key, {
+                    id: p.id || "",
+                    value: value,
+                    description: p.description || "",
+                    partNo: (p.part_no || "").trim(),
+                  });
+                }
+              }
+            }
+          });
+
+          const options = Array.from(uniqueMap.values());
+          // Sort: exact matches first, then starts-with matches, then contains matches
+          options.sort((a, b) => {
+            const aLower = a.value.toLowerCase();
+            const bLower = b.value.toLowerCase();
+            const aExact = aLower === searchLower;
+            const bExact = bLower === searchLower;
+            const aStarts = aLower.startsWith(searchLower);
+            const bStarts = bLower.startsWith(searchLower);
+            
+            if (aExact && !bExact) return -1;
+            if (!aExact && bExact) return 1;
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+            return a.value.localeCompare(b.value);
+          });
+          
+          console.log("🔍 Part No (Google-like search) Results:", options.map(o => o.value));
+          setPartNoOptions(options);
+          setShowPartDropdown(true);
+        } catch (error) {
+          console.error("Error searching part no:", error);
+          setPartNoOptions([]);
+        } finally {
+          setPartNoSearchLoading(false);
+        }
+      } else {
+        setPartNoOptions([]);
+        if (!keepPartDropdownOpen && !formData.masterPartNo) {
+          setShowPartDropdown(false);
+        }
+      }
+    };
+
+    const timeoutId = setTimeout(searchPartNo, 300);
+    return () => clearTimeout(timeoutId);
+  }, [partSearch, formData.partNo, formData.masterPartNo, keepPartDropdownOpen]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      if (masterPartDropdownRef.current && !masterPartDropdownRef.current.contains(target)) {
+        setShowMasterPartDropdown(false);
+      }
+
+      if (partDropdownRef.current && !partDropdownRef.current.contains(target)) {
+        const isClickOnInput = partInputRef.current && partInputRef.current.contains(target);
+        if (!isClickOnInput && !keepPartDropdownOpen) {
+          setShowPartDropdown(false);
+        }
+      }
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setShowCategoryDropdown(false);
+      }
+      if (subcategoryDropdownRef.current && !subcategoryDropdownRef.current.contains(target)) {
+        const isClickOnInput = subcategoryInputRef.current && subcategoryInputRef.current.contains(target);
+        if (!isClickOnInput && !keepSubcategoryDropdownOpen) {
+          setShowSubcategoryDropdown(false);
+        }
+      }
+      if (brandDropdownRef.current && !brandDropdownRef.current.contains(event.target as Node)) {
+        setShowBrandDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [keepPartDropdownOpen, keepSubcategoryDropdownOpen]);
+
+  // Populate form when a part is selected from list (only on new selection)
+  useEffect(() => {
+    if (selectedPart && selectedPart.id !== prevSelectedPartId.current) {
+      const loadPartData = async () => {
+        try {
+          const { apiClient } = await import("@/lib/api");
+          const responseAny = await (apiClient as any).getPart(selectedPart.id);
+          const part: any = responseAny?.data || responseAny;
+          if (part && part.id) {
+            // SWAPPED mapping to match ItemsListView display convention:
+            // - "Master Part No" UI field shows part_no data
+            // - "Part No" UI field shows master_part_no data
+            setFormData({
+              ...initialFormData,
+              masterPartNo: part.part_no || "",
+              partNo: part.master_part_no || "",
+              brand: part.brand_name || selectedPart.brand || "",
+              uom: part.uom || selectedPart.uom || "NOS",
+              cost: part.cost && part.cost !== 0 ? part.cost.toString() : (selectedPart.cost && selectedPart.cost !== 0 ? selectedPart.cost.toString() : ""),
+              priceA: part.price_a && part.price_a !== 0 ? part.price_a.toString() : (selectedPart.price && selectedPart.price !== 0 ? selectedPart.price.toString() : ""),
+              priceB: part.price_b && part.price_b !== 0 ? part.price_b.toString() : "",
+              priceM: part.price_m && part.price_m !== 0 ? part.price_m.toString() : "",
+              description: part.description || "",
+              category: part.category_name || "",
+              subCategory: part.subcategory_name || "",
+              application: part.application_name || "",
+              hsCode: part.hs_code || "",
+              weight: part.weight?.toString() || "",
+              reOrderLevel: part.reorder_level && part.reorder_level !== 0 ? part.reorder_level.toString() : "",
+              smc: part.smc || "",
+              size: part.size || "",
+              status: part.status === "active" ? "A" : "N",
+              origin: part.origin ? String(part.origin).trim() : "",
+              grade: part.grade || "B",
+              remarks: part.remarks || "",
+            });
+            // Update search inputs to match form data (swapped)
+            setMasterPartSearch(part.part_no || "");
+            setPartSearch(part.master_part_no || "");
+
+            setImageP1(part.image_p1 || null);
+            setImageP2(part.image_p2 || null);
+            if (part.models && Array.isArray(part.models) && part.models.length > 0) {
+              setModelQuantities(
+                part.models.map((m: any, index: number) => ({
+                  id: m.id || `model-${index}`,
+                  model: m.name || "",
+                  qty: m.qty_used || m.qtyUsed || 0,
+                }))
+              );
+            } else {
+              setModelQuantities([{ id: "1", model: "", qty: 0 }]);
+            }
+            setIsEditing(true);
+            setIsAddingNew(false); // Clear adding new mode when editing existing part
+            prevSelectedPartId.current = selectedPart.id;
+            toast({
+              title: "Part Selected",
+              description: `Loaded details for part "${part.part_no || selectedPart.partNo}"`,
+            });
+          } else {
+            throw new Error("Invalid part data received");
+          }
+        } catch (error) {
+          console.error("Error loading part data:", error);
+          toast({
+            title: "Error",
+            description: "Failed to load part details. Please try again.",
+            variant: "destructive",
+          });
+          setFormData({
+            ...initialFormData,
+            partNo: selectedPart.partNo,
+            brand: selectedPart.brand || "",
+            uom: selectedPart.uom || "NOS",
+            cost: selectedPart.cost && selectedPart.cost !== 0 ? selectedPart.cost.toString() : "",
+            priceA: selectedPart.price && selectedPart.price !== 0 ? selectedPart.price.toString() : "",
+          });
+          setImageP1(null);
+          setImageP2(null);
+          setModelQuantities([{ id: "1", model: "", qty: 0 }]);
+          setIsEditing(true);
+          setIsAddingNew(false); // Clear adding new mode when editing existing part
+          prevSelectedPartId.current = selectedPart.id;
+        }
+      };
+      loadPartData();
+    } else if (!selectedPart) {
+      prevSelectedPartId.current = null;
+      setImageP1(null);
+      setImageP2(null);
+      setIsEditing(false);
+    }
+  }, [selectedPart]);
+
+  const handleInputChange = (field: keyof PartFormData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Populate form from a full part object (when selecting from dropdown)
+  const populateFormFromFullPart = async (partId: string, fallback: { masterPartNo: string; partNo: string; description?: string }) => {
+    try {
+      const response: any = await apiClient.getPart(partId);
+      const fullPart = response?.data || response;
+
+      if (fullPart && fullPart.id) {
+        // SWAPPED: part_no -> masterPartNo UI, master_part_no -> partNo UI
+        const masterPartNoValue = (fullPart.part_no || fallback.masterPartNo || "").trim();
+        const partNoValue = (fullPart.master_part_no || fallback.partNo || "").trim();
+
+        setFormData((prev) => ({
+          ...prev,
+          masterPartNo: masterPartNoValue,
+          partNo: partNoValue,
+          brand: fullPart.brand_name || prev.brand || "",
+          description: fullPart.description || prev.description || "",
+          category: fullPart.category_name || prev.category || "",
+          subCategory: fullPart.subcategory_name || prev.subCategory || "",
+          application: fullPart.application_name || prev.application || "",
+          hsCode: fullPart.hs_code || prev.hsCode || "",
+          uom: fullPart.uom || prev.uom || "NOS",
+          weight: fullPart.weight?.toString?.() || prev.weight || "",
+          reOrderLevel:
+            fullPart.reorder_level && fullPart.reorder_level !== 0
+              ? fullPart.reorder_level.toString()
+              : prev.reOrderLevel,
+          cost: fullPart.cost && fullPart.cost !== 0 ? fullPart.cost.toString() : prev.cost,
+          priceA: fullPart.price_a && fullPart.price_a !== 0 ? fullPart.price_a.toString() : prev.priceA,
+          priceB: fullPart.price_b && fullPart.price_b !== 0 ? fullPart.price_b.toString() : prev.priceB,
+          priceM: fullPart.price_m && fullPart.price_m !== 0 ? fullPart.price_m.toString() : prev.priceM,
+          origin: fullPart.origin ? String(fullPart.origin).trim() : prev.origin,
+          grade: fullPart.grade || prev.grade || "B",
+          status: fullPart.status === "active" ? "A" : fullPart.status === "inactive" ? "N" : prev.status,
+          smc: fullPart.smc || prev.smc || "",
+          size: fullPart.size || prev.size || "",
+          remarks: fullPart.remarks || prev.remarks || "",
+        }));
+
+        setMasterPartSearch(masterPartNoValue);
+        setPartSearch(partNoValue);
+
+        if (fullPart.brand_id) setBrandId(fullPart.brand_id);
+        if (fullPart.category_id) setCategoryId(fullPart.category_id);
+        if (fullPart.subcategory_id) setSubCategoryId(fullPart.subcategory_id);
+
+        setImageP1(fullPart.image_p1 || null);
+        setImageP2(fullPart.image_p2 || null);
+
+        // Load models and quantity used
+        if (fullPart.models && Array.isArray(fullPart.models) && fullPart.models.length > 0) {
+          setModelQuantities(
+            fullPart.models.map((m: any, index: number) => ({
+              id: m.id || `model-${index}`,
+              model: m.name || "",
+              qty: m.qty_used || m.qtyUsed || 0,
+            }))
+          );
+        } else {
+          setModelQuantities([{ id: "1", model: "", qty: 0 }]);
+        }
+
+        setIsEditing(true);
+
+        return { masterPartNo: masterPartNoValue, partNo: partNoValue };
+      }
+    } catch (e) {
+      console.error("Error fetching full part:", e);
+    }
+
+    // Fallback
+    setFormData((prev) => ({
+      ...prev,
+      masterPartNo: fallback.masterPartNo,
+      partNo: fallback.partNo,
+      description: fallback.description || prev.description,
+    }));
+    setMasterPartSearch(fallback.masterPartNo);
+    setPartSearch(fallback.partNo);
+    setModelQuantities([{ id: "1", model: "", qty: 0 }]);
+
+    return fallback;
+  };
+
+  const handleAddModel = () => {
+    setModelQuantities((prev) => [
+      ...prev,
+      { id: Date.now().toString(), model: "", qty: 0 },
+    ]);
+  };
+
+  const handleRemoveModel = (id: string) => {
+    setModelQuantities((prev) => prev.filter((m) => m.id !== id));
+  };
+
+  const handleModelChange = (id: string, field: "model" | "qty", value: string | number) => {
+    setModelQuantities((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
+    );
+  };
+
+  const handleSave = () => {
+    if (!formData.partNo.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Part No is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    onSave({ ...formData, modelQuantities, imageP1, imageP2 });
+
+    // Notify parent component about selected part number
+    const partNo = formData.partNo.trim();
+    if (onPartNoSelected && partNo) {
+      onPartNoSelected(partNo);
+    }
+
+    setFormData(initialFormData);
+    setModelQuantities([{ id: "1", model: "", qty: 0 }]);
+    setImageP1(null);
+    setImageP2(null);
+    setIsEditing(false);
+    setIsAddingNew(false); // Clear adding new mode after save
+    setMasterPartSearch("");
+    setPartSearch("");
+
+    toast({
+      title: "Success",
+      description: "Part saved successfully",
+    });
+  };
+
+  const formatNumericValue = (value: string): string => {
+    if (!value || value === "0" || value === "0.00" || value === "0.0") {
+      return "";
+    }
+    return value;
+  };
+
+  const handleReset = () => {
+    // Reset form data
+    setFormData(initialFormData);
+    
+    // Reset Models section
+    setModelQuantities([{ id: "1", model: "", qty: 0 }]);
+    
+    // Reset images
+    setImageP1(null);
+    setImageP2(null);
+    
+    // Reset editing state
+    setIsEditing(false);
+    
+    // Reset adding new mode when Reset is clicked
+    setIsAddingNew(false);
+    
+    // Reset all search states
+    setPartSearch("");
+    setPartNoOptions([]);
+    setShowPartDropdown(false);
+    setKeepPartDropdownOpen(false);
+    setMasterPartSearch("");
+    setMasterPartNoOptions([]);
+    setShowMasterPartDropdown(false);
+    setCategorySearch("");
+    setSubcategorySearch("");
+    setBrandSearch("");
+    setCategoryId("");
+    setSubCategoryId("");
+    setBrandId("");
+    
+    // Reset dropdowns
+    setShowCategoryDropdown(false);
+    setShowSubcategoryDropdown(false);
+    setShowBrandDropdown(false);
+    
+    // Reset family parts
+    setFamilyPartNoOptions([]);
+    
+    // Reset highlighted indices
+    setMasterPartHighlightedIndex(-1);
+    setPartHighlightedIndex(-1);
+    setCategoryHighlightedIndex(-1);
+    setSubcategoryHighlightedIndex(-1);
+    setBrandHighlightedIndex(-1);
+    
+    // Clear file inputs if they exist
+    if (fileInputP1Ref.current) {
+      fileInputP1Ref.current.value = "";
+    }
+    if (fileInputP2Ref.current) {
+      fileInputP2Ref.current.value = "";
+    }
+    
+    // Clear selection and reset Parts List (via onClearSelection callback)
+    onClearSelection?.();
+
+    // Notify parent components
+    if (onPartSelected) {
+      onPartSelected(null);
+    }
+    if (onPartNoSelected) {
+      onPartNoSelected(null);
+    }
+
+    toast({
+      title: "Reset Complete",
+      description: "Part entry form, Models, and Parts List have been reset",
+    });
+  };
+
+  const handleImageUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+    setImage: React.Dispatch<React.SetStateAction<string | null>>
+  ) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      try {
+        if (file.size > 10 * 1024 * 1024) {
+          toast({
+            title: "Error",
+            description: "Image size must be less than 10MB",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const loadingToast = toast({
+          title: "Processing image...",
+          description: "Compressing image for upload",
+        });
+
+        const compressedBase64 = await compressImage(file, 1920, 1920, 0.8, 10);
+        setImage(compressedBase64);
+        loadingToast.dismiss();
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to process image",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  // Handle New button click
+  const handleNew = () => {
+    // Reset form data
+    setFormData(initialFormData);
+    
+    // Reset Models section
+    setModelQuantities([{ id: "1", model: "", qty: 0 }]);
+    
+    // Reset images
+    setImageP1(null);
+    setImageP2(null);
+    
+    // Reset editing state
+    setIsEditing(false);
+    
+    // Set adding new mode when New is clicked
+    setIsAddingNew(true);
+    
+    // Reset all search states
+    setPartSearch("");
+    setPartNoOptions([]);
+    setShowPartDropdown(false);
+    setKeepPartDropdownOpen(false);
+    setMasterPartSearch("");
+    setMasterPartNoOptions([]);
+    setShowMasterPartDropdown(false);
+    setCategorySearch("");
+    setSubcategorySearch("");
+    setBrandSearch("");
+    setCategoryId("");
+    setSubCategoryId("");
+    setBrandId("");
+    
+    // Reset dropdowns
+    setShowCategoryDropdown(false);
+    setShowSubcategoryDropdown(false);
+    setShowBrandDropdown(false);
+    
+    // Reset highlighted indices
+    setMasterPartHighlightedIndex(-1);
+    setPartHighlightedIndex(-1);
+    setCategoryHighlightedIndex(-1);
+    setSubcategoryHighlightedIndex(-1);
+    setBrandHighlightedIndex(-1);
+    
+    // Reset family parts
+    setFamilyPartNoOptions([]);
+    
+    // Clear file inputs if they exist
+    if (fileInputP1Ref.current) {
+      fileInputP1Ref.current.value = "";
+    }
+    if (fileInputP2Ref.current) {
+      fileInputP2Ref.current.value = "";
+    }
+    
+    // Clear selection and reset Parts List (via onClearSelection callback)
+    onClearSelection?.();
+
+    // Notify parent components
+    if (onPartSelected) {
+      onPartSelected(null);
+    }
+    if (onPartNoSelected) {
+      onPartNoSelected(null);
+    }
+    
+    toast({
+      title: "New Part",
+      description: "Form cleared. Ready for new part entry.",
+    });
+  };
+
+  return (
+    <div className="flex gap-3 h-full">
+      {/* Left Panel - Part Form */}
+      <div className="flex-1 bg-card rounded-lg border border-border overflow-auto">
+        <div className="p-4">
+          {/* Part Information Section */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-primary text-xs">•</span>
+                <span className="text-xs font-medium text-foreground">PART INFORMATION</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  onClick={handleNew}
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs px-3"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  New
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleReset}
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs px-3"
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Reset
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+              {/* ============================================ */}
+              {/* MASTER PART NO DROPDOWN - shows master_part_no values ONLY */}
+              {/* ============================================ */}
+              <div ref={masterPartDropdownRef} className="relative">
+                <label className="block text-xs text-foreground mb-1 font-bold">
+                  Master Part No
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    ref={masterPartInputRef}
+                    placeholder="Search master part no..."
+                    value={masterPartSearch || formData.masterPartNo}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setShowMasterPartDropdown(true);
+                      setMasterPartSearch(value);
+                      handleInputChange("masterPartNo", value);
+                    }}
+                    onFocus={() => {
+                      setShowMasterPartDropdown(true);
+                    }}
+                    onClick={() => {
+                      setShowMasterPartDropdown(true);
+                    }}
+                    onKeyDown={(e) => {
+                      const searchTerm = masterPartSearch.trim();
+                      const hasOptions = masterPartNoOptions.length > 0;
+                      const showAddNew = isAddingNew && !hasOptions && searchTerm.length >= 2;
+                      const totalOptions = hasOptions ? masterPartNoOptions.length + (showAddNew ? 1 : 0) : 0;
+
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        if (showMasterPartDropdown && totalOptions > 0) {
+                          setMasterPartHighlightedIndex(prev => {
+                            const nextIndex = prev < totalOptions - 1 ? prev + 1 : 0;
+                            // Scroll into view
+                            setTimeout(() => {
+                              masterPartOptionRefs.current[nextIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                            }, 0);
+                            return nextIndex;
+                          });
+                        }
+                      } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        if (showMasterPartDropdown && totalOptions > 0) {
+                          setMasterPartHighlightedIndex(prev => {
+                            const nextIndex = prev > 0 ? prev - 1 : totalOptions - 1;
+                            // Scroll into view
+                            setTimeout(() => {
+                              masterPartOptionRefs.current[nextIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                            }, 0);
+                            return nextIndex;
+                          });
+                        }
+                      } else if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (searchTerm.length >= 2) {
+                          // If an option is highlighted, select it
+                          if (masterPartHighlightedIndex >= 0 && masterPartHighlightedIndex < masterPartNoOptions.length) {
+                            const selectedOption = masterPartNoOptions[masterPartHighlightedIndex];
+                            handleInputChange("masterPartNo", selectedOption.value);
+                            setMasterPartSearch(selectedOption.value);
+                            setShowMasterPartDropdown(false);
+                            setIsAddingNew(false);
+                            setMasterPartHighlightedIndex(-1);
+                            
+                            setFormData(prev => ({ ...prev, partNo: "" }));
+                            setPartSearch("");
+                            setKeepPartDropdownOpen(true);
+                            setShowPartDropdown(true);
+                            setTimeout(() => partInputRef.current?.focus(), 50);
+                            
+                            if (onPartSelected) onPartSelected(selectedOption.value);
+                            
+                            toast({
+                              title: "Master Part Selected",
+                              description: `Existing master part number "${selectedOption.value}" is selected`,
+                            });
+                          } else if (masterPartHighlightedIndex === masterPartNoOptions.length && showAddNew) {
+                            // Select "Add new" option
+                            handleInputChange("masterPartNo", searchTerm);
+                            setMasterPartSearch(searchTerm);
+                            setShowMasterPartDropdown(false);
+                            setIsAddingNew(false);
+                            setMasterPartHighlightedIndex(-1);
+                            
+                            setFormData(prev => ({ ...prev, partNo: "" }));
+                            setPartSearch("");
+                            setKeepPartDropdownOpen(true);
+                            setShowPartDropdown(true);
+                            setTimeout(() => partInputRef.current?.focus(), 50);
+                            
+                            toast({
+                              title: "Master Part Selected",
+                              description: `New master part number "${searchTerm}" is selected`,
+                            });
+                          } else {
+                            // Original Enter key logic
+                            const exactMatch = masterPartNoOptions.find(opt => 
+                              opt.value.toLowerCase() === searchTerm.toLowerCase()
+                            );
+                            
+                            if (exactMatch) {
+                              handleInputChange("masterPartNo", exactMatch.value);
+                              setMasterPartSearch(exactMatch.value);
+                              setShowMasterPartDropdown(false);
+                              setIsAddingNew(false);
+                              
+                              setFormData(prev => ({ ...prev, partNo: "" }));
+                              setPartSearch("");
+                              setKeepPartDropdownOpen(true);
+                              setShowPartDropdown(true);
+                              setTimeout(() => partInputRef.current?.focus(), 50);
+                              
+                              if (onPartSelected) onPartSelected(exactMatch.value);
+                              
+                              toast({
+                                title: "Master Part Selected",
+                                description: `Existing master part number "${exactMatch.value}" is selected`,
+                              });
+                            } else if (isAddingNew) {
+                              handleInputChange("masterPartNo", searchTerm);
+                              setMasterPartSearch(searchTerm);
+                              setShowMasterPartDropdown(false);
+                              setIsAddingNew(false);
+                              
+                              setFormData(prev => ({ ...prev, partNo: "" }));
+                              setPartSearch("");
+                              setKeepPartDropdownOpen(true);
+                              setShowPartDropdown(true);
+                              setTimeout(() => partInputRef.current?.focus(), 50);
+                              
+                              toast({
+                                title: "Master Part Selected",
+                                description: `New master part number "${searchTerm}" is selected`,
+                              });
+                            }
+                          }
+                        }
+                      } else if (e.key === "Escape") {
+                        setShowMasterPartDropdown(false);
+                        setMasterPartHighlightedIndex(-1);
+                      } else {
+                        // Reset highlighted index when typing
+                        setMasterPartHighlightedIndex(-1);
+                      }
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        const isClickInDropdown = masterPartDropdownRef.current?.contains(document.activeElement);
+                        if (!isClickInDropdown) {
+                          setShowMasterPartDropdown(false);
+                        }
+                      }, 200);
+                    }}
+                    className={cn("h-8 text-xs pl-10", showMasterPartDropdown && "ring-2 ring-primary border-primary")}
+                  />
+                </div>
+                {showMasterPartDropdown && (masterPartNoOptions.length > 0 || (isAddingNew && masterPartSearch && masterPartSearch.trim().length >= 2)) && (
+                  <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
+                    {(() => {
+                      // Show search results - these are ONLY master_part_no values
+                      if (masterPartSearch && masterPartSearch.trim().length >= 2) {
+                        if (masterPartSearchLoading) {
+                          return <div className="px-4 py-3 text-sm text-muted-foreground">Searching...</div>;
+                        }
+
+                        // Check if current search matches any existing option
+                        const searchTerm = masterPartSearch.trim().toLowerCase();
+                        const exactMatch = masterPartNoOptions.some(opt => 
+                          opt.value.toLowerCase() === searchTerm
+                        );
+                        const showAddNew = isAddingNew && !exactMatch && masterPartSearch.trim().length >= 2;
+
+                        return (
+                          <>
+                            {masterPartNoOptions.length > 0 && masterPartNoOptions.map((opt, idx) => (
+                              <button
+                                key={`${opt.value}-${idx}`}
+                                ref={(el) => { masterPartOptionRefs.current[idx] = el; }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleInputChange("masterPartNo", opt.value);
+                                  setMasterPartSearch(opt.value);
+                                  setShowMasterPartDropdown(false);
+                                  setIsAddingNew(false); // Clear adding new mode after selection
+
+                                  // Clear Part No and focus it - keep dropdown open to show family parts
+                                  setFormData(prev => ({ ...prev, partNo: "" }));
+                                  setPartSearch("");
+                                  setKeepPartDropdownOpen(true);
+                                  setShowPartDropdown(true);
+                                  setTimeout(() => partInputRef.current?.focus(), 50);
+
+                                  // Trigger filter in parent
+                                  if (onPartSelected) onPartSelected(opt.value);
+
+                                  // Show notification
+                                  toast({
+                                    title: "Master Part Selected",
+                                    description: `Existing master part number "${opt.value}" is selected`,
+                                  });
+                                }}
+                                className={cn(
+                                  "w-full text-left px-4 py-3 text-sm hover:bg-muted transition-colors border-b border-border last:border-b-0",
+                                  formData.masterPartNo === opt.value && "bg-muted",
+                                  masterPartHighlightedIndex === idx && "bg-primary/10 ring-2 ring-primary"
+                                )}
+                              >
+                                <p className="font-medium text-foreground">{opt.value}</p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {/* Remove Grade from description and show Application instead */}
+                                  {opt.description?.replace(/\s*\(Grade:\s*[A-Z]\)/gi, '').trim() || ''}
+                                  {opt.application && ` (${opt.application})`}
+                                </p>
+                              </button>
+                            ))}
+                            
+                            {showAddNew && (
+                              <button
+                                ref={(el) => { masterPartOptionRefs.current[masterPartNoOptions.length] = el; }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const newValue = masterPartSearch.trim();
+                                  handleInputChange("masterPartNo", newValue);
+                                  setMasterPartSearch(newValue);
+                                  setShowMasterPartDropdown(false);
+                                  setIsAddingNew(false); // Clear adding new mode after selection
+
+                                  // Clear Part No and focus it
+                                  setFormData(prev => ({ ...prev, partNo: "" }));
+                                  setPartSearch("");
+                                  setKeepPartDropdownOpen(true);
+                                  setShowPartDropdown(true);
+                                  setTimeout(() => partInputRef.current?.focus(), 50);
+
+                                  // Show notification
+                                  toast({
+                                    title: "Master Part Selected",
+                                    description: `New master part number "${newValue}" is selected`,
+                                  });
+                                }}
+                                className={cn(
+                                  "w-full text-left px-4 py-3 text-sm hover:bg-muted transition-colors border-t border-border bg-muted/30",
+                                  masterPartHighlightedIndex === masterPartNoOptions.length && "bg-primary/10 ring-2 ring-primary"
+                                )}
+                              >
+                                <span className="text-primary font-medium">Add new: </span>
+                                <span>{masterPartSearch.trim()}</span>
+                              </button>
+                            )}
+                          </>
+                        );
+                      }
+
+                      return (
+                        <div className="px-4 py-3 text-sm text-muted-foreground">
+                          Type at least 2 characters to search master part numbers...
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              {/* ============================================ */}
+              {/* PART NO DROPDOWN - shows part_no values ONLY */}
+              {/* ============================================ */}
+              <div ref={partDropdownRef} className="relative">
+                <label className="block text-xs text-foreground mb-1 font-bold">
+                  Part No <span className="text-destructive">*</span>
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    ref={partInputRef}
+                    placeholder="Search part no..."
+                    value={partSearch || formData.partNo}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPartSearch(value);
+                      handleInputChange("partNo", value);
+                      setShowPartDropdown(true);
+                      setKeepPartDropdownOpen(true);
+                    }}
+                    onKeyDown={(e) => {
+                      const searchTerm = partSearch.trim();
+                      const hasFamilyParts = formData.masterPartNo && formData.masterPartNo.trim().length > 0;
+                      const isSearching = searchTerm.length >= 2;
+                      
+                      // Determine which options to show based on context
+                      let optionsToShow: any[] = [];
+                      if (hasFamilyParts && !isSearching) {
+                        // Show all family parts when master part is selected and not searching
+                        optionsToShow = familyPartNoOptions;
+                      } else if (hasFamilyParts && isSearching) {
+                        // Show filtered family parts when searching
+                        optionsToShow = familyPartNoOptions.filter(fp =>
+                          fp.value.toLowerCase().includes(searchTerm.toLowerCase())
+                        );
+                      } else if (!hasFamilyParts && isSearching) {
+                        // Show search results when no master part selected
+                        optionsToShow = partNoOptions;
+                      }
+                      
+                      const showAddNew = isAddingNew && searchTerm.length >= 2 && !optionsToShow.some(opt => 
+                        opt.value.toLowerCase() === searchTerm.toLowerCase()
+                      );
+                      const totalOptions = optionsToShow.length + (showAddNew ? 1 : 0);
+
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        if (showPartDropdown && totalOptions > 0) {
+                          setPartHighlightedIndex(prev => {
+                            const nextIndex = prev < totalOptions - 1 ? prev + 1 : 0;
+                            // Scroll into view
+                            setTimeout(() => {
+                              partOptionRefs.current[nextIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                            }, 0);
+                            return nextIndex;
+                          });
+                        }
+                      } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        if (showPartDropdown && totalOptions > 0) {
+                          setPartHighlightedIndex(prev => {
+                            const nextIndex = prev > 0 ? prev - 1 : totalOptions - 1;
+                            // Scroll into view
+                            setTimeout(() => {
+                              partOptionRefs.current[nextIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                            }, 0);
+                            return nextIndex;
+                          });
+                        }
+                      } else if (e.key === "Enter") {
+                        e.preventDefault();
+                        // If an option is highlighted, select it
+                        if (partHighlightedIndex >= 0 && partHighlightedIndex < optionsToShow.length) {
+                          const selectedOption = optionsToShow[partHighlightedIndex];
+                          if (hasFamilyParts && selectedOption.id) {
+                            populateFormFromFullPart(selectedOption.id, {
+                              masterPartNo: formData.masterPartNo,
+                              partNo: selectedOption.value,
+                              description: selectedOption.description,
+                            }).then(result => {
+                              if (onPartNoSelected && result.partNo) {
+                                onPartNoSelected(result.partNo);
+                              }
+                            });
+                          } else if (selectedOption.id) {
+                            populateFormFromFullPart(selectedOption.id, {
+                              masterPartNo: (selectedOption as any).masterPartNo || "",
+                              partNo: selectedOption.value,
+                              description: selectedOption.description,
+                            }).then(result => {
+                              if (onPartSelected && result.masterPartNo) {
+                                onPartSelected(result.masterPartNo);
+                              }
+                              if (onPartNoSelected && result.partNo) {
+                                onPartNoSelected(result.partNo);
+                              }
+                            });
+                          } else {
+                            handleInputChange("partNo", selectedOption.value);
+                            setPartSearch(selectedOption.value);
+                            if ((selectedOption as any).masterPartNo) {
+                              handleInputChange("masterPartNo", (selectedOption as any).masterPartNo);
+                              setMasterPartSearch((selectedOption as any).masterPartNo);
+                            }
+                            if (onPartSelected && (selectedOption as any).masterPartNo) {
+                              onPartSelected((selectedOption as any).masterPartNo);
+                            }
+                            if (onPartNoSelected) {
+                              onPartNoSelected(selectedOption.value);
+                            }
+                          }
+                          setShowPartDropdown(false);
+                          setKeepPartDropdownOpen(false);
+                          setIsAddingNew(false);
+                          setPartHighlightedIndex(-1);
+                        } else if (partHighlightedIndex === optionsToShow.length && showAddNew) {
+                          // Select "Add new" option
+                          handleInputChange("partNo", searchTerm);
+                          setPartSearch(searchTerm);
+                          setShowPartDropdown(false);
+                          setKeepPartDropdownOpen(false);
+                          setIsAddingNew(false);
+                          setPartHighlightedIndex(-1);
+                          
+                          if (onPartNoSelected) {
+                            onPartNoSelected(searchTerm);
+                          }
+                        } else if (searchTerm.length >= 2) {
+                          // Check if master part is selected (family parts)
+                          if (formData.masterPartNo && formData.masterPartNo.trim().length > 0) {
+                            // Check if part exists in family
+                            const exactMatchInFamily = familyPartNoOptions.find(fp => 
+                              fp.value.toLowerCase() === searchTerm.toLowerCase()
+                            );
+                            
+                            if (exactMatchInFamily) {
+                              // Select existing family part
+                              if (exactMatchInFamily.id) {
+                                populateFormFromFullPart(exactMatchInFamily.id, {
+                                  masterPartNo: formData.masterPartNo,
+                                  partNo: exactMatchInFamily.value,
+                                  description: exactMatchInFamily.description,
+                                }).then(result => {
+                                  if (onPartNoSelected && result.partNo) {
+                                    onPartNoSelected(result.partNo);
+                                  }
+                                });
+                              } else {
+                                handleInputChange("partNo", exactMatchInFamily.value);
+                                setPartSearch(exactMatchInFamily.value);
+                                if (onPartNoSelected) {
+                                  onPartNoSelected(exactMatchInFamily.value);
+                                }
+                              }
+                              setShowPartDropdown(false);
+                              setKeepPartDropdownOpen(false);
+                              setIsAddingNew(false);
+                              
+                              toast({
+                                title: "Part Number Selected",
+                                description: `Existing part number "${exactMatchInFamily.value}" from family "${formData.masterPartNo}" is selected`,
+                              });
+                            } else if (isAddingNew) {
+                              // Select new family part
+                              handleInputChange("partNo", searchTerm);
+                              setPartSearch(searchTerm);
+                              setShowPartDropdown(false);
+                              setKeepPartDropdownOpen(false);
+                              setIsAddingNew(false);
+                              
+                              if (onPartNoSelected) {
+                                onPartNoSelected(searchTerm);
+                              }
+                              
+                              toast({
+                                title: "Part Number Selected",
+                                description: `New part number "${searchTerm}" for family "${formData.masterPartNo}" is selected`,
+                              });
+                            }
+                          } else {
+                            // No master part selected, check search results
+                            const exactMatchInSearch = partNoOptions.find(opt => 
+                              opt.value.toLowerCase() === searchTerm.toLowerCase()
+                            );
+                            
+                            if (exactMatchInSearch) {
+                              // Select existing part from search
+                              if (exactMatchInSearch.id) {
+                                populateFormFromFullPart(exactMatchInSearch.id, {
+                                  masterPartNo: exactMatchInSearch.masterPartNo || "",
+                                  partNo: exactMatchInSearch.value,
+                                  description: exactMatchInSearch.description,
+                                }).then(result => {
+                                  if (onPartSelected && result.masterPartNo) {
+                                    onPartSelected(result.masterPartNo);
+                                  }
+                                  if (onPartNoSelected && result.partNo) {
+                                    onPartNoSelected(result.partNo);
+                                  }
+                                });
+                              } else {
+                                handleInputChange("partNo", exactMatchInSearch.value);
+                                handleInputChange("masterPartNo", exactMatchInSearch.masterPartNo || "");
+                                setPartSearch(exactMatchInSearch.value);
+                                setMasterPartSearch(exactMatchInSearch.masterPartNo || "");
+                                
+                                if (onPartSelected && exactMatchInSearch.masterPartNo) {
+                                  onPartSelected(exactMatchInSearch.masterPartNo);
+                                }
+                                if (onPartNoSelected) {
+                                  onPartNoSelected(exactMatchInSearch.value);
+                                }
+                              }
+                              setShowPartDropdown(false);
+                              setKeepPartDropdownOpen(false);
+                              setIsAddingNew(false);
+                              
+                              toast({
+                                title: "Part Number Selected",
+                                description: `Existing part number "${exactMatchInSearch.value}" is selected`,
+                              });
+                            } else if (isAddingNew) {
+                              // Select new part
+                              handleInputChange("partNo", searchTerm);
+                              setPartSearch(searchTerm);
+                              setShowPartDropdown(false);
+                              setKeepPartDropdownOpen(false);
+                              setIsAddingNew(false);
+                              
+                              if (onPartNoSelected) {
+                                onPartNoSelected(searchTerm);
+                              }
+                              
+                              toast({
+                                title: "Part Number Selected",
+                                description: `New part number "${searchTerm}" is selected`,
+                              });
+                            }
+                          }
+                        }
+                      } else if (e.key === "Escape") {
+                        setShowPartDropdown(false);
+                        setPartHighlightedIndex(-1);
+                      } else {
+                        // Reset highlighted index when typing
+                        setPartHighlightedIndex(-1);
+                      }
+                    }}
+                    onFocus={() => {
+                      setShowPartDropdown(true);
+                      setKeepPartDropdownOpen(true);
+                    }}
+                    onClick={() => {
+                      setShowPartDropdown(true);
+                      setKeepPartDropdownOpen(true);
+                    }}
+                    className={cn("h-8 text-xs pl-10", showPartDropdown && "ring-2 ring-primary border-primary")}
+                  />
+                </div>
+                {showPartDropdown && (() => {
+                  // Check if we have search results
+                  const hasSearchResults = partSearch && partSearch.trim().length >= 2 && partNoOptions.length > 0;
+                  
+                  // Check if we have family parts (when master part is selected)
+                  const filteredFamily = formData.masterPartNo && formData.masterPartNo.trim().length > 0 && partSearch && partSearch.trim().length > 0
+                    ? familyPartNoOptions.filter(fp =>
+                      fp.value.toLowerCase().includes(partSearch.trim().toLowerCase())
+                    )
+                    : (formData.masterPartNo && formData.masterPartNo.trim().length > 0 ? familyPartNoOptions : []);
+                  const hasFamilyParts = filteredFamily.length > 0;
+                  
+                  // Check if part number exists in family or search results
+                  const partSearchTerm = partSearch?.trim() || "";
+                  const existsInFamily = formData.masterPartNo && partSearchTerm.length >= 2
+                    ? familyPartNoOptions.some(fp => fp.value.toLowerCase() === partSearchTerm.toLowerCase())
+                    : false;
+                  const existsInSearch = partSearchTerm.length >= 2
+                    ? partNoOptions.some(opt => opt.value.toLowerCase() === partSearchTerm.toLowerCase())
+                    : false;
+                  const showAddNew = isAddingNew && partSearchTerm.length >= 2 && !existsInFamily && !existsInSearch;
+                  
+                  // Only show dropdown if there are search results OR family parts OR "Add new" option
+                  if (!hasSearchResults && !hasFamilyParts && !showAddNew) {
+                    return null;
+                  }
+
+                  return (
+                    <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
+                      {(() => {
+                        // Show search results when user is typing - only show if there are matches
+                        if (partSearch && partSearch.trim().length >= 2) {
+                          if (partNoSearchLoading) {
+                            return <div className="px-4 py-3 text-sm text-muted-foreground">Searching...</div>;
+                          }
+
+                          // Only show dropdown if there are matching results
+                          if (partNoOptions.length === 0) {
+                            return null;
+                          }
+
+                          // Check if current search matches any existing option
+                          const partSearchTerm = partSearch.trim().toLowerCase();
+                          const exactMatchInSearch = partNoOptions.some(opt => 
+                            opt.value.toLowerCase() === partSearchTerm
+                          );
+                          const showAddNewInSearch = isAddingNew && !exactMatchInSearch && partSearch.trim().length >= 2;
+
+                          return (
+                            <>
+                              {partNoOptions.map((opt, idx) => (
+                                <button
+                                  key={`${opt.id || opt.value}-${idx}`}
+                                  ref={(el) => { partOptionRefs.current[idx] = el; }}
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+
+                                    // Populate form with full part data
+                                    if (opt.id) {
+                                      const result = await populateFormFromFullPart(opt.id, {
+                                        masterPartNo: opt.masterPartNo || "",
+                                        partNo: opt.value,
+                                        description: opt.description,
+                                      });
+
+                                      // Trigger filters
+                                      if (onPartSelected && result.masterPartNo) {
+                                        onPartSelected(result.masterPartNo);
+                                      }
+                                      if (onPartNoSelected && result.partNo) {
+                                        onPartNoSelected(result.partNo);
+                                      }
+                                    } else {
+                                      // No ID, just set values
+                                      handleInputChange("partNo", opt.value);
+                                      handleInputChange("masterPartNo", opt.masterPartNo || "");
+                                      setPartSearch(opt.value);
+                                      setMasterPartSearch(opt.masterPartNo || "");
+
+                                      if (onPartSelected && opt.masterPartNo) {
+                                        onPartSelected(opt.masterPartNo);
+                                      }
+                                      if (onPartNoSelected) {
+                                        onPartNoSelected(opt.value);
+                                      }
+                                    }
+
+                                    setShowPartDropdown(false);
+                                    setKeepPartDropdownOpen(false);
+                                    setIsAddingNew(false); // Clear adding new mode after selection
+
+                                    // Show notification
+                                    toast({
+                                      title: "Part Number Selected",
+                                      description: `Existing part number "${opt.value}" is selected`,
+                                    });
+                                  }}
+                                  className={cn(
+                                    "w-full text-left px-4 py-3 hover:bg-muted transition-colors border-b border-border last:border-b-0",
+                                    partHighlightedIndex === idx && "bg-primary/10 ring-2 ring-primary"
+                                  )}
+                                >
+                                  <p className="font-medium text-foreground text-sm">{opt.value}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{opt.description || "No description"}</p>
+                                </button>
+                              ))}
+                              
+                              {showAddNewInSearch && (
+                                <button
+                                  ref={(el) => { partOptionRefs.current[partNoOptions.length] = el; }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const newValue = partSearch.trim();
+                                    handleInputChange("partNo", newValue);
+                                    setPartSearch(newValue);
+                                    setShowPartDropdown(false);
+                                    setKeepPartDropdownOpen(false);
+                                    setIsAddingNew(false); // Clear adding new mode after selection
+
+                                    if (onPartNoSelected) {
+                                      onPartNoSelected(newValue);
+                                    }
+
+                                    // Show notification
+                                    toast({
+                                      title: "Part Number Selected",
+                                      description: `New part number "${newValue}" is selected`,
+                                    });
+                                  }}
+                                  className={cn(
+                                    "w-full text-left px-4 py-3 text-sm hover:bg-muted transition-colors border-t border-border bg-muted/30",
+                                    partHighlightedIndex === partNoOptions.length && "bg-primary/10 ring-2 ring-primary"
+                                  )}
+                                >
+                                  <span className="text-primary font-medium">Add new: </span>
+                                  <span>{partSearch.trim()}</span>
+                                </button>
+                              )}
+                            </>
+                          );
+                        }
+
+                        // Show FAMILY PARTS when Master Part No is selected
+                        if (formData.masterPartNo && formData.masterPartNo.trim().length > 0) {
+                          if (familyPartsLoading) {
+                            return <div className="px-4 py-3 text-sm text-muted-foreground">Loading family parts...</div>;
+                          }
+
+                          // Check if current part number exists in family
+                          const partSearchTermForFamily = partSearch?.trim() || "";
+                          const exactMatchInFamily = partSearchTermForFamily.length >= 2
+                            ? familyPartNoOptions.some(fp => fp.value.toLowerCase() === partSearchTermForFamily.toLowerCase())
+                            : false;
+                          const showAddNewInFamily = isAddingNew && partSearchTermForFamily.length >= 2 && !exactMatchInFamily;
+
+                          // Show dropdown if there are family parts OR "Add new" option
+                          if (filteredFamily.length > 0 || showAddNewInFamily) {
+                            return (
+                              <>
+                                {filteredFamily.length > 0 && (
+                                  <div className="px-4 py-2 text-xs font-semibold text-primary bg-muted/50 border-b border-border">
+                                    Family Parts for "{formData.masterPartNo}" ({filteredFamily.length})
+                                  </div>
+                                )}
+                                {filteredFamily.map((fp, idx) => (
+                                  <button
+                                    key={`family-${fp.id || fp.value}-${idx}`}
+                                    ref={(el) => { partOptionRefs.current[idx] = el; }}
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+
+                                      // Populate form with full part data
+                                      if (fp.id) {
+                                        const result = await populateFormFromFullPart(fp.id, {
+                                          masterPartNo: formData.masterPartNo,
+                                          partNo: fp.value,
+                                          description: fp.description,
+                                        });
+
+                                        if (onPartNoSelected && result.partNo) {
+                                          onPartNoSelected(result.partNo);
+                                        }
+                                      } else {
+                                        handleInputChange("partNo", fp.value);
+                                        setPartSearch(fp.value);
+
+                                        if (onPartNoSelected) {
+                                          onPartNoSelected(fp.value);
+                                        }
+                                      }
+
+                                      setShowPartDropdown(false);
+                                      setKeepPartDropdownOpen(false);
+                                      setIsAddingNew(false); // Clear adding new mode after selection
+
+                                      // Show notification
+                                      toast({
+                                        title: "Part Number Selected",
+                                        description: `Existing part number "${fp.value}" from family "${formData.masterPartNo}" is selected`,
+                                      });
+                                    }}
+                                    className={cn(
+                                      "w-full text-left px-4 py-3 hover:bg-muted transition-colors border-b border-border last:border-b-0",
+                                      partHighlightedIndex === idx && "bg-primary/10 ring-2 ring-primary"
+                                    )}
+                                  >
+                                    <p className="font-medium text-foreground text-sm">{fp.value}</p>
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {fp.brand && <span className="text-primary">[{fp.brand}]</span>} {fp.description || "No description"}
+                                    </p>
+                                  </button>
+                                ))}
+                                
+                                {showAddNewInFamily && (
+                                  <button
+                                    ref={(el) => { partOptionRefs.current[filteredFamily.length] = el; }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const newValue = partSearch.trim();
+                                      handleInputChange("partNo", newValue);
+                                      setPartSearch(newValue);
+                                      setShowPartDropdown(false);
+                                      setKeepPartDropdownOpen(false);
+                                      setIsAddingNew(false); // Clear adding new mode after selection
+
+                                      if (onPartNoSelected) {
+                                        onPartNoSelected(newValue);
+                                      }
+
+                                      // Show notification
+                                      toast({
+                                        title: "Part Number Selected",
+                                        description: `New part number "${newValue}" for family "${formData.masterPartNo}" is selected`,
+                                      });
+                                    }}
+                                    className={cn(
+                                      "w-full text-left px-4 py-3 text-sm hover:bg-muted transition-colors border-t border-border bg-muted/30",
+                                      partHighlightedIndex === filteredFamily.length && "bg-primary/10 ring-2 ring-primary"
+                                    )}
+                                  >
+                                    <span className="text-primary font-medium">Add new: </span>
+                                    <span>{partSearch.trim()}</span>
+                                    <span className="text-xs text-muted-foreground ml-2">(for family "{formData.masterPartNo}")</span>
+                                  </button>
+                                )}
+                              </>
+                            );
+                          }
+                        }
+
+                        return null;
+                      })()}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Brand Dropdown */}
+              <div ref={brandDropdownRef} className="relative">
+                <label className="block text-xs text-foreground mb-1 font-bold">Brand</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    ref={brandInputRef}
+                    placeholder="Search brand..."
+                    value={brandSearch || formData.brand}
+                    onChange={(e) => {
+                      setBrandSearch(e.target.value);
+                      setShowBrandDropdown(true);
+                      setBrandHighlightedIndex(-1);
+                      if (e.target.value !== formData.brand) {
+                        handleInputChange("brand", "");
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      const filtered = brands.filter(b =>
+                        !brandSearch || b.name.toLowerCase().includes(brandSearch.toLowerCase())
+                      );
+                      const totalOptions = filtered.length;
+
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        if (showBrandDropdown && totalOptions > 0) {
+                          setBrandHighlightedIndex(prev => {
+                            const nextIndex = prev < totalOptions - 1 ? prev + 1 : 0;
+                            setTimeout(() => {
+                              brandOptionRefs.current[nextIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                            }, 0);
+                            return nextIndex;
+                          });
+                        }
+                      } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        if (showBrandDropdown && totalOptions > 0) {
+                          setBrandHighlightedIndex(prev => {
+                            const nextIndex = prev > 0 ? prev - 1 : totalOptions - 1;
+                            setTimeout(() => {
+                              brandOptionRefs.current[nextIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                            }, 0);
+                            return nextIndex;
+                          });
+                        }
+                      } else if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (brandHighlightedIndex >= 0 && brandHighlightedIndex < filtered.length) {
+                          const selectedBrand = filtered[brandHighlightedIndex];
+                          handleInputChange("brand", selectedBrand.name);
+                          setBrandId(selectedBrand.id);
+                          setBrandSearch(selectedBrand.name);
+                          setShowBrandDropdown(false);
+                          setBrandHighlightedIndex(-1);
+                        }
+                      } else if (e.key === "Escape") {
+                        setShowBrandDropdown(false);
+                        setBrandHighlightedIndex(-1);
+                      } else {
+                        setBrandHighlightedIndex(-1);
+                      }
+                    }}
+                    onFocus={async () => {
+                      setBrandSearch("");
+                      setShowBrandDropdown(true);
+                      // Refresh brands when dropdown opens to get newly added brands
+                      await fetchBrands();
+                    }}
+                    onClick={async () => {
+                      setShowBrandDropdown(true);
+                      // Refresh brands when dropdown opens to get newly added brands
+                      await fetchBrands();
+                    }}
+                    className={cn("h-8 text-xs pl-10", showBrandDropdown && "ring-2 ring-primary border-primary")}
+                  />
+                </div>
+                {showBrandDropdown && (() => {
+                  const filtered = brands.filter(b =>
+                    !brandSearch || b.name.toLowerCase().includes(brandSearch.toLowerCase())
+                  );
+                  
+                  // Only show dropdown if there are matching brands
+                  if (brandsLoading) {
+                    return (
+                      <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
+                        <div className="px-4 py-3 text-sm text-muted-foreground">
+                          Loading brands...
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  if (filtered.length === 0) {
+                    return null; // Don't show dropdown if no matches
+                  }
+
+                  return (
+                    <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
+                      {filtered.map((brand, idx) => (
+                        <button
+                          key={brand.id}
+                          type="button"
+                          ref={(el) => { brandOptionRefs.current[idx] = el; }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleInputChange("brand", brand.name);
+                            setBrandId(brand.id);
+                            setBrandSearch(brand.name);
+                            setShowBrandDropdown(false);
+                            setBrandHighlightedIndex(-1);
+                          }}
+                          className={cn(
+                            "w-full text-left px-4 py-3 text-sm hover:bg-muted transition-colors border-b border-border last:border-b-0",
+                            formData.brand === brand.name && "bg-muted",
+                            brandHighlightedIndex === idx && "bg-primary/10 ring-2 ring-primary"
+                          )}
+                        >
+                          {brand.name}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="block text-xs text-foreground mb-1 font-bold">Description</label>
+              <Textarea
+                placeholder="Enter part description"
+                value={formData.description}
+                onChange={(e) => handleInputChange("description", e.target.value)}
+                rows={2}
+                className="text-xs min-h-[60px]"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+              <div ref={categoryDropdownRef} className="relative">
+                <label className="block text-xs text-foreground mb-1 font-bold">Category</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    ref={categoryInputRef}
+                    placeholder="Search category..."
+                    value={categorySearch || formData.category}
+                    onChange={(e) => {
+                      setCategorySearch(e.target.value);
+                      setShowCategoryDropdown(true);
+                      setCategoryHighlightedIndex(-1);
+                      if (e.target.value !== formData.category) {
+                        handleInputChange("category", "");
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      const filtered = categories.filter(c =>
+                        !categorySearch || c.name.toLowerCase().includes(categorySearch.toLowerCase())
+                      );
+                      const exactMatch = categorySearch && categories.some(c =>
+                        c.name.toLowerCase() === categorySearch.toLowerCase()
+                      );
+                      const showAddNew = categorySearch && !exactMatch && categorySearch.trim() !== "";
+                      const totalOptions = filtered.length + (showAddNew ? 1 : 0);
+
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        if (showCategoryDropdown && totalOptions > 0) {
+                          setCategoryHighlightedIndex(prev => {
+                            const nextIndex = prev < totalOptions - 1 ? prev + 1 : 0;
+                            setTimeout(() => {
+                              categoryOptionRefs.current[nextIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                            }, 0);
+                            return nextIndex;
+                          });
+                        }
+                      } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        if (showCategoryDropdown && totalOptions > 0) {
+                          setCategoryHighlightedIndex(prev => {
+                            const nextIndex = prev > 0 ? prev - 1 : totalOptions - 1;
+                            setTimeout(() => {
+                              categoryOptionRefs.current[nextIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                            }, 0);
+                            return nextIndex;
+                          });
+                        }
+                      } else if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (categoryHighlightedIndex >= 0 && categoryHighlightedIndex < filtered.length) {
+                          const selectedCategory = filtered[categoryHighlightedIndex];
+                          handleInputChange("category", selectedCategory.name);
+                          setCategoryId(selectedCategory.id);
+                          setCategorySearch(selectedCategory.name);
+                          setShowCategoryDropdown(false);
+                          setCategoryHighlightedIndex(-1);
+                          setFormData(prev => ({ ...prev, subCategory: "", application: "" }));
+                        } else if (categoryHighlightedIndex === filtered.length && showAddNew) {
+                          const newValue = categorySearch.trim();
+                          handleInputChange("category", newValue);
+                          setCategoryId("");
+                          setCategorySearch(newValue);
+                          setShowCategoryDropdown(false);
+                          setCategoryHighlightedIndex(-1);
+                          setFormData(prev => ({ ...prev, subCategory: "", application: "" }));
+                        }
+                      } else if (e.key === "Escape") {
+                        setShowCategoryDropdown(false);
+                        setCategoryHighlightedIndex(-1);
+                      } else {
+                        setCategoryHighlightedIndex(-1);
+                      }
+                    }}
+                    onFocus={() => {
+                      setCategorySearch("");
+                      setShowCategoryDropdown(true);
+                    }}
+                    onClick={() => {
+                      setShowCategoryDropdown(true);
+                    }}
+                    className={cn("h-8 text-xs pl-10", showCategoryDropdown && "ring-2 ring-primary border-primary")}
+                  />
+                </div>
+                {showCategoryDropdown && (
+                  <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
+                    {(() => {
+                      const filtered = categories.filter(c =>
+                        !categorySearch || c.name.toLowerCase().includes(categorySearch.toLowerCase())
+                      );
+                      const exactMatch = categorySearch && categories.some(c =>
+                        c.name.toLowerCase() === categorySearch.toLowerCase()
+                      );
+                      const showAddNew = categorySearch && !exactMatch && categorySearch.trim() !== "";
+
+                      return (
+                        <>
+                          {filtered.length > 0 && filtered.map((category, idx) => (
+                            <button
+                              key={category.id}
+                              ref={(el) => { categoryOptionRefs.current[idx] = el; }}
+                              onClick={() => {
+                                handleInputChange("category", category.name);
+                                setCategoryId(category.id);
+                                setCategorySearch(category.name);
+                                setShowCategoryDropdown(false);
+                                setCategoryHighlightedIndex(-1);
+                                setFormData(prev => ({ ...prev, subCategory: "", application: "" }));
+                              }}
+                              className={cn(
+                                "w-full text-left px-4 py-3 text-sm hover:bg-muted transition-colors border-b border-border last:border-b-0",
+                                formData.category === category.name && "bg-muted",
+                                categoryHighlightedIndex === idx && "bg-primary/10 ring-2 ring-primary"
+                              )}
+                            >
+                              {category.name}
+                            </button>
+                          ))}
+                          {showAddNew && (
+                            <button
+                              ref={(el) => { categoryOptionRefs.current[filtered.length] = el; }}
+                              onClick={() => {
+                                const newValue = categorySearch.trim();
+                                handleInputChange("category", newValue);
+                                setCategoryId("");
+                                setCategorySearch(newValue);
+                                setShowCategoryDropdown(false);
+                                setCategoryHighlightedIndex(-1);
+                                setFormData(prev => ({ ...prev, subCategory: "", application: "" }));
+                              }}
+                              className={cn(
+                                "w-full text-left px-4 py-3 text-sm hover:bg-muted transition-colors border-t border-border bg-muted/30",
+                                categoryHighlightedIndex === filtered.length && "bg-primary/10 ring-2 ring-primary"
+                              )}
+                            >
+                              <span className="text-primary font-medium">Add new: </span>
+                              <span>{categorySearch.trim()}</span>
+                            </button>
+                          )}
+                          {filtered.length === 0 && !showAddNew && (
+                            <div className="px-4 py-3 text-sm text-muted-foreground">
+                              {categorySearch ? "No categories found matching your search" : "No categories available"}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+              <div ref={subcategoryDropdownRef} className="relative">
+                <label className="block text-xs text-foreground mb-1 font-bold">Sub Category</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    ref={subcategoryInputRef}
+                    placeholder="Search sub category..."
+                    value={subcategorySearch || formData.subCategory}
+                    onChange={(e) => {
+                      setSubcategorySearch(e.target.value);
+                      setShowSubcategoryDropdown(true);
+                      setKeepSubcategoryDropdownOpen(true);
+                      setSubcategoryHighlightedIndex(-1);
+                      if (e.target.value !== formData.subCategory) {
+                        handleInputChange("subCategory", "");
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      const subcategoriesForCategory = categoryId
+                        ? subcategories.filter((s) => s.categoryId === categoryId)
+                        : subcategories;
+                      const filtered = subcategoriesForCategory.filter((s) =>
+                        !subcategorySearch || s.name.toLowerCase().includes(subcategorySearch.toLowerCase())
+                      );
+                      const exactMatch =
+                        subcategorySearch &&
+                        subcategoriesForCategory.some(
+                          (s) => s.name.toLowerCase() === subcategorySearch.toLowerCase()
+                        );
+                      const showAddNew = subcategorySearch && !exactMatch && subcategorySearch.trim() !== "";
+                      const totalOptions = filtered.length + (showAddNew ? 1 : 0);
+
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        if (showSubcategoryDropdown && totalOptions > 0) {
+                          setSubcategoryHighlightedIndex(prev => {
+                            const nextIndex = prev < totalOptions - 1 ? prev + 1 : 0;
+                            setTimeout(() => {
+                              subcategoryOptionRefs.current[nextIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                            }, 0);
+                            return nextIndex;
+                          });
+                        }
+                      } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        if (showSubcategoryDropdown && totalOptions > 0) {
+                          setSubcategoryHighlightedIndex(prev => {
+                            const nextIndex = prev > 0 ? prev - 1 : totalOptions - 1;
+                            setTimeout(() => {
+                              subcategoryOptionRefs.current[nextIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                            }, 0);
+                            return nextIndex;
+                          });
+                        }
+                      } else if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (subcategoryHighlightedIndex >= 0 && subcategoryHighlightedIndex < filtered.length) {
+                          const selectedSubcategory = filtered[subcategoryHighlightedIndex];
+                          handleInputChange("subCategory", selectedSubcategory.name);
+                          setSubCategoryId(selectedSubcategory.id);
+                          setSubcategorySearch(selectedSubcategory.name);
+                          setShowSubcategoryDropdown(false);
+                          setSubcategoryHighlightedIndex(-1);
+                          setFormData(prev => ({ ...prev, application: "" }));
+                          setTimeout(() => {
+                            applicationInputRef.current?.focus();
+                          }, 50);
+                        } else if (subcategoryHighlightedIndex === filtered.length && showAddNew) {
+                          const newValue = subcategorySearch.trim();
+                          handleInputChange("subCategory", newValue);
+                          setSubCategoryId("");
+                          setSubcategorySearch(newValue);
+                          setShowSubcategoryDropdown(false);
+                          setSubcategoryHighlightedIndex(-1);
+                          setFormData(prev => ({ ...prev, application: "" }));
+                          setTimeout(() => {
+                            applicationInputRef.current?.focus();
+                          }, 50);
+                        }
+                      } else if (e.key === "Escape") {
+                        setShowSubcategoryDropdown(false);
+                        setSubcategoryHighlightedIndex(-1);
+                      } else {
+                        setSubcategoryHighlightedIndex(-1);
+                      }
+                    }}
+                    onFocus={() => {
+                      setSubcategorySearch("");
+                      setShowSubcategoryDropdown(true);
+                      setKeepSubcategoryDropdownOpen(true);
+                    }}
+                    onClick={() => {
+                      setShowSubcategoryDropdown(true);
+                      setKeepSubcategoryDropdownOpen(true);
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        const isClickInDropdown = subcategoryDropdownRef.current?.contains(document.activeElement);
+                        if (!isClickInDropdown) {
+                          setShowSubcategoryDropdown(false);
+                          setKeepSubcategoryDropdownOpen(false);
+                        }
+                      }, 200);
+                    }}
+                    className={cn("h-8 text-xs pl-10", showSubcategoryDropdown && "ring-2 ring-primary border-primary")}
+                  />
+                </div>
+                {showSubcategoryDropdown && (
+                  <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
+                    {(() => {
+                      const subcategoriesForCategory = categoryId
+                        ? subcategories.filter((s) => s.categoryId === categoryId)
+                        : subcategories;
+
+                      const filtered = subcategoriesForCategory.filter((s) =>
+                        !subcategorySearch || s.name.toLowerCase().includes(subcategorySearch.toLowerCase())
+                      );
+                      const exactMatch =
+                        subcategorySearch &&
+                        subcategoriesForCategory.some(
+                          (s) => s.name.toLowerCase() === subcategorySearch.toLowerCase()
+                        );
+                      const showAddNew = subcategorySearch && !exactMatch && subcategorySearch.trim() !== "";
+
+                      return (
+                        <>
+                          {filtered.length > 0 && filtered.map((subcategory, idx) => (
+                            <button
+                              key={subcategory.id}
+                              ref={(el) => { subcategoryOptionRefs.current[idx] = el; }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleInputChange("subCategory", subcategory.name);
+                                setSubCategoryId(subcategory.id);
+                                setSubcategorySearch(subcategory.name);
+                                setShowSubcategoryDropdown(false);
+                                setSubcategoryHighlightedIndex(-1);
+                                setFormData(prev => ({ ...prev, application: "" }));
+                                setTimeout(() => {
+                                  applicationInputRef.current?.focus();
+                                }, 50);
+                              }}
+                              className={cn(
+                                "w-full text-left px-4 py-3 text-sm hover:bg-muted transition-colors border-b border-border last:border-b-0",
+                                formData.subCategory === subcategory.name && "bg-muted",
+                                subcategoryHighlightedIndex === idx && "bg-primary/10 ring-2 ring-primary"
+                              )}
+                            >
+                              {subcategory.name}
+                            </button>
+                          ))}
+                          {showAddNew && (
+                            <button
+                              ref={(el) => { subcategoryOptionRefs.current[filtered.length] = el; }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newValue = subcategorySearch.trim();
+                                handleInputChange("subCategory", newValue);
+                                setSubCategoryId("");
+                                setSubcategorySearch(newValue);
+                                setShowSubcategoryDropdown(false);
+                                setSubcategoryHighlightedIndex(-1);
+                                setFormData(prev => ({ ...prev, application: "" }));
+                                setTimeout(() => {
+                                  applicationInputRef.current?.focus();
+                                }, 50);
+                              }}
+                              className={cn(
+                                "w-full text-left px-4 py-3 text-sm hover:bg-muted transition-colors border-t border-border bg-muted/30",
+                                subcategoryHighlightedIndex === filtered.length && "bg-primary/10 ring-2 ring-primary"
+                              )}
+                            >
+                              <span className="text-primary font-medium">Add new: </span>
+                              <span>{subcategorySearch.trim()}</span>
+                            </button>
+                          )}
+                          {filtered.length === 0 && !showAddNew && (
+                            <div className="px-4 py-3 text-sm text-muted-foreground">
+                              {subcategorySearch ? "No subcategories found matching your search" : "No subcategories available"}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+              <div className="relative">
+                <label className="block text-xs text-foreground mb-1 font-bold">Application</label>
+                <Input
+                  ref={applicationInputRef}
+                  placeholder="Enter application"
+                  value={formData.application}
+                  onChange={(e) => handleInputChange("application", e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+              <div>
+                <label className="block text-xs text-foreground mb-1 font-bold">HS Code</label>
+                <Input
+                  placeholder="Enter HS code"
+                  value={formData.hsCode}
+                  onChange={(e) => handleInputChange("hsCode", e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-foreground mb-1 font-bold">UOM (A-Z)</label>
+                <Select value={formData.uom} onValueChange={(v) => handleInputChange("uom", v)}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Select UOM" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NOS" className="text-xs">NOS</SelectItem>
+                    <SelectItem value="SET" className="text-xs">SET</SelectItem>
+                    <SelectItem value="KG" className="text-xs">KG</SelectItem>
+                    <SelectItem value="LTR" className="text-xs">LTR</SelectItem>
+                    <SelectItem value="MTR" className="text-xs">MTR</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-xs text-foreground mb-1 font-bold">Weight (Kg)</label>
+                <Input
+                  type="number"
+                  placeholder=""
+                  value={formData.weight}
+                  onChange={(e) => handleInputChange("weight", e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-foreground mb-1 font-bold">Re-Order Level</label>
+                <Input
+                  type="number"
+                  value={formatNumericValue(formData.reOrderLevel)}
+                  onChange={(e) => handleInputChange("reOrderLevel", e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+              <div>
+                <label className="block text-xs text-foreground mb-1 font-bold">Cost</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formatNumericValue(formData.cost)}
+                  onChange={(e) => handleInputChange("cost", e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-foreground mb-1 font-bold">Price-A</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formatNumericValue(formData.priceA)}
+                  onChange={(e) => handleInputChange("priceA", e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-foreground mb-1 font-bold">Price-B</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formatNumericValue(formData.priceB)}
+                  onChange={(e) => handleInputChange("priceB", e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-foreground mb-1 font-bold">Price-M</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formatNumericValue(formData.priceM)}
+                  onChange={(e) => handleInputChange("priceM", e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-3">
+              <div>
+                <label className="block text-xs text-foreground mb-1 font-bold">Origin</label>
+                <Select
+                  value={formData.origin || undefined}
+                  onValueChange={(v) => handleInputChange("origin", v)}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Select Origin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PRC" className="text-xs">PRC</SelectItem>
+                    <SelectItem value="ITAL" className="text-xs">ITAL</SelectItem>
+                    <SelectItem value="USA" className="text-xs">USA</SelectItem>
+                    <SelectItem value="TURK" className="text-xs">TURK</SelectItem>
+                    <SelectItem value="IND" className="text-xs">IND</SelectItem>
+                    <SelectItem value="UK" className="text-xs">UK</SelectItem>
+                    <SelectItem value="CHN" className="text-xs">CHN</SelectItem>
+                    <SelectItem value="SAM" className="text-xs">SAM</SelectItem>
+                    <SelectItem value="TAIW" className="text-xs">TAIW</SelectItem>
+                    <SelectItem value="KOR" className="text-xs">KOR</SelectItem>
+                    <SelectItem value="GER" className="text-xs">GER</SelectItem>
+                    <SelectItem value="JAP" className="text-xs">JAP</SelectItem>
+                    <SelectItem value="AFR" className="text-xs">AFR</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-xs text-foreground mb-1 font-bold">Grade (A/B/C/D)</label>
+                <Select value={formData.grade} onValueChange={(v) => handleInputChange("grade", v)}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Select Grade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="A" className="text-xs">A</SelectItem>
+                    <SelectItem value="B" className="text-xs">B</SelectItem>
+                    <SelectItem value="C" className="text-xs">C</SelectItem>
+                    <SelectItem value="D" className="text-xs">D</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-xs text-foreground mb-1 font-bold">Status (A/N)</label>
+                <Select value={formData.status} onValueChange={(v) => handleInputChange("status", v)}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Select Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="A" className="text-xs">A</SelectItem>
+                    <SelectItem value="N" className="text-xs">N</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-xs text-foreground mb-1 font-bold">SMC</label>
+                <Input
+                  placeholder="Enter SMC"
+                  value={formData.smc}
+                  onChange={(e) => handleInputChange("smc", e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-foreground mb-1 font-bold">Size</label>
+                <Input
+                  placeholder="LxHxW"
+                  value={formData.size}
+                  onChange={(e) => handleInputChange("size", e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Image Upload Section */}
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div>
+                <label className="block text-xs text-foreground mb-1 font-bold">Image P1</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputP1Ref}
+                  className="hidden"
+                  onChange={(e) => handleImageUpload(e, setImageP1)}
+                />
+                <div
+                  className="relative border border-dashed border-border rounded p-2 flex flex-col items-center justify-center hover:border-primary transition-colors cursor-pointer h-16 overflow-hidden"
+                  onClick={() => !imageP1 && fileInputP1Ref.current?.click()}
+                >
+                  {imageP1 ? (
+                    <>
+                      <img src={imageP1} alt="P1" className="w-full h-full object-cover rounded" />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setImageP1(null); }}
+                        className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center hover:bg-destructive/80"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="w-4 h-4 text-muted-foreground mb-0.5" />
+                      <span className="text-[9px] text-muted-foreground">Upload P1</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-foreground mb-1 font-bold">Image P2</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputP2Ref}
+                  className="hidden"
+                  onChange={(e) => handleImageUpload(e, setImageP2)}
+                />
+                <div
+                  className="relative border border-dashed border-border rounded p-2 flex flex-col items-center justify-center hover:border-primary transition-colors cursor-pointer h-16 overflow-hidden"
+                  onClick={() => !imageP2 && fileInputP2Ref.current?.click()}
+                >
+                  {imageP2 ? (
+                    <>
+                      <img src={imageP2} alt="P2" className="w-full h-full object-cover rounded" />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setImageP2(null); }}
+                        className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center hover:bg-destructive/80"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="w-4 h-4 text-muted-foreground mb-0.5" />
+                      <span className="text-[9px] text-muted-foreground">Upload P2</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-xs text-foreground mb-1 font-bold">Remarks</label>
+              <Textarea
+                placeholder="Enter any additional remarks or notes..."
+                value={formData.remarks}
+                onChange={(e) => handleInputChange("remarks", e.target.value)}
+                rows={2}
+                className="text-xs min-h-[50px]"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <Button className="flex-1 gap-1.5 h-8 text-xs" onClick={handleSave}>
+                <Plus className="w-3.5 h-3.5" />
+                {isEditing ? "Update Part" : "Save Part"}
+              </Button>
+              <Button variant="outline" className="h-8 text-xs px-4" onClick={handleReset}>
+                Reset
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Panel - Model and Quantity */}
+      <div className="w-72 bg-card rounded-lg border border-border p-3">
+        <div className="flex items-center justify-end mb-3">
+          <Button variant="outline" size="sm" className="h-6 text-xs px-2" onClick={handleAddModel}>
+            Add More
+          </Button>
+        </div>
+
+        <div className="border-t border-border pt-3">
+          <div className="grid grid-cols-[2fr_1.5fr_0.8fr] gap-2 mb-2 text-xs text-foreground font-bold">
+            <span>Model</span>
+            <span>Qty. Used</span>
+            <span className="text-center">Action</span>
+          </div>
+
+          {modelQuantities.map((mq) => (
+            <div key={mq.id} className="grid grid-cols-[2fr_1.5fr_0.8fr] gap-2 mb-1.5 items-center">
+              <Input
+                placeholder="Enter model"
+                value={mq.model}
+                onChange={(e) => handleModelChange(mq.id, "model", e.target.value)}
+                className="h-8 text-sm"
+              />
+              <Input
+                type="number"
+                value={mq.qty || ""}
+                onChange={(e) => handleModelChange(mq.id, "qty", parseInt(e.target.value) || 0)}
+                className="h-8 text-sm"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground mx-auto"
+                onClick={() => handleRemoveModel(mq.id)}
+              >
+                ✕
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
