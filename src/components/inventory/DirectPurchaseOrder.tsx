@@ -1118,6 +1118,10 @@ export const DirectPurchaseOrder = () => {
       toast.error("Please select a store");
       return;
     }
+    if (!formSupplier) {
+      toast.error("Please select a supplier");
+      return;
+    }
     if (formItems.length === 0) {
       toast.error("Please add at least one item");
       return;

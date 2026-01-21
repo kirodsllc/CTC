@@ -85,26 +85,15 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     if (part_no) {
-      // Check if part_no is an exact match for canonical filtering
+      // Filter by part_no to get all family parts (parts with same part_no value)
+      // For family parts, we want ALL parts with the same part_no, not just canonical
       const partNoValue = (part_no as string).trim();
-      const exactPartNo = await isExactPartNoMatch(prisma, partNoValue);
-      
-      if (exactPartNo) {
-        // For exact partNo match, return only the canonical part
-        const canonicalPartId = await getCanonicalPartId(prisma, exactPartNo);
-        console.log(`🔍 [PARTS API] part_no filter - Exact match: "${exactPartNo}", canonical Part ID: ${canonicalPartId}`);
-        if (canonicalPartId) {
-          where.id = canonicalPartId;
-        } else {
-          where.id = 'non-existent-id';
-        }
-      } else {
-        // Partial match
-        console.log(`🔍 Filtering parts by part number (partial match): "${partNoValue}"`);
-        specificFilters.push({
-          partNo: { contains: partNoValue },
-        });
-      }
+      console.log(`🔍 Filtering parts by part number (exact match for family): "${partNoValue}"`);
+      // Use exact match (case-sensitive) to get all parts in the family
+      // This will return all parts that have the exact same partNo value
+      specificFilters.push({
+        partNo: partNoValue, // Exact match to get all family parts
+      });
     }
 
     if (description) {

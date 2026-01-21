@@ -126,9 +126,9 @@ export const StoreEditDPO = ({ order, open, onOpenChange, onSuccess }: StoreEdit
         setFormStore(storeId);
         setFormDescription(orderData.description || order.description || "");
         
-        // Load items with location assignments
+        // Load items - group by partId and sum quantities (location assignments are ignored)
         if (orderData.items && orderData.items.length > 0) {
-          // Group items by partId to combine quantities
+          // Group items by partId to combine quantities (ignore location assignments)
           const itemsMap = new Map<string, OrderItemForm>();
           
           orderData.items.forEach((item: any, idx: number) => {
@@ -141,26 +141,23 @@ export const StoreEditDPO = ({ order, open, onOpenChange, onSuccess }: StoreEdit
                 partId: partId,
                 partNo: item.part_no || item.partNo || "",
                 brand: item.brand || item.brand_name || "N/A",
-                totalQuantity: String(item.quantity || ""),
+                totalQuantity: "0",
                 purchasePrice: String(item.purchase_price || item.purchasePrice || ""),
                 salePrice: String(item.sale_price || item.salePrice || 0),
-                locations: [],
+                locations: [], // Location assignments are not used
               });
             }
             
-            // Add location assignment
+            // Sum quantities for same part (location assignments are ignored)
             const existingItem = itemsMap.get(partId)!;
-            existingItem.locations.push({
-              id: `${partId}_${existingItem.locations.length + 1}`,
-              quantity: String(item.quantity || ""),
-              rackId: (item.rack_id || item.rackId || "").toString(),
-              shelfId: (item.shelf_id || item.shelfId || "").toString(),
-            });
+            const currentQty = Number(existingItem.totalQuantity) || 0;
+            const itemQty = Number(item.quantity) || 0;
+            existingItem.totalQuantity = String(currentQty + itemQty);
           });
           
           setFormItems(Array.from(itemsMap.values()));
         } else if (order.items && order.items.length > 0) {
-          // Group items by partId
+          // Group items by partId and sum quantities
           const itemsMap = new Map<string, OrderItemForm>();
           
           order.items.forEach((item, idx) => {
@@ -172,20 +169,18 @@ export const StoreEditDPO = ({ order, open, onOpenChange, onSuccess }: StoreEdit
                 partId: item.partId,
                 partNo: item.partNo || "",
                 brand: item.brand || "N/A",
-                totalQuantity: String(item.quantity),
+                totalQuantity: "0",
                 purchasePrice: String(item.purchasePrice),
                 salePrice: String(item.salePrice || 0),
-                locations: [],
+                locations: [], // Location assignments are not used
               });
             }
             
+            // Sum quantities for same part
             const existingItem = itemsMap.get(item.partId)!;
-            existingItem.locations.push({
-              id: `${item.partId}_${existingItem.locations.length + 1}`,
-              quantity: String(item.quantity),
-              rackId: (item.rackId || "").toString(),
-              shelfId: (item.shelfId || "").toString(),
-            });
+            const currentQty = Number(existingItem.totalQuantity) || 0;
+            const itemQty = Number(item.quantity) || 0;
+            existingItem.totalQuantity = String(currentQty + itemQty);
           });
           
           setFormItems(Array.from(itemsMap.values()));
@@ -198,7 +193,7 @@ export const StoreEditDPO = ({ order, open, onOpenChange, onSuccess }: StoreEdit
             totalQuantity: "", 
             purchasePrice: "", 
             salePrice: "", 
-            locations: [{ id: "1", quantity: "", rackId: "", shelfId: "" }]
+            locations: [] // Location assignments are not used
           }]);
         }
         
@@ -352,26 +347,14 @@ export const StoreEditDPO = ({ order, open, onOpenChange, onSuccess }: StoreEdit
         return;
       }
       
-      const total = Number(item.totalQuantity) || 0;
-      const assigned = item.locations.reduce((sum, loc) => sum + (Number(loc.quantity) || 0), 0);
-      
-      if (assigned > total) {
-        toast.error(`Assigned quantity (${assigned}) exceeds total quantity (${total}) for item ${item.partNo}`);
-        return;
-      }
-      
-      for (const loc of item.locations) {
-        if (loc.quantity && (!loc.rackId || !loc.shelfId)) {
-          toast.error("Please select both rack and shelf for all location assignments");
-          return;
-        }
-      }
+      // Location assignment validation removed - locations are not used in DPO
     }
 
     try {
       setLoading(true);
 
-      // Prepare items for API - create one item per location assignment
+      // Prepare items for API - always create one item per part (no location splitting)
+      // Location assignments are ignored - DPO items are not divided by location
       const itemsForUpdate: any[] = [];
       
       formItems.forEach(item => {
@@ -381,50 +364,16 @@ export const StoreEditDPO = ({ order, open, onOpenChange, onSuccess }: StoreEdit
         const quantity = Number(item.totalQuantity) || 0;
         const amount = purchasePrice * quantity;
         
-        // If no locations assigned, create one item with total quantity
-        if (item.locations.length === 0 || item.locations.every(loc => !loc.quantity)) {
-          itemsForUpdate.push({
-            part_id: item.partId,
-            quantity: quantity,
-            purchase_price: purchasePrice,
-            sale_price: Number(item.salePrice) || 0,
-            amount: amount,
-            rack_id: null,
-            shelf_id: null,
-          });
-        } else {
-          // Create one item per location assignment
-          item.locations.forEach(loc => {
-            if (loc.quantity && loc.rackId && loc.shelfId) {
-              const locQuantity = Number(loc.quantity) || 0;
-              const locAmount = purchasePrice * locQuantity;
-              itemsForUpdate.push({
-                part_id: item.partId,
-                quantity: locQuantity,
-                purchase_price: purchasePrice,
-                sale_price: Number(item.salePrice) || 0,
-                amount: locAmount,
-                rack_id: loc.rackId || null,
-                shelf_id: loc.shelfId || null,
-              });
-            }
-          });
-          
-          // Add remaining unassigned quantity if any
-          const remaining = calculateRemainingQuantity(item);
-          if (remaining > 0) {
-            const remainingAmount = purchasePrice * remaining;
-            itemsForUpdate.push({
-              part_id: item.partId,
-              quantity: remaining,
-              purchase_price: purchasePrice,
-              sale_price: Number(item.salePrice) || 0,
-              amount: remainingAmount,
-              rack_id: null,
-              shelf_id: null,
-            });
-          }
-        }
+        // Always create single item per part - location assignments are ignored
+        itemsForUpdate.push({
+          part_id: item.partId,
+          quantity: quantity,
+          purchase_price: purchasePrice,
+          sale_price: Number(item.salePrice) || 0,
+          amount: amount,
+          rack_id: null, // Location assignments are not stored for DPO
+          shelf_id: null, // Location assignments are not stored for DPO
+        });
       });
 
       // Update DPO
@@ -540,12 +489,6 @@ export const StoreEditDPO = ({ order, open, onOpenChange, onSuccess }: StoreEdit
                                 min="1"
                                 className="w-32"
                               />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs text-muted-foreground">Remaining</Label>
-                              <div className={`text-sm font-medium ${remaining > 0 ? "text-warning" : remaining < 0 ? "text-destructive" : "text-success"}`}>
-                                {remaining}
-                              </div>
                             </div>
                           </div>
                         </div>

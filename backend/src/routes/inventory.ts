@@ -4103,6 +4103,12 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'date and items are required' });
     }
 
+    // Validate supplier is required
+    if (!supplier_id) {
+      console.error('❌ [DPO CREATE] Validation failed: supplier_id is required');
+      return res.status(400).json({ error: 'Supplier is required' });
+    }
+
     // Generate DPO number if not provided or if it already exists
     if (!dpo_number) {
       // Generate new DPO number
@@ -5026,6 +5032,14 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
       return res.status(404).json({ error: 'Direct purchase order not found' });
     }
 
+    // Validate supplier is required
+    // Use supplier_id from request if provided, otherwise use existing supplier_id
+    const finalSupplierId = supplier_id !== undefined ? supplier_id : existingOrder.supplierId;
+    if (!finalSupplierId) {
+      console.error('❌ [DPO UPDATE] Validation failed: supplier_id is required');
+      return res.status(400).json({ error: 'Supplier is required' });
+    }
+
     console.log(`  DPO Number: ${existingOrder.dpoNumber}`);
     console.log(`  Current Status: ${existingOrder.status}`);
     console.log(`  New Status: ${status}`);
@@ -5098,7 +5112,7 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
         ...(store_id !== undefined && { 
           store: store_id ? { connect: { id: store_id } } : { disconnect: true }
         }),
-        ...(supplier_id !== undefined && { supplierId: supplier_id || null }),
+        supplierId: finalSupplierId, // Always set supplier (required field)
         ...(account !== undefined && { account: account || null }),
         ...(description !== undefined && { description: description || null }),
         ...(status && { status }),
@@ -5489,7 +5503,7 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
         // Find the main payable account
         let mainPayableAccount = null;
         const finalAccount = account || order.account;
-        const finalSupplierId = supplier_id || order.supplierId;
+        // Use the validated finalSupplierId from top-level scope
         
         if (finalAccount) {
           try {
