@@ -85,6 +85,10 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
   const fileInputP1Ref = useRef<HTMLInputElement>(null);
   const fileInputP2Ref = useRef<HTMLInputElement>(null);
 
+  // Validation errors for prices
+  const [priceAError, setPriceAError] = useState<string>("");
+  const [priceBError, setPriceBError] = useState<string>("");
+
   // Dropdown data
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [subcategories, setSubcategories] = useState<{ id: string; name: string; categoryId: string }[]>([]);
@@ -445,6 +449,22 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
             .filter((p) => p.value); // Only include parts with a value
 
           setFamilyPartNoOptions(familyParts);
+
+          // Auto-fill description from first family part (all family parts share same description)
+          if (familyParts.length > 0 && familyParts[0].description) {
+            const familyDescription = familyParts[0].description.trim();
+            // Only auto-fill if description is currently empty or if user hasn't manually changed it
+            // We'll auto-fill it to help user, but they can still edit it
+            setFormData((prev) => {
+              // If description is empty, auto-fill it
+              if (!prev.description || prev.description.trim() === "") {
+                return { ...prev, description: familyDescription };
+              }
+              // If description matches what we would set, it's safe to update (user might have cleared it)
+              // Otherwise, keep user's manual entry
+              return prev;
+            });
+          }
         } catch (error) {
           setFamilyPartNoOptions([]);
         } finally {
@@ -603,22 +623,28 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
             // SWAPPED mapping to match ItemsListView display convention:
             // - "Master Part No" UI field shows part_no data
             // - "Part No" UI field shows master_part_no data
+            const costValue = part.cost && part.cost !== 0 ? part.cost.toString() : (selectedPart.cost && selectedPart.cost !== 0 ? selectedPart.cost.toString() : "");
+            const priceAValue = part.price_a && part.price_a !== 0 ? part.price_a.toString() : (selectedPart.price && selectedPart.price !== 0 ? selectedPart.price.toString() : "");
+            const priceBValue = part.price_b && part.price_b !== 0 ? part.price_b.toString() : "";
+            
             setFormData({
               ...initialFormData,
               masterPartNo: part.part_no || "",
               partNo: part.master_part_no || "",
               brand: part.brand_name || selectedPart.brand || "",
               uom: part.uom || selectedPart.uom || "NOS",
-              cost: part.cost && part.cost !== 0 ? part.cost.toString() : (selectedPart.cost && selectedPart.cost !== 0 ? selectedPart.cost.toString() : ""),
-              priceA: part.price_a && part.price_a !== 0 ? part.price_a.toString() : (selectedPart.price && selectedPart.price !== 0 ? selectedPart.price.toString() : ""),
-              priceB: part.price_b && part.price_b !== 0 ? part.price_b.toString() : "",
+              cost: costValue,
+              priceA: priceAValue,
+              priceB: priceBValue,
               priceM: part.price_m && part.price_m !== 0 ? part.price_m.toString() : "",
               description: part.description || "",
               category: part.category_name || "",
               subCategory: part.subcategory_name || "",
               application: part.application_name || "",
               hsCode: part.hs_code || "",
-              weight: part.weight?.toString() || "",
+              weight: part.weight !== null && part.weight !== undefined
+                ? formatWeightValue(part.weight.toString())
+                : "",
               reOrderLevel: part.reorder_level && part.reorder_level !== 0 ? part.reorder_level.toString() : "",
               smc: part.smc || "",
               size: part.size || "",
@@ -627,6 +653,10 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
               grade: part.grade || "B",
               remarks: part.remarks || "",
             });
+            
+            // Validate prices after loading
+            setPriceAError(validatePrice(priceAValue, costValue, "A"));
+            setPriceBError(validatePrice(priceBValue, costValue, "B"));
             // Update search inputs to match form data (swapped)
             setMasterPartSearch(part.part_no || "");
             setPartSearch(part.master_part_no || "");
@@ -685,8 +715,65 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
     }
   }, [selectedPart]);
 
+  // Validate price against cost
+  const validatePrice = (price: string, cost: string, priceType: "A" | "B"): string => {
+    if (!price || price.trim() === "" || !cost || cost.trim() === "") {
+      return ""; // No error if either is empty
+    }
+    
+    const priceNum = parseFloat(price);
+    const costNum = parseFloat(cost);
+    
+    if (isNaN(priceNum) || isNaN(costNum)) {
+      return ""; // No error if invalid numbers
+    }
+    
+    if (priceNum < costNum) {
+      return `Price ${priceType} will not less than Cost Price`;
+    }
+    
+    return "";
+  };
+
   const handleInputChange = (field: keyof PartFormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value };
+      
+      // Validate prices when cost, priceA, or priceB changes
+      if (field === "cost" || field === "priceA" || field === "priceB") {
+        const cost = field === "cost" ? value : updated.cost;
+        const priceA = field === "priceA" ? value : updated.priceA;
+        const priceB = field === "priceB" ? value : updated.priceB;
+        
+        setPriceAError(validatePrice(priceA, cost, "A"));
+        setPriceBError(validatePrice(priceB, cost, "B"));
+      }
+      
+      return updated;
+    });
+  };
+
+  // Format weight to max 3 decimal places
+  const formatWeightValue = (value: string): string => {
+    if (!value || value.trim() === "") {
+      return "";
+    }
+    
+    // Remove any non-numeric characters except decimal point
+    let cleaned = value.replace(/[^\d.]/g, "");
+    
+    // Handle multiple decimal points - keep only the first one
+    const parts = cleaned.split(".");
+    if (parts.length > 2) {
+      cleaned = parts[0] + "." + parts.slice(1).join("");
+    }
+    
+    // Limit to 3 decimal places
+    if (parts.length === 2 && parts[1].length > 3) {
+      cleaned = parts[0] + "." + parts[1].substring(0, 3);
+    }
+    
+    return cleaned;
   };
 
   // Populate form from a full part object (when selecting from dropdown)
@@ -734,6 +821,13 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
         if (fullPart.brand_id) setBrandId(fullPart.brand_id);
         if (fullPart.category_id) setCategoryId(fullPart.category_id);
         if (fullPart.subcategory_id) setSubCategoryId(fullPart.subcategory_id);
+
+        // Validate prices after populating form
+        const costVal = fullPart.cost && fullPart.cost !== 0 ? fullPart.cost.toString() : "";
+        const priceAVal = fullPart.price_a && fullPart.price_a !== 0 ? fullPart.price_a.toString() : "";
+        const priceBVal = fullPart.price_b && fullPart.price_b !== 0 ? fullPart.price_b.toString() : "";
+        setPriceAError(validatePrice(priceAVal, costVal, "A"));
+        setPriceBError(validatePrice(priceBVal, costVal, "B"));
 
         setImageP1(fullPart.image_p1 || null);
         setImageP2(fullPart.image_p2 || null);
@@ -798,6 +892,31 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
       });
       return;
     }
+
+    // Validate prices before saving
+    const cost = formData.cost.trim();
+    const priceA = formData.priceA.trim();
+    const priceB = formData.priceB.trim();
+    
+    const priceAErr = validatePrice(priceA, cost, "A");
+    const priceBErr = validatePrice(priceB, cost, "B");
+    
+    setPriceAError(priceAErr);
+    setPriceBError(priceBErr);
+    
+    if (priceAErr || priceBErr) {
+      toast({
+        title: "Validation Error",
+        description: priceAErr && priceBErr 
+          ? "Price A and Price B cannot be less than Cost Price"
+          : priceAErr 
+          ? "Price A cannot be less than Cost Price"
+          : "Price B cannot be less than Cost Price",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     onSave({ ...formData, modelQuantities, imageP1, imageP2 });
 
     // Notify parent component about selected part number
@@ -814,6 +933,10 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
     setIsAddingNew(false); // Clear adding new mode after save
     setMasterPartSearch("");
     setPartSearch("");
+    
+    // Clear validation errors
+    setPriceAError("");
+    setPriceBError("");
 
     toast({
       title: "Success",
@@ -1225,7 +1348,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                               <button
                                 key={`${opt.value}-${idx}`}
                                 ref={(el) => { masterPartOptionRefs.current[idx] = el; }}
-                                onClick={(e) => {
+                                onClick={async (e) => {
                                   e.stopPropagation();
                                   handleInputChange("masterPartNo", opt.value);
                                   setMasterPartSearch(opt.value);
@@ -1238,6 +1361,17 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                                   setKeepPartDropdownOpen(true);
                                   setShowPartDropdown(true);
                                   setTimeout(() => partInputRef.current?.focus(), 50);
+
+                                  // Auto-fill description from the selected option if available
+                                  if (opt.description && opt.description.trim()) {
+                                    setFormData((prev) => {
+                                      // Auto-fill if description is empty, otherwise keep user's entry
+                                      if (!prev.description || prev.description.trim() === "") {
+                                        return { ...prev, description: opt.description.trim() };
+                                      }
+                                      return prev;
+                                    });
+                                  }
 
                                   // Trigger filter in parent
                                   if (onPartSelected) onPartSelected(opt.value);
@@ -1400,6 +1534,15 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                               partNo: selectedOption.value,
                               description: selectedOption.description,
                             }).then(result => {
+                              // Auto-fill description if available and form description is empty
+                              if (selectedOption.description && selectedOption.description.trim()) {
+                                setFormData((prev) => {
+                                  if (!prev.description || prev.description.trim() === "") {
+                                    return { ...prev, description: selectedOption.description.trim() };
+                                  }
+                                  return prev;
+                                });
+                              }
                               if (onPartSelected && result.masterPartNo) {
                                 onPartSelected(result.masterPartNo);
                               }
@@ -1648,6 +1791,16 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                                       setPartSearch(opt.value);
                                       setMasterPartSearch(opt.masterPartNo || "");
 
+                                      // Auto-fill description if available and form description is empty
+                                      if (opt.description && opt.description.trim()) {
+                                        setFormData((prev) => {
+                                          if (!prev.description || prev.description.trim() === "") {
+                                            return { ...prev, description: opt.description.trim() };
+                                          }
+                                          return prev;
+                                        });
+                                      }
+
                                       if (onPartSelected && opt.masterPartNo) {
                                         onPartSelected(opt.masterPartNo);
                                       }
@@ -1748,12 +1901,32 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                                           description: fp.description,
                                         });
 
+                                        // Auto-fill description if available and form description is empty
+                                        if (fp.description && fp.description.trim()) {
+                                          setFormData((prev) => {
+                                            if (!prev.description || prev.description.trim() === "") {
+                                              return { ...prev, description: fp.description.trim() };
+                                            }
+                                            return prev;
+                                          });
+                                        }
+
                                         if (onPartNoSelected && result.partNo) {
                                           onPartNoSelected(result.partNo);
                                         }
                                       } else {
                                         handleInputChange("partNo", fp.value);
                                         setPartSearch(fp.value);
+
+                                        // Auto-fill description from family part if available and form description is empty
+                                        if (fp.description && fp.description.trim()) {
+                                          setFormData((prev) => {
+                                            if (!prev.description || prev.description.trim() === "") {
+                                              return { ...prev, description: fp.description.trim() };
+                                            }
+                                            return prev;
+                                          });
+                                        }
 
                                         if (onPartNoSelected) {
                                           onPartNoSelected(fp.value);
@@ -2457,9 +2630,22 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                 <label className="block text-xs text-foreground mb-1 font-bold">Weight (Kg)</label>
                 <Input
                   type="number"
+                  step="0.001"
                   placeholder=""
                   value={formData.weight}
-                  onChange={(e) => handleInputChange("weight", e.target.value)}
+                  onChange={(e) => {
+                    const formatted = formatWeightValue(e.target.value);
+                    handleInputChange("weight", formatted);
+                  }}
+                  onBlur={(e) => {
+                    // Format on blur to ensure proper decimal places
+                    const value = e.target.value.trim();
+                    if (value && !isNaN(parseFloat(value))) {
+                      const num = parseFloat(value);
+                      const formatted = num.toFixed(3).replace(/\.?0+$/, "");
+                      handleInputChange("weight", formatted);
+                    }
+                  }}
                   className="h-8 text-xs"
                 />
               </div>
@@ -2492,8 +2678,11 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                   step="0.01"
                   value={formatNumericValue(formData.priceA)}
                   onChange={(e) => handleInputChange("priceA", e.target.value)}
-                  className="h-8 text-xs"
+                  className={cn("h-8 text-xs", priceAError && "border-destructive focus-visible:ring-destructive")}
                 />
+                {priceAError && (
+                  <p className="text-xs text-destructive mt-1">{priceAError}</p>
+                )}
               </div>
               <div>
                 <label className="block text-xs text-foreground mb-1 font-bold">Price-B</label>
@@ -2502,8 +2691,11 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                   step="0.01"
                   value={formatNumericValue(formData.priceB)}
                   onChange={(e) => handleInputChange("priceB", e.target.value)}
-                  className="h-8 text-xs"
+                  className={cn("h-8 text-xs", priceBError && "border-destructive focus-visible:ring-destructive")}
                 />
+                {priceBError && (
+                  <p className="text-xs text-destructive mt-1">{priceBError}</p>
+                )}
               </div>
               <div>
                 <label className="block text-xs text-foreground mb-1 font-bold">Price-M</label>
