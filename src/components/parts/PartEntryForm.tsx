@@ -81,6 +81,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
   const [imageP2, setImageP2] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingNew, setIsAddingNew] = useState(false); // Track if user clicked "New" button
+  const [masterPartAutoFilled, setMasterPartAutoFilled] = useState(false); // Track if master part was auto-filled from part number
   const prevSelectedPartId = useRef<string | null>(null);
   const fileInputP1Ref = useRef<HTMLInputElement>(null);
   const fileInputP2Ref = useRef<HTMLInputElement>(null);
@@ -833,6 +834,21 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
       
       const updated = { ...prev, [field]: finalValue };
       
+      // Auto-fill Master Part No when adding new item and Part No is entered
+      if (field === "partNo" && !isEditing && !selectedPart && finalValue.trim() !== "") {
+        // If master part is empty or was previously auto-filled, keep it in sync with part number
+        if (!prev.masterPartNo || prev.masterPartNo.trim() === "" || masterPartAutoFilled) {
+          updated.masterPartNo = finalValue;
+          setMasterPartSearch(finalValue);
+          setMasterPartAutoFilled(true);
+        }
+      }
+      
+      // Reset auto-fill flag if master part is manually changed
+      if (field === "masterPartNo" && masterPartAutoFilled && finalValue !== prev.partNo) {
+        setMasterPartAutoFilled(false);
+      }
+      
       // Re-validate prices against cost when cost changes
       if (field === "cost") {
         const cost = finalValue;
@@ -1053,6 +1069,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
     setImageP2(null);
     setIsEditing(false);
     setIsAddingNew(false); // Clear adding new mode after save
+    setMasterPartAutoFilled(false); // Reset auto-fill flag
     setMasterPartSearch("");
     setPartSearch("");
     
@@ -1188,6 +1205,9 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
     
     // Reset Models section
     setModelQuantities([{ id: "1", model: "", qty: 0 }]);
+    
+    // Reset auto-fill flag
+    setMasterPartAutoFilled(false);
     
     // Reset images
     setImageP1(null);
