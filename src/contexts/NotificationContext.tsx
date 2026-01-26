@@ -68,7 +68,6 @@ const showPushNotification = (title: string, options?: NotificationOptions) => {
     // Auto close after 5 seconds
     setTimeout(() => notification.close(), 5000);
   } catch (error) {
-    console.warn('Failed to show push notification:', error);
   }
 };
 
@@ -110,7 +109,6 @@ const playNotificationSound = () => {
       audioContext.close();
     }, 500);
   } catch (error) {
-    console.warn('Could not play notification sound:', error);
   }
 };
 
@@ -126,7 +124,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }));
       }
     } catch (error) {
-      console.error('Failed to load notifications:', error);
     }
     return [];
   });
@@ -180,7 +177,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
     } catch (error) {
-      console.error('Failed to save notifications:', error);
     }
   }, [notifications]);
 
@@ -199,7 +195,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Request push notification permission
   const requestPushPermission = useCallback(async (): Promise<boolean> => {
     if (!isPushSupported()) {
-      console.warn('Push notifications not supported');
       return false;
     }
 
@@ -217,7 +212,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
       return false;
     } catch (error) {
-      console.error('Failed to request notification permission:', error);
       return false;
     }
   }, []);

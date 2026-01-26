@@ -115,7 +115,6 @@ export const PaymentAccountsTab = () => {
         setAccounts([]);
       }
     } catch (error) {
-      console.error("Error fetching accounts:", error);
       // Load from localStorage on error
       const storedAccounts = localStorage.getItem("paymentAccounts");
       if (storedAccounts) {

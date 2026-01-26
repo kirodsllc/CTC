@@ -198,17 +198,14 @@ export const ModelMakeCategoryBrand = () => {
 
   const handleEdit = (node: TreeNode) => {
     // In real app, open edit dialog
-    console.log("Edit", node);
   };
 
   const handleDelete = (node: TreeNode) => {
     // In real app, confirm and delete
-    console.log("Delete", node);
   };
 
   const handleAddChild = (parentId: string) => {
     // In real app, open add child dialog
-    console.log("Add child to", parentId);
   };
 
   const handleAddRoot = () => {

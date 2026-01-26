@@ -73,7 +73,6 @@ interface PriceStructure {
   notes: string;
 }
 
-
 const priceCategories = [
   { value: "Price A (Retail)", label: "Price A (Retail)" },
   { value: "Price B (Wholesale)", label: "Price B (Wholesale)" },
@@ -161,7 +160,6 @@ export const CustomerPriceStructures = () => {
           setPriceStructures(JSON.parse(storedStructures));
         }
       } catch (error: any) {
-        console.error('Error fetching price structures:', error);
         toast({
           title: "Error",
           description: "Failed to load price structures",
@@ -485,7 +483,6 @@ export const CustomerPriceStructures = () => {
         description: `${filteredStructures.length} price structure${filteredStructures.length !== 1 ? 's' : ''} exported to CSV.`,
       });
     } catch (error: any) {
-      console.error('Export error:', error);
       toast({
         title: "Export Error",
         description: error.message || "Failed to export price structures",

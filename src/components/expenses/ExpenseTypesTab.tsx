@@ -25,9 +25,19 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Tag, Search, Plus, Edit } from "lucide-react";
+import { Tag, Search, Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
 import { ActionButtonTooltip } from "@/components/ui/action-button-tooltip";
@@ -56,6 +66,8 @@ export const ExpenseTypesTab = ({ onUpdate }: ExpenseTypesTabProps) => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingType, setEditingType] = useState<ExpenseType | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingType, setDeletingType] = useState<ExpenseType | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -81,7 +93,6 @@ export const ExpenseTypesTab = ({ onUpdate }: ExpenseTypesTabProps) => {
         setExpenseTypes(Array.isArray(response.data) ? response.data : []);
       }
     } catch (error) {
-      console.error('Error fetching expense types:', error);
       toast.error("Failed to fetch expense types");
     } finally {
       setLoading(false);
@@ -145,8 +156,30 @@ export const ExpenseTypesTab = ({ onUpdate }: ExpenseTypesTabProps) => {
       await fetchExpenseTypes();
       onUpdate?.();
     } catch (error: any) {
-      console.error('Error saving expense type:', error);
       toast.error(error.error || "Failed to save expense type");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteClick = (type: ExpenseType) => {
+    setDeletingType(type);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingType) return;
+
+    try {
+      setLoading(true);
+      await apiClient.deleteExpenseType(deletingType.id);
+      toast.success("Expense type deleted successfully");
+      setDeleteDialogOpen(false);
+      setDeletingType(null);
+      await fetchExpenseTypes();
+      onUpdate?.();
+    } catch (error: any) {
+      toast.error(error.error || "Failed to delete expense type");
     } finally {
       setLoading(false);
     }
@@ -162,7 +195,6 @@ export const ExpenseTypesTab = ({ onUpdate }: ExpenseTypesTabProps) => {
       default: return "bg-muted text-muted-foreground";
     }
   };
-
 
   return (
     <>
@@ -250,11 +282,23 @@ export const ExpenseTypesTab = ({ onUpdate }: ExpenseTypesTabProps) => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <ActionButtonTooltip label="Edit" variant="edit">
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(type)}>
-                          Edit
-                        </Button>
-                      </ActionButtonTooltip>
+                      <div className="flex items-center gap-2">
+                        <ActionButtonTooltip label="Edit" variant="edit">
+                          <Button variant="outline" size="sm" onClick={() => handleEdit(type)}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        </ActionButtonTooltip>
+                        <ActionButtonTooltip label="Delete" variant="delete">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleDeleteClick(type)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </ActionButtonTooltip>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -308,6 +352,28 @@ export const ExpenseTypesTab = ({ onUpdate }: ExpenseTypesTabProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Delete</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the expense type "{deletingType?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletingType(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={loading}
+            >
+              {loading ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

@@ -64,7 +64,6 @@ const DailyClosingTab = () => {
           setAccounts(accountList);
         }
       } catch (error) {
-        console.error('Error fetching accounts:', error);
       }
     };
     fetchAccounts();
@@ -92,7 +91,6 @@ const DailyClosingTab = () => {
         toast.error("Failed to fetch account balances");
       }
     } catch (error) {
-      console.error('Error fetching account balances:', error);
       toast.error("Error loading account balances");
     } finally {
       setLoadingBalances(false);

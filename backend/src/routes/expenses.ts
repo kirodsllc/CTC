@@ -48,7 +48,6 @@ router.get('/expense-types', async (req: Request, res: Response) => {
       });
     } catch (tableError: any) {
       if (tableError.message && tableError.message.includes('does not exist')) {
-        console.error('ExpenseType table does not exist. Please run migration.');
         res.status(500).json({ 
           error: 'Database tables not initialized. Please run: npx prisma db push or apply migration.' 
         });
@@ -57,7 +56,6 @@ router.get('/expense-types', async (req: Request, res: Response) => {
       }
     }
   } catch (error: any) {
-    console.error('Error fetching expense types:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -88,7 +86,6 @@ router.post('/expense-types', async (req: Request, res: Response) => {
 
     res.status(201).json({ data: expenseType });
   } catch (error: any) {
-    console.error('Error creating expense type:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -112,7 +109,6 @@ router.put('/expense-types/:id', async (req: Request, res: Response) => {
 
     res.json({ data: expenseType });
   } catch (error: any) {
-    console.error('Error updating expense type:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -123,7 +119,6 @@ router.delete('/expense-types/:id', async (req: Request, res: Response) => {
     await prisma.expenseType.delete({ where: { id } });
     res.json({ message: 'Expense type deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting expense type:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -170,7 +165,6 @@ router.get('/posted-expenses', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching posted expenses:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -206,7 +200,6 @@ router.post('/posted-expenses', async (req: Request, res: Response) => {
 
     res.status(201).json({ data: expense });
   } catch (error: any) {
-    console.error('Error creating posted expense:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -253,7 +246,6 @@ router.get('/operational-expenses', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching operational expenses:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -292,7 +284,6 @@ router.post('/operational-expenses', async (req: Request, res: Response) => {
 
     res.status(201).json({ data: expense });
   } catch (error: any) {
-    console.error('Error creating operational expense:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -308,7 +299,6 @@ router.get('/operational-expenses/:id', async (req: Request, res: Response) => {
     }
     res.json({ data: expense });
   } catch (error: any) {
-    console.error('Error fetching operational expense:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -359,7 +349,6 @@ router.get('/statistics', async (req: Request, res: Response) => {
       });
     } catch (tableError: any) {
       if (tableError.message && tableError.message.includes('does not exist')) {
-        console.error('Expense tables do not exist. Please run migration.');
         res.status(500).json({ 
           error: 'Database tables not initialized. Please run: npx prisma db push or apply migration.',
           data: {
@@ -374,7 +363,6 @@ router.get('/statistics', async (req: Request, res: Response) => {
       }
     }
   } catch (error: any) {
-    console.error('Error fetching expense statistics:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -88,6 +88,8 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
   // Dropdown data
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [subcategories, setSubcategories] = useState<{ id: string; name: string; categoryId: string }[]>([]);
+  const [applications, setApplications] = useState<{ id: string; name: string; subcategoryId: string }[]>([]);
+  const [applicationsLoading, setApplicationsLoading] = useState(false);
   const [brands, setBrands] = useState<{ id: string; name: string }[]>([]);
   const [brandsLoading, setBrandsLoading] = useState(true);
 
@@ -108,6 +110,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
   const [showPartDropdown, setShowPartDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showSubcategoryDropdown, setShowSubcategoryDropdown] = useState(false);
+  const [showApplicationDropdown, setShowApplicationDropdown] = useState(false);
   const [showBrandDropdown, setShowBrandDropdown] = useState(false);
 
   // Flags to prevent closing dropdowns when typing
@@ -131,11 +134,13 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
   const [partHighlightedIndex, setPartHighlightedIndex] = useState(-1);
   const [categoryHighlightedIndex, setCategoryHighlightedIndex] = useState(-1);
   const [subcategoryHighlightedIndex, setSubcategoryHighlightedIndex] = useState(-1);
+  const [applicationHighlightedIndex, setApplicationHighlightedIndex] = useState(-1);
   const [brandHighlightedIndex, setBrandHighlightedIndex] = useState(-1);
   const masterPartOptionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const partOptionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const categoryOptionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const subcategoryOptionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const applicationOptionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const brandOptionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const categoryInputRef = useRef<HTMLInputElement>(null);
   const brandInputRef = useRef<HTMLInputElement>(null);
@@ -143,12 +148,45 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
   const subcategoryDropdownRef = useRef<HTMLDivElement>(null);
   const subcategoryInputRef = useRef<HTMLInputElement>(null);
   const applicationInputRef = useRef<HTMLInputElement>(null);
+  const applicationDropdownRef = useRef<HTMLDivElement>(null);
   const brandDropdownRef = useRef<HTMLDivElement>(null);
 
   // Store IDs for category, subcategory, application, brand
   const [categoryId, setCategoryId] = useState<string>("");
   const [subCategoryId, setSubCategoryId] = useState<string>("");
   const [brandId, setBrandId] = useState<string>("");
+
+  const fetchApplications = async (subcategoryId?: string, search?: string) => {
+    setApplicationsLoading(true);
+    try {
+      const res: any = await apiClient.getApplications(subcategoryId, search);
+      const raw = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.data)
+          ? res.data
+          : Array.isArray(res?.data?.data)
+            ? res.data.data
+            : [];
+
+      const normalized = (raw as any[])
+        .map((a: any, idx: number) => {
+          const id = a?.id || a?._id || `application-${idx}`;
+          const name = a?.name || a?.label || (typeof a === "string" ? a : "");
+          const sid = a?.subcategoryId || a?.subcategory_id || a?.subCategoryId || "";
+          const trimmedName = String(name ?? "").trim();
+          // Drop invalid "dot" and empty entries
+          if (!trimmedName || /^\.+$/.test(trimmedName)) return null;
+          return { id: String(id), name: trimmedName, subcategoryId: String(sid) };
+        })
+        .filter(Boolean) as { id: string; name: string; subcategoryId: string }[];
+
+      setApplications(normalized);
+    } catch (e) {
+      setApplications([]);
+    } finally {
+      setApplicationsLoading(false);
+    }
+  };
 
   // Function to fetch brands (can be called to refresh brands list)
   const fetchBrands = async () => {
@@ -158,8 +196,6 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
       const brandsRes = await apiClient.getAllBrands();
       let brandsData: { id: string; name: string }[] = [];
       const brandsResponse = brandsRes as any;
-
-      console.log("📦 Brands API Response:", brandsResponse);
 
       const normalizeBrands = (items: any[]) =>
         items
@@ -178,30 +214,23 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
 
       // Try multiple response structures
       if ((brandsResponse as any)?.error) {
-        console.error("❌ Brands API error:", (brandsResponse as any).error);
       } else if (Array.isArray(brandsResponse)) {
         brandsData = normalizeBrands(brandsResponse);
-        console.log(`✅ Found ${brandsData.length} brands (direct array)`);
       } else if (Array.isArray((brandsResponse as any)?.data)) {
         brandsData = normalizeBrands((brandsResponse as any).data);
-        console.log(`✅ Found ${brandsData.length} brands (response.data)`);
       } else if (Array.isArray((brandsResponse as any)?.data?.data)) {
         brandsData = normalizeBrands((brandsResponse as any).data.data);
-        console.log(`✅ Found ${brandsData.length} brands (response.data.data)`);
       } else if (brandsResponse && typeof brandsResponse === "object") {
         // Try to find any array in the response object
         const possibleArray = Object.values(brandsResponse).find((v) => Array.isArray(v)) as any[] | undefined;
         if (possibleArray) {
           brandsData = normalizeBrands(possibleArray);
-          console.log(`✅ Found ${brandsData.length} brands (nested array)`);
         } else {
-          console.warn("⚠️ No array found in brands response:", brandsResponse);
         }
       }
 
       // Fallback: derive unique brands from parts if API returned nothing usable
       if (brandsData.length === 0) {
-        console.log("⚠️ No brands from API, trying fallback from parts...");
         try {
           const partsResponse = await apiClient.getParts({ limit: 2000 }) as any;
           const partsData = Array.isArray(partsResponse)
@@ -219,16 +248,12 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
             }
           });
           brandsData = Array.from(unique.values());
-          console.log(`✅ Fallback: Found ${brandsData.length} brands from parts`);
         } catch (fallbackErr) {
-          console.error("❌ Fallback brand fetch failed:", fallbackErr);
         }
       }
 
-      console.log(`✅ Total brands loaded: ${brandsData.length}`);
       setBrands(brandsData);
     } catch (error) {
-      console.error("Error fetching brands:", error);
     } finally {
       setBrandsLoading(false);
     }
@@ -251,7 +276,6 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
           categoriesData = (catsRes as any).data;
         }
         setCategories(categoriesData);
-        console.log("✅ Categories loaded:", categoriesData.length);
 
         // Fetch brands
         await fetchBrands();
@@ -264,7 +288,6 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
             : [];
         setSubcategories(subsData);
       } catch (error) {
-        console.error("Error fetching dropdown data:", error);
       }
     };
 
@@ -280,6 +303,24 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
       return () => clearTimeout(timeoutId);
     }
   }, [showBrandDropdown, brandSearch]);
+
+  // Fetch applications when application dropdown is open (scoped to selected subcategory)
+  useEffect(() => {
+    if (!showApplicationDropdown) return;
+
+    const query = formData.application?.trim() || "";
+    const timeoutId = setTimeout(() => {
+      fetchApplications(subCategoryId || undefined, query.length > 0 ? query : undefined);
+    }, 200);
+
+    return () => clearTimeout(timeoutId);
+  }, [showApplicationDropdown, subCategoryId, formData.application]);
+
+  // Clear applications when subcategory changes
+  useEffect(() => {
+    setApplications([]);
+    setApplicationHighlightedIndex(-1);
+  }, [subCategoryId]);
 
   // ============================================
   // MASTER PART NO SEARCH
@@ -350,10 +391,8 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
             return a.value.localeCompare(b.value);
           });
           
-          console.log("🔍 Master Part No (Google-like search) Results:", options.map(o => o.value));
           setMasterPartNoOptions(options);
         } catch (error) {
-          console.error("Error searching master part no:", error);
           setMasterPartNoOptions([]);
         } finally {
           setMasterPartSearchLoading(false);
@@ -405,10 +444,8 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
             }))
             .filter((p) => p.value); // Only include parts with a value
 
-          console.log("🏠 Family parts for Master Part No:", formData.masterPartNo, familyParts.map(p => p.value));
           setFamilyPartNoOptions(familyParts);
         } catch (error) {
-          console.error("Error fetching family parts:", error);
           setFamilyPartNoOptions([]);
         } finally {
           setFamilyPartsLoading(false);
@@ -495,11 +532,9 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
             return a.value.localeCompare(b.value);
           });
           
-          console.log("🔍 Part No (Google-like search) Results:", options.map(o => o.value));
           setPartNoOptions(options);
           setShowPartDropdown(true);
         } catch (error) {
-          console.error("Error searching part no:", error);
           setPartNoOptions([]);
         } finally {
           setPartNoSearchLoading(false);
@@ -538,6 +573,13 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
         const isClickOnInput = subcategoryInputRef.current && subcategoryInputRef.current.contains(target);
         if (!isClickOnInput && !keepSubcategoryDropdownOpen) {
           setShowSubcategoryDropdown(false);
+        }
+      }
+      if (applicationDropdownRef.current && !applicationDropdownRef.current.contains(target)) {
+        const isClickOnInput = applicationInputRef.current && applicationInputRef.current.contains(target);
+        if (!isClickOnInput) {
+          setShowApplicationDropdown(false);
+          setApplicationHighlightedIndex(-1);
         }
       }
       if (brandDropdownRef.current && !brandDropdownRef.current.contains(event.target as Node)) {
@@ -613,7 +655,6 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
             throw new Error("Invalid part data received");
           }
         } catch (error) {
-          console.error("Error loading part data:", error);
           toast({
             title: "Error",
             description: "Failed to load part details. Please try again.",
@@ -715,7 +756,6 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
         return { masterPartNo: masterPartNoValue, partNo: partNoValue };
       }
     } catch (e) {
-      console.error("Error fetching full part:", e);
     }
 
     // Fallback
@@ -2261,15 +2301,130 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                   </div>
                 )}
               </div>
-              <div className="relative">
+              <div ref={applicationDropdownRef} className="relative">
                 <label className="block text-xs text-foreground mb-1 font-bold">Application</label>
-                <Input
-                  ref={applicationInputRef}
-                  placeholder="Enter application"
-                  value={formData.application}
-                  onChange={(e) => handleInputChange("application", e.target.value)}
-                  className="h-8 text-xs"
-                />
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    ref={applicationInputRef}
+                    placeholder="Search application..."
+                    value={formData.application}
+                    onChange={(e) => {
+                      handleInputChange("application", e.target.value);
+                      setShowApplicationDropdown(true);
+                      setApplicationHighlightedIndex(-1);
+                    }}
+                    onFocus={() => {
+                      setShowApplicationDropdown(true);
+                      setApplicationHighlightedIndex(-1);
+                    }}
+                    onClick={() => {
+                      setShowApplicationDropdown(true);
+                      setApplicationHighlightedIndex(-1);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") {
+                        setShowApplicationDropdown(false);
+                        setApplicationHighlightedIndex(-1);
+                        return;
+                      }
+
+                      const query = formData.application?.trim().toLowerCase() || "";
+                      const filtered = applications.filter((a) => !query || a.name.toLowerCase().includes(query));
+
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        if (showApplicationDropdown && filtered.length > 0) {
+                          setApplicationHighlightedIndex((prev) => {
+                            const nextIndex = prev < filtered.length - 1 ? prev + 1 : 0;
+                            setTimeout(() => {
+                              applicationOptionRefs.current[nextIndex]?.scrollIntoView({
+                                block: "nearest",
+                                behavior: "smooth",
+                              });
+                            }, 0);
+                            return nextIndex;
+                          });
+                        }
+                      } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        if (showApplicationDropdown && filtered.length > 0) {
+                          setApplicationHighlightedIndex((prev) => {
+                            const nextIndex = prev > 0 ? prev - 1 : filtered.length - 1;
+                            setTimeout(() => {
+                              applicationOptionRefs.current[nextIndex]?.scrollIntoView({
+                                block: "nearest",
+                                behavior: "smooth",
+                              });
+                            }, 0);
+                            return nextIndex;
+                          });
+                        }
+                      } else if (e.key === "Enter") {
+                        if (showApplicationDropdown && applicationHighlightedIndex >= 0 && applicationHighlightedIndex < filtered.length) {
+                          e.preventDefault();
+                          const selected = filtered[applicationHighlightedIndex];
+                          handleInputChange("application", selected.name);
+                          setShowApplicationDropdown(false);
+                          setApplicationHighlightedIndex(-1);
+                        } else if (showApplicationDropdown) {
+                          // keep typed value, just close suggestions
+                          setShowApplicationDropdown(false);
+                          setApplicationHighlightedIndex(-1);
+                        }
+                      } else {
+                        setApplicationHighlightedIndex(-1);
+                      }
+                    }}
+                    className={cn("h-8 text-xs pl-10", showApplicationDropdown && "ring-2 ring-primary border-primary")}
+                  />
+                </div>
+
+                {showApplicationDropdown && (
+                  <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
+                    {applicationsLoading ? (
+                      <div className="px-4 py-3 text-sm text-muted-foreground">Loading applications...</div>
+                    ) : (() => {
+                      const query = formData.application?.trim().toLowerCase() || "";
+                      const filtered = applications.filter((a) => !query || a.name.toLowerCase().includes(query));
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="px-4 py-3 text-sm text-muted-foreground">
+                            {query ? "No applications found matching your search" : "No applications available"}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <>
+                          {filtered.map((app, idx) => (
+                            <button
+                              key={app.id}
+                              type="button"
+                              ref={(el) => {
+                                applicationOptionRefs.current[idx] = el;
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleInputChange("application", app.name);
+                                setShowApplicationDropdown(false);
+                                setApplicationHighlightedIndex(-1);
+                              }}
+                              className={cn(
+                                "w-full text-left px-4 py-3 text-sm hover:bg-muted transition-colors border-b border-border last:border-b-0",
+                                formData.application === app.name && "bg-muted",
+                                applicationHighlightedIndex === idx && "bg-primary/10 ring-2 ring-primary"
+                              )}
+                            >
+                              {app.name}
+                            </button>
+                          ))}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
 

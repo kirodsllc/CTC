@@ -52,8 +52,6 @@ async function getStockBalance(partId: string): Promise<number> {
 // Helper function to get reserved quantity
 async function getReservedQuantity(partId: string): Promise<number> {
   // Check StockMovement with referenceType='stock_reservation' (new method)
-  console.log(`🔍 getReservedQuantity called - PartId=${partId}`);
-  console.log(`   Database URL: ${process.env.DATABASE_URL}`);
   
   const stockMovementReservations = await prisma.stockMovement.findMany({
     where: {
@@ -66,12 +64,9 @@ async function getReservedQuantity(partId: string): Promise<number> {
   
   // Always log to help debug - show details of what was found
   if (stockMovementReservations.length > 0) {
-    console.log(`📦 Found ${stockMovementReservations.length} reservation(s) for PartId=${partId}: Total=${stockMovementReserved} units`);
     stockMovementReservations.forEach((r, idx) => {
-      console.log(`  Reservation ${idx + 1}: ID=${r.id}, Quantity=${r.quantity}, CreatedAt=${r.createdAt}, ReferenceId=${r.referenceId}`);
     });
   } else {
-    console.log(`📦 No reservations found for PartId=${partId}`);
   }
   
   // Also check StockReservation table (legacy method, if exists)
@@ -85,7 +80,6 @@ async function getReservedQuantity(partId: string): Promise<number> {
     const stockReservationReserved = reservations.reduce((sum, r) => sum + r.quantity, 0);
     const total = stockMovementReserved + stockReservationReserved;
     if (stockReservationReserved > 0) {
-      console.log(`📦 Found ${reservations.length} legacy reservation(s) for PartId=${partId}: Additional=${stockReservationReserved} units`);
     }
     return total;
   } catch (error) {
@@ -321,7 +315,6 @@ async function createVoucherForInvoice(
 
     return voucher;
   } catch (error: any) {
-    console.error('Error creating voucher for sales invoice:', error);
     throw error;
   }
 }
@@ -365,7 +358,6 @@ router.get('/inquiries', async (req: Request, res: Response) => {
 
     res.json(inquiries);
   } catch (error: any) {
-    console.error('Error fetching inquiries:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -396,7 +388,6 @@ router.get('/inquiries/:id', async (req: Request, res: Response) => {
 
     res.json(inquiry);
   } catch (error: any) {
-    console.error('Error fetching inquiry:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -474,7 +465,6 @@ router.post('/inquiries', async (req: Request, res: Response) => {
 
     res.json(inquiry);
   } catch (error: any) {
-    console.error('Error creating inquiry:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -565,7 +555,6 @@ router.put('/inquiries/:id', async (req: Request, res: Response) => {
 
     res.json(updatedInquiry);
   } catch (error: any) {
-    console.error('Error updating inquiry:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -579,7 +568,6 @@ router.delete('/inquiries/:id', async (req: Request, res: Response) => {
     });
     res.json({ success: true });
   } catch (error: any) {
-    console.error('Error deleting inquiry:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -658,7 +646,6 @@ router.post('/inquiries/:id/convert-to-quotation', async (req: Request, res: Res
 
     res.json(updatedQuotation);
   } catch (error: any) {
-    console.error('Error converting inquiry to quotation:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -696,7 +683,6 @@ router.get('/quotations', async (req: Request, res: Response) => {
 
     res.json(quotations);
   } catch (error: any) {
-    console.error('Error fetching quotations:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -727,7 +713,6 @@ router.get('/quotations/:id', async (req: Request, res: Response) => {
 
     res.json(quotation);
   } catch (error: any) {
-    console.error('Error fetching quotation:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -798,7 +783,6 @@ router.post('/quotations', async (req: Request, res: Response) => {
 
     res.json(updatedQuotation);
   } catch (error: any) {
-    console.error('Error creating quotation:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -875,7 +859,6 @@ router.put('/quotations/:id', async (req: Request, res: Response) => {
 
     res.json(updatedQuotation);
   } catch (error: any) {
-    console.error('Error updating quotation:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -889,7 +872,6 @@ router.delete('/quotations/:id', async (req: Request, res: Response) => {
     });
     res.json({ success: true });
   } catch (error: any) {
-    console.error('Error deleting quotation:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1139,7 +1121,6 @@ router.post('/quotations/:id/convert-to-invoice', async (req: Request, res: Resp
             salesPerson
           );
         } catch (voucherError: any) {
-          console.error('Error creating voucher for cash sale invoice:', voucherError);
         }
       }
     }
@@ -1158,7 +1139,6 @@ router.post('/quotations/:id/convert-to-invoice', async (req: Request, res: Resp
 
     res.json(updatedInvoice);
   } catch (error: any) {
-    console.error('Error converting quotation to invoice:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1215,7 +1195,6 @@ router.get('/invoices', async (req: Request, res: Response) => {
 
     res.json(filteredInvoices);
   } catch (error: any) {
-    console.error('Error fetching invoices:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1253,7 +1232,6 @@ router.get('/invoices/:id', async (req: Request, res: Response) => {
 
     res.json(invoice);
   } catch (error: any) {
-    console.error('Error fetching invoice:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1368,7 +1346,6 @@ router.get('/invoices/by-part/:partId', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching sales invoices by part:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1510,7 +1487,6 @@ router.post('/invoices', async (req: Request, res: Response) => {
 
       // If Sales Revenue account doesn't exist, try to find or create Revenue subgroup and account
       if (!salesRevenueAccount) {
-        console.log('⚠️  Sales Revenue account not found, attempting to find or create...');
         
         // Find Revenue main group
         const revenueMainGroup = await prisma.mainGroup.findFirst({
@@ -1566,7 +1542,6 @@ router.post('/invoices', async (req: Request, res: Response) => {
                 name: 'Sales Revenue',
               },
             });
-            console.log(`✅ Created Revenue subgroup: ${revenueSubgroup.code} - ${revenueSubgroup.name}`);
           }
 
           if (revenueSubgroup) {
@@ -1610,13 +1585,11 @@ router.post('/invoices', async (req: Request, res: Response) => {
                 },
               },
             });
-            console.log(`✅ Created Sales Revenue account: ${accountCode} - ${salesRevenueAccount.name}`);
           }
         }
       }
 
       if (!salesRevenueAccount) {
-        console.error('❌ Sales Revenue account not found and could not be created, skipping voucher creation');
       } else {
         // Generate JV voucher/journal entry number (must be unique across both tables)
         const jvVoucherNumber = await getNextNumberForPrefix({ prefix: 'JV', voucherType: 'journal' });
@@ -1695,7 +1668,6 @@ router.post('/invoices', async (req: Request, res: Response) => {
                   },
                 });
 
-                console.log(`✅ Created customer receivable account ${accountCode} for ${customer.name}`);
               }
             }
           }
@@ -1823,8 +1795,6 @@ router.post('/invoices', async (req: Request, res: Response) => {
             });
           }
 
-          console.log(`✅ Created journal entry ${jvVoucherNumber} for Invoice ${invoiceNo}`);
-
           // Create JV Voucher
           const jvVoucher = await prisma.voucher.create({
             data: {
@@ -1843,8 +1813,6 @@ router.post('/invoices', async (req: Request, res: Response) => {
               },
             },
           });
-
-          console.log(`✅ Created JV voucher ${jvVoucherNumber} for Invoice ${invoiceNo}`);
 
           // ========== RV VOUCHER CREATION (if accounts with amounts are selected) ==========
           const accountsToProcess: Array<{ id: string; name: string; amount: number }> = [];
@@ -1915,7 +1883,6 @@ router.post('/invoices', async (req: Request, res: Response) => {
               if (!isCashOrBank) {
                 const accountType = account.subgroup?.mainGroup?.type?.toLowerCase() || '';
                 if (accountType !== 'asset') {
-                  console.warn(`⚠️  Account ${account.name} is not Cash/Bank, skipping RV voucher`);
                   continue;
                 }
               }
@@ -2006,14 +1973,11 @@ router.post('/invoices', async (req: Request, res: Response) => {
                 },
               });
 
-              console.log(`✅ Created RV voucher ${rvVoucherNumber} for Invoice ${invoiceNo}, amount: ${accountInfo.amount}, account: ${account.name}`);
             } catch (rvError: any) {
-              console.error(`❌ Error creating RV voucher for account ${accountInfo.name}:`, rvError);
             }
           }
 
           if (accountsToProcess.length === 0) {
-            console.log(`ℹ️  No account with amount selected - Checking for CASH sale...`);
             
             // ========== CASH SALE RV VOUCHER CREATION ==========
             // For CASH sales (walking customer with accountId and paidAmount > 0), create RV voucher
@@ -2117,21 +2081,17 @@ router.post('/invoices', async (req: Request, res: Response) => {
                         data: { currentBalance: { increment: paidAmount } },
                       });
 
-                      console.log(`✅ Created RV voucher ${rvVoucherNumber} for CASH sale Invoice ${invoiceNo}, amount: ${paidAmount}`);
                     }
                   }
                 }
               } catch (rvError: any) {
-                console.error(`❌ Error creating RV voucher for CASH sale:`, rvError);
               }
             } else {
-              console.log(`ℹ️  Only JV voucher created. RV voucher will be created later when payment is received.`);
             }
           }
         }
       }
     } catch (voucherError: any) {
-      console.error('❌ Error creating vouchers for invoice:', voucherError);
       // Don't fail invoice creation if voucher creation fails
     }
 
@@ -2178,7 +2138,6 @@ router.post('/invoices', async (req: Request, res: Response) => {
 
     res.json(updatedInvoice);
   } catch (error: any) {
-    console.error('Error creating invoice:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2350,7 +2309,6 @@ router.put('/invoices/:id', async (req: Request, res: Response) => {
 
     res.json(updatedInvoice);
   } catch (error: any) {
-    console.error('Error updating invoice:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2656,14 +2614,11 @@ router.post('/invoices/:id/approve', async (req: Request, res: Response) => {
               },
             });
           } else {
-            console.warn(`⚠️  Skipping COGS voucher for ${invoice.invoiceNo}: computed totalCost=0`);
           }
         } else {
-          console.warn(`⚠️  Skipping COGS voucher for ${invoice.invoiceNo}: missing Inventory or COGS account`);
         }
       }
     } catch (costErr: any) {
-      console.error('❌ Error creating COGS voucher for approved invoice:', costErr);
       // Don't fail approval if cost voucher creation fails
     }
 
@@ -2680,7 +2635,6 @@ router.post('/invoices/:id/approve', async (req: Request, res: Response) => {
 
     res.json(updatedInvoice);
   } catch (error: any) {
-    console.error('Error approving invoice:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2824,7 +2778,6 @@ router.post('/invoices/:id/delivery', async (req: Request, res: Response) => {
 
     res.json(finalInvoice);
   } catch (error: any) {
-    console.error('Error recording delivery:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2928,7 +2881,6 @@ router.post('/invoices/:id/payment', async (req: Request, res: Response) => {
 
     res.json(updatedInvoice);
   } catch (error: any) {
-    console.error('Error recording payment:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2950,7 +2902,6 @@ router.post('/invoices/:id/hold', async (req: Request, res: Response) => {
 
     res.json(invoice);
   } catch (error: any) {
-    console.error('Error putting invoice on hold:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2990,7 +2941,6 @@ router.post('/invoices/:id/release-hold', async (req: Request, res: Response) =>
 
     res.json(updatedInvoice);
   } catch (error: any) {
-    console.error('Error releasing hold:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3072,7 +3022,6 @@ router.put('/invoices/:id/status', async (req: Request, res: Response) => {
 
     res.json(updatedInvoice);
   } catch (error: any) {
-    console.error('Error updating invoice status:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3140,7 +3089,6 @@ router.post('/invoices/:id/cancel', async (req: Request, res: Response) => {
 
     res.json(updatedInvoice);
   } catch (error: any) {
-    console.error('Error cancelling invoice:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3151,15 +3099,11 @@ router.post('/invoices/:id/cancel', async (req: Request, res: Response) => {
 router.get('/stock/reserved/:partId', async (req: Request, res: Response) => {
   try {
     const { partId } = req.params;
-    console.log(`🔍 API Call: GET /sales/stock/reserved/${partId}`);
-    console.log(`   Request received at: ${new Date().toISOString()}`);
     
     const reservedQty = await getReservedQuantity(partId);
     
-    console.log(`   ✅ Returning reservedQty: ${reservedQty} for partId: ${partId}`);
     res.json({ partId, reservedQty });
   } catch (error: any) {
-    console.error(`   ❌ Error fetching reserved quantity for partId=${req.params.partId}:`, error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3173,7 +3117,6 @@ router.get('/stock/available/:partId', async (req: Request, res: Response) => {
     const available = stock - reserved;
     res.json({ partId, stock, reserved, available });
   } catch (error: any) {
-    console.error('Error fetching available stock:', error);
     res.status(500).json({ error: error.message });
   }
 });

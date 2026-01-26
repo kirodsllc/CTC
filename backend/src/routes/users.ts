@@ -75,7 +75,6 @@ router.get('/', async (req, res) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching users:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -102,7 +101,6 @@ router.get('/:id', async (req, res) => {
 
     res.json({ data: { ...user, createdAt: user.createdAt.toISOString().split('T')[0] } });
   } catch (error: any) {
-    console.error('Error fetching user:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -176,7 +174,6 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({ data: { ...user, createdAt: user.createdAt.toISOString().split('T')[0] } });
   } catch (error: any) {
-    console.error('Error creating user:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -220,7 +217,6 @@ router.put('/:id', async (req, res) => {
 
     res.json({ data: { ...user, createdAt: user.createdAt.toISOString().split('T')[0] } });
   } catch (error: any) {
-    console.error('Error updating user:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -257,7 +253,6 @@ router.delete('/:id', async (req, res) => {
 
     res.json({ message: 'User deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting user:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'User not found' });
     }

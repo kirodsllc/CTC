@@ -159,6 +159,7 @@ model Rack {
   verificationItems        StockVerificationItem[]   @relation("VerificationItemsRack")
   transferItemsTo          TransferItem[]            @relation("TransferItemsToRack")
   transferItemsFrom        TransferItem[]            @relation("TransferItemsFromRack")
+  adjustmentItems          AdjustmentItem[]
 }
 
 model Shelf {
@@ -175,6 +176,7 @@ model Shelf {
   verificationItems        StockVerificationItem[]   @relation("VerificationItemsShelf")
   transferItemsTo          TransferItem[]            @relation("TransferItemsToShelf")
   transferItemsFrom        TransferItem[]            @relation("TransferItemsFromShelf")
+  adjustmentItems          AdjustmentItem[]
 
   @@unique([rackId, shelfNo])
 }
@@ -243,9 +245,12 @@ model Adjustment {
   addInventory Boolean          @default(true)
   notes        String?
   totalAmount  Float            @default(0)
+  status       String           @default("pending") // pending, approved
+  voucherId    String?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   store        Store?           @relation(fields: [storeId], references: [id])
+  voucher      Voucher?         @relation(fields: [voucherId], references: [id], onDelete: SetNull)
   items        AdjustmentItem[]
 }
 
@@ -256,9 +261,13 @@ model AdjustmentItem {
   quantity     Int
   cost         Float?
   notes        String?
+  rackId       String?
+  shelfId      String?
   createdAt    DateTime   @default(now())
   part         Part       @relation(fields: [partId], references: [id], onDelete: Cascade)
   adjustment   Adjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
+  rack         Rack?      @relation(fields: [rackId], references: [id], onDelete: SetNull)
+  shelf        Shelf?     @relation(fields: [shelfId], references: [id], onDelete: SetNull)
 }
 
 model PurchaseOrder {
@@ -758,6 +767,7 @@ model Voucher {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   entries         VoucherEntry[]
+  adjustments     Adjustment[]
 }
 
 model VoucherEntry {

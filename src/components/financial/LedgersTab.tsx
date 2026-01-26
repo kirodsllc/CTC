@@ -62,7 +62,6 @@ export const LedgersTab = () => {
           setAccounts(response.data.accounts || []);
         }
       } catch (error) {
-        console.error('Error fetching account groups:', error);
       }
     };
     fetchAccountGroups();

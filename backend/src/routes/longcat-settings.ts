@@ -27,7 +27,6 @@ router.get('/', async (req, res) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching LongCat settings:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -67,7 +66,6 @@ router.put('/', async (req, res) => {
       },
     });
   } catch (error: any) {
-    console.error('Error updating LongCat settings:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -148,7 +146,6 @@ router.post('/chat', async (req, res) => {
       }
     } catch (e) {
       const text = await response.text();
-      console.error('LongCat API response (not JSON):', text);
       return res.status(500).json({ 
         error: 'Invalid response from LongCat API',
         details: text 
@@ -167,7 +164,6 @@ router.post('/chat', async (req, res) => {
       data: responseData,
     });
   } catch (error: any) {
-    console.error('Error sending chat request to LongCat:', error);
     res.status(500).json({ error: error.message || 'Failed to send chat request to LongCat API' });
   }
 });
@@ -250,7 +246,6 @@ router.post('/messages', async (req, res) => {
       }
     } catch (e) {
       const text = await response.text();
-      console.error('LongCat API response (not JSON):', text);
       return res.status(500).json({ 
         error: 'Invalid response from LongCat API',
         details: text 
@@ -269,7 +264,6 @@ router.post('/messages', async (req, res) => {
       data: responseData,
     });
   } catch (error: any) {
-    console.error('Error sending message request to LongCat:', error);
     res.status(500).json({ error: error.message || 'Failed to send message request to LongCat API' });
   }
 });

@@ -190,7 +190,6 @@ export const StoreEditSalesInvoice = ({ invoice, open, onOpenChange, onSuccess }
         }
       }
     } catch (error: any) {
-      console.error("Error loading invoice data:", error);
       toast.error("Failed to load invoice details");
     }
   };
@@ -210,7 +209,6 @@ export const StoreEditSalesInvoice = ({ invoice, open, onOpenChange, onSuccess }
       // Fetch parts
       fetchParts();
     } catch (error: any) {
-      console.error("Error fetching dropdown data:", error);
     }
   };
 
@@ -254,7 +252,6 @@ export const StoreEditSalesInvoice = ({ invoice, open, onOpenChange, onSuccess }
         );
       }
     } catch (error: any) {
-      console.error("Error fetching parts:", error);
     } finally {
       setPartsLoading(false);
     }
@@ -381,7 +378,6 @@ export const StoreEditSalesInvoice = ({ invoice, open, onOpenChange, onSuccess }
         onSuccess();
       }
     } catch (error: any) {
-      console.error("Error updating invoice:", error);
       toast.error(error.error || "Failed to update invoice");
     } finally {
       setLoading(false);

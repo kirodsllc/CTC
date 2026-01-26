@@ -22,7 +22,6 @@ const ItemsList = () => {
         const kitsData = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : [];
         setKits(kitsData);
       } catch (error: any) {
-        console.error("Error fetching kits:", error);
         toast({
           title: "Error",
           description: error.message || "Failed to fetch kits",

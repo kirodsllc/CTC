@@ -112,10 +112,8 @@ export const TrialBalanceTab = () => {
         });
       } else {
         const errorText = await response.text();
-        console.error("Failed to fetch trial balance:", response.status, response.statusText, errorText);
       }
     } catch (error) {
-      console.error("Error fetching trial balance:", error);
     } finally {
       setLoading(false);
     }

@@ -153,7 +153,6 @@ export const AdjustItem = () => {
     try {
       const response: any = await apiClient.getStores();
       if (response.error) {
-        console.error('Error fetching stores:', response.error);
         toast.error(`Error fetching stores: ${response.error}`);
         return;
       }
@@ -165,11 +164,9 @@ export const AdjustItem = () => {
           label: s.name || `${s.code || ''} - ${s.name || ''}`.trim() || 'Unnamed Store'
         })));
       } else {
-        console.warn('No stores found or invalid response format:', storesData);
         setStores([]);
       }
     } catch (error: any) {
-      console.error('Error fetching stores:', error);
       toast.error(`Error fetching stores: ${error.message || error}`);
     }
   };
@@ -183,13 +180,11 @@ export const AdjustItem = () => {
       ]);
 
       if (partsResponse.error) {
-        console.error('Error fetching parts:', partsResponse.error);
         toast.error(`Error fetching parts: ${partsResponse.error}`);
         return;
       }
 
       if (balancesResponse.error) {
-        console.error('Error fetching balances:', balancesResponse.error);
         // Don't show error for balances, just continue without them
       }
 
@@ -198,7 +193,6 @@ export const AdjustItem = () => {
       const balancesData = balancesResponse.data || balancesResponse || [];
 
       if (!Array.isArray(partsData)) {
-        console.error('Invalid parts response format:', partsData);
         return;
       }
 
@@ -234,7 +228,6 @@ export const AdjustItem = () => {
         };
       }));
     } catch (error: any) {
-      console.error('Error fetching parts:', error);
       toast.error(`Error fetching parts: ${error.message || error}`);
     }
   };

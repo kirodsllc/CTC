@@ -22,7 +22,6 @@ export const exportToCSV = (data: any[], headers: string[], filename: string) =>
     URL.revokeObjectURL(url);
     return true;
   } catch (error) {
-    console.error("Export error:", error);
     return false;
   }
 };
@@ -50,7 +49,6 @@ export const exportTableToCSV = (tableId: string, filename: string) => {
     URL.revokeObjectURL(url);
     return true;
   } catch (error) {
-    console.error("Export error:", error);
     return false;
   }
 };

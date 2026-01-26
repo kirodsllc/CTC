@@ -79,7 +79,6 @@ interface DeliveryChallanType {
   deliveryNotes: string;
 }
 
-
 export const DeliveryChallan = () => {
   const [challans, setChallans] = useState<DeliveryChallanType[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -150,7 +149,6 @@ export const DeliveryChallan = () => {
           setChallans(JSON.parse(storedChallans));
         }
       } catch (error: any) {
-        console.error('Error fetching challans:', error);
         toast({
           title: "Error",
           description: "Failed to load delivery challans",
@@ -176,7 +174,6 @@ export const DeliveryChallan = () => {
         });
 
         if (response.error) {
-          console.error('Error fetching parts:', response.error);
           return;
         }
 
@@ -200,7 +197,6 @@ export const DeliveryChallan = () => {
 
         setAvailableParts(transformedParts);
       } catch (error: any) {
-        console.error('Error fetching parts:', error);
       } finally {
         setLoadingParts(false);
       }
@@ -1089,7 +1085,6 @@ export const DeliveryChallan = () => {
           )}
         </>
       )}
-
 
       {/* Dispatch Dialog */}
       <Dialog open={isDispatchOpen} onOpenChange={setIsDispatchOpen}>

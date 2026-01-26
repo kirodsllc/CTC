@@ -157,7 +157,6 @@ router.get('/general-journal', async (req: Request, res: Response) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching general journal:', error);
     res.status(500).json({ error: 'Failed to fetch general journal entries' });
   }
 });
@@ -366,7 +365,6 @@ router.get('/trial-balance', async (req: Request, res: Response) => {
     
     res.json({ data: trialBalance });
   } catch (error) {
-    console.error('Error fetching trial balance:', error);
     res.status(500).json({ error: 'Failed to fetch trial balance' });
   }
 });
@@ -485,7 +483,6 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching balance sheet:', error);
     res.status(500).json({ error: 'Failed to fetch balance sheet' });
   }
 });
@@ -597,7 +594,6 @@ router.get('/income-statement', async (req: Request, res: Response) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching income statement:', error);
     res.status(500).json({ error: 'Failed to fetch income statement' });
   }
 });
@@ -806,7 +802,6 @@ router.get('/ledgers', async (req: Request, res: Response) => {
       }
     });
   } catch (error: any) {
-    console.error('Error fetching ledgers:', error);
     res.status(500).json({ error: error.message || 'Failed to fetch ledger entries' });
   }
 });
@@ -848,7 +843,6 @@ router.get('/account-groups', async (req: Request, res: Response) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching account groups:', error);
     res.status(500).json({ error: 'Failed to fetch account groups' });
   }
 });

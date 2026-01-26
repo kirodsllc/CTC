@@ -34,8 +34,5 @@ app.get('/test', (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Test server is running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🧪 Test endpoint: http://localhost:${PORT}/test`);
 });
 

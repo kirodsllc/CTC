@@ -90,7 +90,6 @@ export const StockInOut = () => {
         ]);
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
     }
   };
 
@@ -105,7 +104,6 @@ export const StockInOut = () => {
         ]);
       }
     } catch (error) {
-      console.error('Error fetching sub categories:', error);
     }
   };
 
@@ -126,7 +124,6 @@ export const StockInOut = () => {
         }));
       }
     } catch (error) {
-      console.error('Error fetching parts:', error);
     }
   };
 
@@ -230,41 +227,11 @@ export const StockInOut = () => {
           const firstPartId = firstMovement.part_id;
           const firstPartData = partDataMap.get(firstPartId);
           
-          console.log('🔍 Stock In/Out Debug - Frontend:', {
-            totalMovements: filteredMovements.length,
-            uniqueParts: partDataMap.size,
-            samplePartId: firstPartId,
-            samplePartNo: firstMovement.part_no,
-            rawMovementData: {
-              part_id: firstMovement.part_id,
-              reserved_quantity: firstMovement.reserved_quantity,
-              current_stock: firstMovement.current_stock,
-              available_quantity: firstMovement.available_quantity,
-              quantity: firstMovement.quantity,
-              type: firstMovement.type
-            },
-            processedPartData: firstPartData,
-            allFields: Object.keys(firstMovement)
-          });
           
           // Check if values are actually 0 or missing
           if ((firstMovement.reserved_quantity === undefined || firstMovement.reserved_quantity === null) &&
               (firstMovement.current_stock === undefined || firstMovement.current_stock === null)) {
-            console.error('❌ CRITICAL: API is not returning reserved_quantity or current_stock fields!');
-            console.error('   Full movement object:', JSON.stringify(firstMovement, null, 2));
-            console.error('   API Response structure:', {
-              isArray: Array.isArray(movementsData),
-              dataLength: movementsData?.length,
-              firstItemKeys: movementsData?.[0] ? Object.keys(movementsData[0]) : 'no data',
-              responseStructure: typeof response,
-              responseKeys: response ? Object.keys(response) : 'no response'
-            });
           } else {
-            console.log('✅ API is returning the fields, values:', {
-              reserved_quantity: firstMovement.reserved_quantity,
-              current_stock: firstMovement.current_stock,
-              available_quantity: firstMovement.available_quantity
-            });
           }
         }
         
@@ -331,12 +298,10 @@ export const StockInOut = () => {
         setTotalItems(totalMovements - stockReservationCount);
       } else {
         // No data or invalid format
-        console.warn('⚠️ No valid movements data found. Response:', response);
         setItems([]);
         setTotalItems(0);
       }
     } catch (error: any) {
-      console.error('Error fetching stock movements:', error);
       toast.error(error.message || 'Failed to fetch stock movements');
     } finally {
       setLoading(false);
@@ -451,7 +416,6 @@ export const StockInOut = () => {
       }
       return [];
     } catch (error: any) {
-      console.error('Error fetching all movements:', error);
       toast.error(error.message || 'Failed to fetch movements for report');
       return [];
     }
@@ -680,7 +644,6 @@ export const StockInOut = () => {
       }, 250);
     } catch (error: any) {
       toast.dismiss();
-      console.error('Error generating report:', error);
       toast.error(error.message || 'Failed to generate report');
     }
   };
@@ -774,7 +737,6 @@ export const StockInOut = () => {
       toast.success('Excel file downloaded successfully');
     } catch (error: any) {
       toast.dismiss();
-      console.error('Error generating Excel file:', error);
       toast.error(error.message || 'Failed to generate Excel file');
     }
   };

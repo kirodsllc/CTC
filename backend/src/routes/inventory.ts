@@ -250,7 +250,6 @@ router.get('/dashboard', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching dashboard stats:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -324,16 +323,13 @@ router.get('/movements', async (req: Request, res: Response) => {
     const partIdsSet = new Set(movements.map(m => m.partId));
     const partIds = Array.from(partIdsSet);
     
-    console.log(`🔍 DEBUG: Processing ${movements.length} movements for ${partIds.length} unique parts`);
     
     // Initialize with empty objects if no parts
     const reservedByPart: Record<string, number> = {};
     const stockBalanceByPart: Record<string, number> = {};
     
     if (partIds.length === 0) {
-      console.log('⚠️ No parts found in movements');
     } else {
-      console.log(`🔍 DEBUG: Calculating stock for parts: ${partIds.slice(0, 3).join(', ')}...`);
       // Get reservations from StockMovement (new method)
       const stockMovementReservations = await prisma.stockMovement.findMany({
         where: {
@@ -388,14 +384,11 @@ router.get('/movements', async (req: Request, res: Response) => {
       });
 
       // Debug logging
-      console.log(`📊 Stock Balance Calculation for ${partIds.length} parts:`);
-      console.log(`   Total movements processed: ${allMovements.length}`);
       partIds.slice(0, 5).forEach(partId => {
         const stock = stockBalanceByPart[partId] || 0;
         const reserved = reservedByPart[partId] || 0;
         const available = Math.max(0, stock - reserved);
         const part = movements.find(m => m.partId === partId);
-        console.log(`   Part ${partId} (${part?.part.partNo || 'N/A'}): Stock=${stock}, Reserved=${reserved}, Available=${available}`);
       });
     }
 
@@ -406,7 +399,6 @@ router.get('/movements', async (req: Request, res: Response) => {
         
         // Debug: Log first few movements - ALWAYS log to diagnose
         if (movements.indexOf(m) < 5) {
-          console.log(`📦 Movement ${m.id} (Part: ${m.part.partNo}): Stock=${currentStock}, Reserved=${reservedQty}, Available=${availableQty}`);
         }
         
         const movementData = {
@@ -435,12 +427,6 @@ router.get('/movements', async (req: Request, res: Response) => {
         
         // Verify data is being set correctly
         if (movements.indexOf(m) === 0) {
-          console.log(`✅ First movement response data:`, {
-            part_no: movementData.part_no,
-            reserved_quantity: movementData.reserved_quantity,
-            current_stock: movementData.current_stock,
-            available_quantity: movementData.available_quantity
-          });
         }
         
         return movementData;
@@ -449,13 +435,6 @@ router.get('/movements', async (req: Request, res: Response) => {
     // CRITICAL DEBUG: Verify responseData has the fields before sending
     if (responseData.length > 0) {
       const firstItem = responseData[0];
-      console.log('🔍 FINAL RESPONSE CHECK - First item keys:', Object.keys(firstItem));
-      console.log('🔍 FINAL RESPONSE CHECK - First item values:', {
-        part_no: firstItem.part_no,
-        reserved_quantity: firstItem.reserved_quantity,
-        current_stock: firstItem.current_stock,
-        available_quantity: firstItem.available_quantity
-      });
     }
 
     res.json({
@@ -468,7 +447,6 @@ router.get('/movements', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching stock movements:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -527,7 +505,6 @@ router.post('/movements', async (req: Request, res: Response) => {
       created_at: movement.createdAt,
     });
   } catch (error: any) {
-    console.error('Error creating stock movement:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -571,7 +548,6 @@ router.get('/balance/:partId', async (req: Request, res: Response) => {
       is_out_of_stock: currentStock <= 0,
     });
   } catch (error: any) {
-    console.error('Error fetching stock balance:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -676,7 +652,6 @@ router.get('/balances', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching stock balances:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -841,7 +816,6 @@ router.get('/stock-analysis', async (req: Request, res: Response) => {
       data: results,
     });
   } catch (error: any) {
-    console.error('Error fetching stock analysis:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1020,7 +994,6 @@ router.get('/stock-balance-valuation', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching stock balance valuation:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1094,7 +1067,6 @@ router.get('/transfers', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching transfers:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1150,7 +1122,6 @@ router.post('/transfers', async (req: Request, res: Response) => {
       items_count: transfer.items.length,
     });
   } catch (error: any) {
-    console.error('Error creating transfer:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1223,7 +1194,6 @@ router.get('/transfers/:id', async (req: Request, res: Response) => {
       created_at: transfer.createdAt,
     });
   } catch (error: any) {
-    console.error('Error fetching transfer:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1287,7 +1257,6 @@ router.put('/transfers/:id', async (req: Request, res: Response) => {
       items_count: transfer.items.length,
     });
   } catch (error: any) {
-    console.error('Error updating transfer:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1306,7 +1275,6 @@ router.delete('/transfers/:id', async (req: Request, res: Response) => {
 
     res.json({ message: 'Transfer deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting transfer:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1314,7 +1282,7 @@ router.delete('/transfers/:id', async (req: Request, res: Response) => {
 // Get adjustments
 router.get('/adjustments', async (req: Request, res: Response) => {
   try {
-    const { from_date, to_date, page = '1', limit = '50' } = req.query;
+    const { from_date, to_date, status, page = '1', limit = '50' } = req.query;
 
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
@@ -1329,6 +1297,10 @@ router.get('/adjustments', async (req: Request, res: Response) => {
       if (to_date) {
         where.date.lte = new Date(to_date as string);
       }
+    }
+
+    if (status && status !== 'all') {
+      where.status = status;
     }
 
     const [adjustments, total] = await Promise.all([
@@ -1355,19 +1327,53 @@ router.get('/adjustments', async (req: Request, res: Response) => {
       prisma.adjustment.count({ where }),
     ]);
 
+    // Fetch vouchers separately
+    const voucherIds = adjustments.map((a: any) => a.voucherId).filter(Boolean);
+    const vouchers = voucherIds.length > 0 ? await prisma.voucher.findMany({
+      where: { id: { in: voucherIds } },
+      select: {
+        id: true,
+        voucherNumber: true,
+        status: true,
+      },
+    }) : [];
+    const voucherMap = new Map(vouchers.map(v => [v.id, v]));
+
     res.json({
-      data: adjustments.map(a => ({
-        id: a.id,
-        date: a.date,
-        subject: a.subject,
-        store_id: a.storeId,
-        store_name: a.store?.name || null,
-        add_inventory: a.addInventory,
-        notes: a.notes,
-        total_amount: a.totalAmount,
-        items_count: a.items.length,
-        created_at: a.createdAt,
-      })),
+      data: adjustments.map((a: any) => {
+        const voucher = a.voucherId ? voucherMap.get(a.voucherId) : null;
+        return {
+          id: a.id,
+          date: a.date,
+          subject: a.subject,
+          store_id: a.storeId,
+          store_name: a.store?.name || null,
+          add_inventory: a.addInventory,
+          notes: a.notes,
+          total_amount: a.totalAmount,
+          status: a.status,
+          voucher_id: a.voucherId,
+          voucher_number: voucher?.voucherNumber || null,
+          voucher_status: voucher?.status || null,
+          items_count: a.items.length,
+          items: a.items.map((item: any) => ({
+            id: item.id,
+            part_id: item.partId,
+            part_no: item.part.partNo,
+            part_description: item.part.description,
+            brand: item.part.brand?.name || '',
+            quantity: item.quantity,
+            cost: item.cost,
+            notes: item.notes,
+            rack_id: item.rackId,
+            rack_code: item.rack?.codeNo || null,
+            shelf_id: item.shelfId,
+            shelf_no: item.shelf?.shelfNo || null,
+          })),
+          created_at: a.createdAt,
+          updated_at: a.updatedAt,
+        };
+      }),
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -1376,7 +1382,6 @@ router.get('/adjustments', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching adjustments:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1397,6 +1402,189 @@ router.post('/adjustments', async (req: Request, res: Response) => {
       return sum + (cost * qty);
     }, 0);
 
+    // Fetch adjustment items with part details for voucher description
+    const parts = await prisma.part.findMany({
+      where: {
+        id: { in: items.map((item: any) => item.part_id) },
+      },
+      include: {
+        brand: true,
+      },
+    });
+
+    const partMap = new Map(parts.map(p => [p.id, p]));
+
+    // Build voucher description from items
+    const itemDescriptions = items.map((item: any) => {
+      const part = partMap.get(item.part_id);
+      const partInfo = part 
+        ? `${part.partNo}/${part.description || ''}/${part.brand?.name || ''}/${part.partNo}`
+        : `Part ${item.part_id}`;
+      return `Item: ${partInfo} is ${add_inventory !== false ? 'added' : 'remove'} from Adjust Inventory, Qty:${item.quantity}, Rate: ${item.cost || 0}`;
+    }).join('; ');
+
+    // Find required accounts
+    const inventoryAccount = await prisma.account.findFirst({
+      where: {
+        OR: [
+          { code: '101001' }, // Inventory
+          { code: '104005' }, // Inventory - General (fallback)
+          { code: '104001' }, // Raw Materials (fallback)
+        ],
+        status: 'Active',
+      },
+      include: {
+        subgroup: { include: { mainGroup: true } },
+      },
+    });
+
+    if (!inventoryAccount) {
+      return res.status(400).json({ error: 'Inventory account (101001) not found. Please create it first.' });
+    }
+
+    let secondAccount;
+    if (add_inventory !== false) {
+      // Quantity increase: Credit Owner Equity (501003)
+      secondAccount = await prisma.account.findFirst({
+        where: {
+          code: '501003',
+          status: 'Active',
+        },
+        include: {
+          subgroup: { include: { mainGroup: true } },
+        },
+      });
+
+      if (!secondAccount) {
+        // Try to create Owner Capital account
+        const capitalSubgroup = await prisma.subgroup.findFirst({
+          where: { code: '501' },
+        });
+
+        if (capitalSubgroup) {
+          secondAccount = await prisma.account.create({
+            data: {
+              code: '501003',
+              name: 'OWNER CAPITAL',
+              description: 'Owner Capital account for inventory adjustments',
+              openingBalance: 0,
+              currentBalance: 0,
+              status: 'Active',
+              subgroupId: capitalSubgroup.id,
+            },
+            include: {
+              subgroup: { include: { mainGroup: true } },
+            },
+          });
+        } else {
+          return res.status(400).json({ error: 'Owner Capital account (501003) not found and cannot be created. Please create subgroup 501 first.' });
+        }
+      }
+    } else {
+      // Quantity decrease: Debit Dispose Inventory (801014)
+      secondAccount = await prisma.account.findFirst({
+        where: {
+          code: '801014',
+          status: 'Active',
+        },
+        include: {
+          subgroup: { include: { mainGroup: true } },
+        },
+      });
+
+      if (!secondAccount) {
+        // Try to create Dispose Inventory account
+        const expenseSubgroup = await prisma.subgroup.findFirst({
+          where: { code: '801' },
+        });
+
+        if (expenseSubgroup) {
+          secondAccount = await prisma.account.create({
+            data: {
+              code: '801014',
+              name: 'Dispose Inventory',
+              description: 'Dispose Inventory expense account for inventory adjustments',
+              openingBalance: 0,
+              currentBalance: 0,
+              status: 'Active',
+              subgroupId: expenseSubgroup.id,
+            },
+            include: {
+              subgroup: { include: { mainGroup: true } },
+            },
+          });
+        } else {
+          return res.status(400).json({ error: 'Dispose Inventory account (801014) not found and cannot be created. Please create subgroup 801 first.' });
+        }
+      }
+    }
+
+    // Generate JV voucher number
+    const voucherCount = await prisma.voucher.count({
+      where: { type: 'journal' },
+    });
+    const jvNumber = voucherCount + 1;
+    const voucherNumber = `JV${String(jvNumber).padStart(4, '0')}`;
+
+    // Prepare voucher entries
+    const voucherEntries = [];
+    
+    if (add_inventory !== false) {
+      // Quantity increase: Debit Inventory, Credit Owner Equity
+      voucherEntries.push({
+        accountId: inventoryAccount.id,
+        accountName: `${inventoryAccount.code}-${inventoryAccount.name}`,
+        description: itemDescriptions,
+        debit: totalAmount,
+        credit: 0,
+        sortOrder: 0,
+      });
+      voucherEntries.push({
+        accountId: secondAccount.id,
+        accountName: `${secondAccount.code}-${secondAccount.name}`,
+        description: `Add Adjust Inventory:`,
+        debit: 0,
+        credit: totalAmount,
+        sortOrder: 1,
+      });
+    } else {
+      // Quantity decrease: Debit Dispose Inventory, Credit Inventory
+      voucherEntries.push({
+        accountId: secondAccount.id,
+        accountName: `${secondAccount.code}-${secondAccount.name}`,
+        description: `Dispose Adjust Inventory:`,
+        debit: totalAmount,
+        credit: 0,
+        sortOrder: 0,
+      });
+      voucherEntries.push({
+        accountId: inventoryAccount.id,
+        accountName: `${inventoryAccount.code}-${inventoryAccount.name}`,
+        description: itemDescriptions,
+        debit: 0,
+        credit: totalAmount,
+        sortOrder: 1,
+      });
+    }
+
+    // Create pending voucher (status: draft)
+    const voucher = await prisma.voucher.create({
+      data: {
+        voucherNumber,
+        type: 'journal',
+        date: new Date(date),
+        narration: `Adjust Inventory: ${subject || 'Stock adjustment'}`,
+        totalDebit: totalAmount,
+        totalCredit: totalAmount,
+        status: 'draft', // Pending - will be approved when store manager updates
+        createdBy: 'System',
+        entries: {
+          create: voucherEntries,
+        },
+      },
+    });
+
+    // Create adjustment with status "pending" and link voucher
     const adjustment = await prisma.adjustment.create({
       data: {
         date: new Date(date),
@@ -1405,15 +1593,18 @@ router.post('/adjustments', async (req: Request, res: Response) => {
         addInventory: add_inventory !== false,
         notes: notes || null,
         totalAmount: totalAmount,
+        status: 'pending', // Pending - will be approved when store manager updates
+        voucherId: voucher.id,
         items: {
           create: items.map((item: any) => ({
             partId: item.part_id,
             quantity: item.quantity,
             cost: item.cost || null,
             notes: item.notes || null,
+            // rackId and shelfId will be assigned by store manager
           })),
         },
-      },
+      } as any,
       include: {
         items: {
           include: {
@@ -1421,32 +1612,129 @@ router.post('/adjustments', async (req: Request, res: Response) => {
           },
         },
       },
-    });
+    }) as any;
 
-    // Create stock movements for adjustment
-    for (const item of items) {
-      await prisma.stockMovement.create({
-        data: {
-          partId: item.part_id,
-          type: add_inventory !== false ? 'in' : 'out',
-          quantity: item.quantity,
-          storeId: store_id || null,
-          referenceType: 'adjustment',
-          referenceId: adjustment.id,
-          notes: `Adjustment: ${subject || 'Stock adjustment'}`,
-        },
-      });
-    }
+    // NOTE: Stock movements are NOT created here - they will be created when store manager approves
 
     res.status(201).json({
       id: adjustment.id,
       date: adjustment.date,
       subject: adjustment.subject,
       total_amount: adjustment.totalAmount,
-      items_count: adjustment.items.length,
+      items_count: (adjustment as any).items.length,
+      status: (adjustment as any).status,
+      voucher_id: (adjustment as any).voucherId,
+      voucher_number: voucher.voucherNumber,
     });
   } catch (error: any) {
-    console.error('Error creating adjustment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get adjustments by store
+router.get('/adjustments/by-store', async (req: Request, res: Response) => {
+  try {
+    const { store_id, status, page = '1', limit = '50' } = req.query;
+
+    if (!store_id) {
+      return res.status(400).json({ error: 'store_id is required' });
+    }
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: any = {
+      storeId: store_id as string,
+    };
+
+    if (status && status !== 'all') {
+      where.status = status;
+    }
+
+    const [adjustments, total] = await Promise.all([
+      prisma.adjustment.findMany({
+        where,
+        include: {
+          store: true,
+          items: {
+            include: {
+              part: {
+                include: {
+                  brand: true,
+                  category: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip,
+        take: limitNum,
+      }),
+      prisma.adjustment.count({ where }),
+    ]);
+
+    // Fetch vouchers separately
+    const adjustmentIds = adjustments.map((a: any) => a.id);
+    const vouchers = await prisma.voucher.findMany({
+      where: {
+        id: { in: adjustments.map((a: any) => a.voucherId).filter(Boolean) },
+      },
+      select: {
+        id: true,
+        voucherNumber: true,
+        status: true,
+      },
+    });
+    const voucherMap = new Map(vouchers.map(v => [v.id, v]));
+
+    res.json({
+      data: adjustments.map((a: any) => {
+        const voucher = a.voucherId ? voucherMap.get(a.voucherId) : null;
+        return {
+          id: a.id,
+          date: a.date,
+          subject: a.subject,
+          store_id: a.storeId,
+          store_name: a.store?.name || null,
+          add_inventory: a.addInventory,
+          notes: a.notes,
+          total_amount: a.totalAmount,
+          status: a.status,
+          voucher_id: a.voucherId,
+          voucher_number: voucher?.voucherNumber || null,
+          voucher_status: voucher?.status || null,
+          items: a.items.map((item: any) => ({
+            id: item.id,
+          part_id: item.partId,
+          part_no: item.part.partNo,
+          part_description: item.part.description,
+          brand: item.part.brand?.name || '',
+          category: item.part.category?.name || '',
+          quantity: item.quantity,
+          cost: item.cost,
+          notes: item.notes,
+          rack_id: item.rackId,
+          rack_code: item.rack?.codeNo || null,
+          shelf_id: item.shelfId,
+          shelf_no: item.shelf?.shelfNo || null,
+        })),
+        items_count: a.items.length,
+        created_at: a.createdAt,
+        updated_at: a.updatedAt,
+        };
+      }),
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
@@ -1471,11 +1759,21 @@ router.get('/adjustments/:id', async (req: Request, res: Response) => {
           },
         },
       },
-    });
+    }) as any;
 
     if (!adjustment) {
       return res.status(404).json({ error: 'Adjustment not found' });
     }
+
+    // Fetch voucher separately
+    const voucher = adjustment.voucherId ? await prisma.voucher.findUnique({
+      where: { id: adjustment.voucherId },
+      select: {
+        id: true,
+        voucherNumber: true,
+        status: true,
+      },
+    }) : null;
 
     res.json({
       id: adjustment.id,
@@ -1486,7 +1784,11 @@ router.get('/adjustments/:id', async (req: Request, res: Response) => {
       add_inventory: adjustment.addInventory,
       notes: adjustment.notes,
       total_amount: adjustment.totalAmount,
-      items: adjustment.items.map(item => ({
+      status: adjustment.status,
+      voucher_id: adjustment.voucherId,
+      voucher_number: voucher?.voucherNumber || null,
+      voucher_status: voucher?.status || null,
+      items: adjustment.items.map((item: any) => ({
         id: item.id,
         part_id: item.partId,
         part_no: item.part.partNo,
@@ -1496,11 +1798,15 @@ router.get('/adjustments/:id', async (req: Request, res: Response) => {
         quantity: item.quantity,
         cost: item.cost,
         notes: item.notes,
+        rack_id: item.rackId,
+        rack_code: item.rack?.codeNo || null,
+        shelf_id: item.shelfId,
+        shelf_no: item.shelf?.shelfNo || null,
       })),
       created_at: adjustment.createdAt,
+      updated_at: adjustment.updatedAt,
     });
   } catch (error: any) {
-    console.error('Error fetching adjustment:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1553,7 +1859,7 @@ router.put('/adjustments/:id', async (req: Request, res: Response) => {
             })),
           },
         }),
-      },
+      } as any,
       include: {
         items: {
           include: {
@@ -1561,7 +1867,7 @@ router.put('/adjustments/:id', async (req: Request, res: Response) => {
           },
         },
       },
-    });
+    }) as any;
 
     // Create new stock movements for adjustment
     if (items) {
@@ -1588,7 +1894,199 @@ router.put('/adjustments/:id', async (req: Request, res: Response) => {
       items_count: adjustment.items.length,
     });
   } catch (error: any) {
-    console.error('Error updating adjustment:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Approve adjustment (assign rack/shelf and approve)
+router.put('/adjustments/:id/approve', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { items } = req.body; // Array of { id, rack_id?, shelf_id? }
+
+    // Fetch adjustment with voucher and items
+    const adjustment = await prisma.adjustment.findUnique({
+      where: { id },
+      include: {
+        items: {
+          include: {
+            part: true,
+          },
+        },
+        store: true,
+      },
+    }) as any;
+
+    // Fetch voucher separately
+    const voucher = adjustment?.voucherId ? await prisma.voucher.findUnique({
+      where: { id: adjustment.voucherId },
+      include: {
+        entries: {
+          include: {
+            account: {
+              include: {
+                subgroup: {
+                  include: {
+                    mainGroup: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }) : null;
+
+    if (adjustment) {
+      adjustment.voucher = voucher;
+    }
+
+    if (!adjustment) {
+      return res.status(404).json({ error: 'Adjustment not found' });
+    }
+
+    if (adjustment.status === 'approved') {
+      return res.status(400).json({ error: 'Adjustment is already approved' });
+    }
+
+    if (!adjustment.voucher) {
+      return res.status(400).json({ error: 'Voucher not found for this adjustment' });
+    }
+
+    // Update adjustment items with rack/shelf assignments
+    if (items && Array.isArray(items)) {
+      for (const itemUpdate of items) {
+        await prisma.adjustmentItem.update({
+          where: { id: itemUpdate.id },
+          data: {
+            rackId: itemUpdate.rack_id || null,
+            shelfId: itemUpdate.shelf_id || null,
+          } as any,
+        });
+      }
+    }
+
+    // Create stock movements with rack/shelf
+    for (const item of adjustment.items) {
+      // Find the rack/shelf from the update request
+      const itemUpdate = items?.find((i: any) => i.id === item.id);
+      
+      await prisma.stockMovement.create({
+        data: {
+          partId: item.partId,
+          type: adjustment.addInventory ? 'in' : 'out',
+          quantity: item.quantity,
+          storeId: adjustment.storeId || null,
+          rackId: itemUpdate?.rack_id || null,
+          shelfId: itemUpdate?.shelf_id || null,
+          referenceType: 'adjustment',
+          referenceId: adjustment.id,
+          notes: `Adjustment: ${adjustment.subject || 'Stock adjustment'}`,
+        },
+      });
+    }
+
+    // Auto-approve voucher (draft -> posted)
+    const updatedVoucher = await prisma.voucher.update({
+      where: { id: adjustment.voucherId! },
+      data: {
+        status: 'posted',
+        approvedBy: 'Store Manager',
+        approvedAt: new Date(),
+      },
+      include: {
+        entries: {
+          include: {
+            account: {
+              include: {
+                subgroup: {
+                  include: {
+                    mainGroup: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Update account balances
+    for (const entry of updatedVoucher.entries) {
+      if (!entry.accountId || !entry.account) {
+        continue;
+      }
+
+      const accountType = entry.account.subgroup.mainGroup.type.toLowerCase();
+      const balanceChange = (accountType === 'asset' || accountType === 'expense' || accountType === 'cost')
+        ? (entry.debit - entry.credit)
+        : (entry.credit - entry.debit);
+
+      await prisma.account.update({
+        where: { id: entry.accountId },
+        data: {
+          currentBalance: {
+            increment: balanceChange,
+          },
+        },
+      });
+    }
+
+    // Update adjustment status to approved
+    const updatedAdjustment = await prisma.adjustment.update({
+      where: { id },
+      data: {
+        status: 'approved',
+      } as any,
+      include: {
+        items: {
+          include: {
+            part: {
+              include: {
+                brand: true,
+              },
+            },
+          },
+        },
+      },
+    }) as any;
+
+    // Fetch voucher separately
+    const updatedVoucherInfo = updatedAdjustment.voucherId ? await prisma.voucher.findUnique({
+      where: { id: updatedAdjustment.voucherId },
+      select: {
+        id: true,
+        voucherNumber: true,
+        status: true,
+      },
+    }) : null;
+
+    updatedAdjustment.voucher = updatedVoucherInfo;
+
+    res.json({
+      id: updatedAdjustment.id,
+      date: updatedAdjustment.date,
+      subject: updatedAdjustment.subject,
+      total_amount: updatedAdjustment.totalAmount,
+      status: updatedAdjustment.status,
+      voucher_id: updatedAdjustment.voucherId,
+      voucher_number: updatedAdjustment.voucher?.voucherNumber || null,
+      voucher_status: updatedAdjustment.voucher?.status || null,
+      items: (updatedAdjustment.items || []).map((item: any) => ({
+        id: item.id,
+        part_id: item.partId,
+        part_no: item.part.partNo,
+        quantity: item.quantity,
+        cost: item.cost,
+        rack_id: item.rackId,
+        rack_code: item.rack?.codeNo || null,
+        shelf_id: item.shelfId,
+        shelf_no: item.shelf?.shelfNo || null,
+      })),
+      items_count: updatedAdjustment.items.length,
+      message: 'Adjustment approved successfully. Voucher auto-approved and accounts updated.',
+    });
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
@@ -1616,7 +2114,6 @@ router.delete('/adjustments/:id', async (req: Request, res: Response) => {
 
     res.json({ message: 'Adjustment deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting adjustment:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1711,7 +2208,6 @@ router.get('/purchase-orders', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching purchase orders:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1825,7 +2321,6 @@ router.get('/purchase-orders/by-part/:partId', async (req: Request, res: Respons
       },
     });
   } catch (error: any) {
-    console.error('Error fetching purchase orders by part:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1863,7 +2358,6 @@ async function generatePoNumber(): Promise<string> {
     
     return `${prefix}${String(nextNum).padStart(3, '0')}`;
   } catch (error) {
-    console.error('Error generating PO number:', error);
     // Fallback
     const year = String(new Date().getFullYear()).slice(-2);
     const month = String(new Date().getMonth() + 1).padStart(2, '0');
@@ -1938,7 +2432,6 @@ router.post('/purchase-orders', async (req: Request, res: Response) => {
       items_count: order.items.length,
     });
   } catch (error: any) {
-    console.error('Error creating purchase order:', error);
     if (error.code === 'P2002') {
       // Unique constraint violation - try to generate a new PO number
       try {
@@ -2052,7 +2545,6 @@ router.get('/purchase-orders/:id', async (req: Request, res: Response) => {
       created_at: order.createdAt,
     });
   } catch (error: any) {
-    console.error('Error fetching purchase order:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2160,7 +2652,6 @@ router.put('/purchase-orders/:id', async (req: Request, res: Response) => {
                   notes: `Purchase Order ${order.poNumber} - Received`,
                 },
               });
-              console.log(`✅ Created stock movement for part ${item.part.partNo}, quantity: ${item.receivedQty}`);
             }
           }
         }
@@ -2177,22 +2668,17 @@ router.put('/purchase-orders/:id', async (req: Request, res: Response) => {
             },
           });
           if (deletedReservations.count > 0) {
-            console.log(`✅ Cleared ${deletedReservations.count} reserved stock records for PO ${order.poNumber}`);
           }
         } catch (reservationError: any) {
-          console.error('Error clearing reserved stock for purchase order:', reservationError);
           // Don't fail the purchase order update if reservation clearing fails
         }
       } catch (stockError: any) {
-        console.error('Error creating stock movements for purchase order:', stockError);
         // Don't fail the purchase order update if stock movement creation fails
       }
     }
 
     // Create journal entry when order is received
-    console.log(`🔍 Checking PO status change: status="${status}", existingStatus="${existingOrder.status}", grandTotal=${updatedGrandTotal}`);
     if (status === 'Received' && existingOrder.status !== 'Received' && updatedGrandTotal > 0) {
-      console.log(`✅ Conditions met - will create journal entry and voucher for PO ${order.poNumber}`);
       try {
         // Check if journal entry already exists for this PO
         const existingJournal = await prisma.journalEntry.findFirst({
@@ -2384,7 +2870,6 @@ router.put('/purchase-orders/:id', async (req: Request, res: Response) => {
 
             // Create Voucher automatically when PO is received
             try {
-              console.log(`🔄 Starting voucher creation for PO ${order.poNumber}, grandTotal: ${updatedGrandTotal}`);
               
               // Generate voucher number (format: JV4707)
               // Get the highest journal voucher number
@@ -2415,7 +2900,6 @@ router.put('/purchase-orders/:id', async (req: Request, res: Response) => {
                 }
               }
               const voucherNumber = `JV${String(nextNumber).padStart(4, '0')}`;
-              console.log(`📝 Generated voucher number: ${voucherNumber}`);
 
               // Get account details for voucher entries
               const voucherEntries = [];
@@ -2434,8 +2918,6 @@ router.put('/purchase-orders/:id', async (req: Request, res: Response) => {
                   sortOrder: line.lineOrder,
                 });
               }
-
-              console.log(`📋 Created ${voucherEntries.length} voucher entries`);
 
               // Extract PO number for narration (e.g., "PO-15" -> "15", "PO-DEMO-001" -> extract number)
               let poNumberDisplay = order.poNumber;
@@ -2467,14 +2949,7 @@ router.put('/purchase-orders/:id', async (req: Request, res: Response) => {
                 },
               });
 
-              console.log(`✅ Successfully created voucher ${voucherNumber} (ID: ${voucher.id}) for Purchase Order ${order.poNumber}`);
             } catch (voucherError: any) {
-              console.error('❌ Error creating voucher for purchase order:', voucherError);
-              console.error('Error details:', {
-                message: voucherError.message,
-                stack: voucherError.stack,
-                code: voucherError.code,
-              });
               // Don't fail the purchase order update if voucher creation fails
             }
 
@@ -2508,13 +2983,10 @@ router.put('/purchase-orders/:id', async (req: Request, res: Response) => {
               }
             }
 
-            console.log(`✅ Created journal entry ${entryNo} for Purchase Order ${order.poNumber}`);
           } else {
-            console.warn(`⚠️  Could not find required accounts for journal entry. Inventory: ${!!inventoryAccount}, Supplier Account: ${!!supplierAccount}`);
           }
         }
       } catch (journalError: any) {
-        console.error('Error creating journal entry for purchase order:', journalError);
         // Don't fail the purchase order update if journal entry creation fails
       }
     }
@@ -2528,7 +3000,6 @@ router.put('/purchase-orders/:id', async (req: Request, res: Response) => {
       items_count: order.items.length,
     });
   } catch (error: any) {
-    console.error('Error updating purchase order:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2549,8 +3020,6 @@ router.delete('/purchase-orders/:id', async (req: Request, res: Response) => {
     if (!order) {
       return res.status(404).json({ error: 'Purchase order not found' });
     }
-
-    console.log(`🗑️  Starting comprehensive deletion of Purchase Order ${order.poNumber} (ID: ${id})`);
 
     // Step 1: Delete stock movements related to this PO
     // Check multiple ways to find related stock movements:
@@ -2580,8 +3049,6 @@ router.delete('/purchase-orders/:id', async (req: Request, res: Response) => {
       },
     });
 
-    console.log(`   🔍 Found ${stockMovementsToDelete.length} stock movement(s) to delete`);
-
     // Delete the stock movements - use the same comprehensive query
     const deletedStockMovements = await prisma.stockMovement.deleteMany({
       where: {
@@ -2605,11 +3072,9 @@ router.delete('/purchase-orders/:id', async (req: Request, res: Response) => {
         ],
       },
     });
-    console.log(`   ✓ Deleted ${deletedStockMovements.count} stock movement(s)`);
     
     // If we found movements but didn't delete them, log a warning
     if (stockMovementsToDelete.length > 0 && deletedStockMovements.count === 0) {
-      console.warn(`   ⚠️  WARNING: Found ${stockMovementsToDelete.length} stock movement(s) but deleted 0. This may indicate a query issue.`);
     }
 
     // Step 2: Find and reverse journal entries related to this PO
@@ -2667,9 +3132,7 @@ router.delete('/purchase-orders/:id', async (req: Request, res: Response) => {
       },
     });
 
-    console.log(`   ✓ Found ${journalEntries.length} journal entry/entries to reverse`);
     if (journalEntries.length > 0) {
-      console.log(`   Entry numbers: ${journalEntries.map(e => e.entryNo).join(', ')}`);
     }
 
     // Reverse account balances for each journal entry
@@ -2692,7 +3155,6 @@ router.delete('/purchase-orders/:id', async (req: Request, res: Response) => {
             },
           });
         }
-        console.log(`   ✓ Reversed account balances for journal entry ${entry.entryNo}`);
       }
     }
 
@@ -2722,13 +3184,10 @@ router.delete('/purchase-orders/:id', async (req: Request, res: Response) => {
         ],
       },
     });
-    console.log(`   ✓ Deleted ${deletedJournalEntries.count} journal entry/entries`);
     
     // Verify deletion
     if (journalEntries.length > 0 && deletedJournalEntries.count === 0) {
-      console.warn(`   ⚠️  WARNING: Found ${journalEntries.length} journal entry/entries but deleted 0. This may indicate a query issue.`);
     } else if (journalEntries.length !== deletedJournalEntries.count) {
-      console.warn(`   ⚠️  WARNING: Found ${journalEntries.length} journal entry/entries but deleted ${deletedJournalEntries.count}. Some entries may not have been deleted.`);
     }
 
     // Step 3: Find and delete vouchers related to this PO
@@ -2783,7 +3242,6 @@ router.delete('/purchase-orders/:id', async (req: Request, res: Response) => {
         ],
       },
     });
-    console.log(`   ✓ Deleted ${deletedVouchers.count} voucher(s)`);
 
     // Step 4: Check if any sales invoices reference this PO
     // Note: Sales invoices don't have a notes field, so we skip this check
@@ -2791,18 +3249,13 @@ router.delete('/purchase-orders/:id', async (req: Request, res: Response) => {
     const salesInvoicesWithPO: any[] = [];
 
     if (salesInvoicesWithPO.length > 0) {
-      console.log(`   ⚠️  Warning: Found ${salesInvoicesWithPO.length} sales invoice(s) that may reference this PO:`);
       salesInvoicesWithPO.forEach(inv => {
-        console.log(`      - Invoice ${inv.invoiceNo} (ID: ${inv.id})`);
       });
       // Note: We don't delete sales invoices, just log a warning
     }
 
     // Step 5: Delete the purchase order (items will cascade delete)
     await prisma.purchaseOrder.delete({ where: { id } });
-    console.log(`   ✓ Deleted Purchase Order ${order.poNumber}`);
-
-    console.log(`✅ Successfully deleted Purchase Order ${order.poNumber} and all related data`);
 
     res.json({ 
       message: 'Purchase order deleted successfully',
@@ -2814,8 +3267,6 @@ router.delete('/purchase-orders/:id', async (req: Request, res: Response) => {
       }
     });
   } catch (error: any) {
-    console.error('Error deleting purchase order:', error);
-    console.error('Error stack:', error.stack);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2854,7 +3305,6 @@ router.get('/stores', async (req: Request, res: Response) => {
       racks: s.racks,
     })));
   } catch (error: any) {
-    console.error('Error fetching stores:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2889,7 +3339,6 @@ router.post('/stores', async (req: Request, res: Response) => {
       code: store.code,
     });
   } catch (error: any) {
-    console.error('Error creating store:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2918,7 +3367,6 @@ router.put('/stores/:id', async (req: Request, res: Response) => {
       description: store.address || '',
     });
   } catch (error: any) {
-    console.error('Error updating store:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2935,7 +3383,6 @@ router.delete('/stores/:id', async (req: Request, res: Response) => {
 
     res.json({ message: 'Store deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting store:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2981,7 +3428,6 @@ router.get('/racks', async (req: Request, res: Response) => {
       shelves_count: r.shelves.length,
     })));
   } catch (error: any) {
-    console.error('Error fetching racks:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3016,7 +3462,6 @@ router.post('/racks', async (req: Request, res: Response) => {
       shelves: rack.shelves,
     });
   } catch (error: any) {
-    console.error('Error creating rack:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3048,7 +3493,6 @@ router.put('/racks/:id', async (req: Request, res: Response) => {
       shelves: rack.shelves,
     });
   } catch (error: any) {
-    console.error('Error updating rack:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3064,7 +3508,6 @@ router.delete('/racks/:id', async (req: Request, res: Response) => {
 
     res.json({ message: 'Rack deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting rack:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3107,7 +3550,6 @@ router.get('/shelves', async (req: Request, res: Response) => {
       status: s.status,
     })));
   } catch (error: any) {
-    console.error('Error fetching shelves:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3138,7 +3580,6 @@ router.post('/shelves', async (req: Request, res: Response) => {
       status: shelf.status,
     });
   } catch (error: any) {
-    console.error('Error creating shelf:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3166,7 +3607,6 @@ router.put('/shelves/:id', async (req: Request, res: Response) => {
       status: shelf.status,
     });
   } catch (error: any) {
-    console.error('Error updating shelf:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3182,7 +3622,6 @@ router.delete('/shelves/:id', async (req: Request, res: Response) => {
 
     res.json({ message: 'Shelf deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting shelf:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3453,7 +3892,6 @@ router.get('/multi-dimensional-report', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching multi-dimensional report:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3511,7 +3949,6 @@ router.get('/verifications', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching verifications:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3576,7 +4013,6 @@ router.get('/verifications/active', async (req: Request, res: Response) => {
       discrepancies: verification.items.filter(i => i.status === 'Discrepancy').length,
     });
   } catch (error: any) {
-    console.error('Error fetching active verification:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3672,7 +4108,6 @@ router.post('/verifications', async (req: Request, res: Response) => {
       totalItems: verification.items.length,
     });
   } catch (error: any) {
-    console.error('Error creating verification:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3736,7 +4171,6 @@ router.get('/verifications/:id', async (req: Request, res: Response) => {
       discrepancies: verification.items.filter(i => i.status === 'Discrepancy').length,
     });
   } catch (error: any) {
-    console.error('Error fetching verification:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3782,7 +4216,6 @@ router.put('/verifications/:id/items/:itemId', async (req: Request, res: Respons
       remarks: updatedItem.remarks,
     });
   } catch (error: any) {
-    console.error('Error updating verification item:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3827,7 +4260,6 @@ router.put('/verifications/:id/complete', async (req: Request, res: Response) =>
       discrepancies: updatedVerification.items.filter(i => i.status === 'Discrepancy').length,
     });
   } catch (error: any) {
-    console.error('Error completing verification:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3861,7 +4293,6 @@ router.put('/verifications/:id/cancel', async (req: Request, res: Response) => {
       status: updatedVerification.status,
     });
   } catch (error: any) {
-    console.error('Error cancelling verification:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3985,7 +4416,6 @@ router.get('/direct-purchase-orders', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching direct purchase orders:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -4060,7 +4490,6 @@ router.get('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
       created_at: order.createdAt,
     });
   } catch (error: any) {
-    console.error('Error fetching direct purchase order:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -4069,43 +4498,17 @@ router.get('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
 router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
   try {
     // Debug: Log raw request info
-    console.log('📥 [DPO CREATE] Raw request info:', {
-      method: req.method,
-      contentType: req.headers['content-type'],
-      bodyType: typeof req.body,
-      bodyIsEmpty: !req.body || Object.keys(req.body || {}).length === 0,
-      bodyKeys: req.body ? Object.keys(req.body) : [],
-      rawBody: JSON.stringify(req.body).substring(0, 500), // First 500 chars
-    });
 
     let { dpo_number, date, store_id, supplier_id, account, description, status, items, expenses } = req.body || {};
 
     // Debug logging
-    console.log('📥 [DPO CREATE] Parsed request body:', {
-      hasDate: !!date,
-      dateValue: date,
-      hasItems: !!items,
-      itemsType: Array.isArray(items) ? 'array' : typeof items,
-      itemsLength: Array.isArray(items) ? items.length : 'N/A',
-      itemsPreview: Array.isArray(items) ? items.slice(0, 2) : items,
-      fullBody: req.body,
-    });
 
     if (!date || !items || !Array.isArray(items) || items.length === 0) {
-      console.error('❌ [DPO CREATE] Validation failed:', {
-        date: date || 'MISSING',
-        items: items || 'MISSING',
-        itemsIsArray: Array.isArray(items),
-        itemsLength: Array.isArray(items) ? items.length : 'N/A',
-        reqBodyExists: !!req.body,
-        reqBodyKeys: req.body ? Object.keys(req.body) : [],
-      });
       return res.status(400).json({ error: 'date and items are required' });
     }
 
     // Validate supplier is required
     if (!supplier_id) {
-      console.error('❌ [DPO CREATE] Validation failed: supplier_id is required');
       return res.status(400).json({ error: 'Supplier is required' });
     }
 
@@ -4160,7 +4563,6 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
           }
         }
         dpo_number = `DPO-${year}-${String(nextNum).padStart(3, '0')}`;
-        console.log(`⚠️  DPO number ${req.body.dpo_number} already exists. Generated new number: ${dpo_number}`);
       }
     }
 
@@ -4186,14 +4588,6 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
     };
     
     // Debug logging
-    console.log('📊 DPO Create - Totals:', {
-      itemsCount: items.length,
-      itemsTotal,
-      expensesCount: expenses?.length || 0,
-      expensesTotal,
-      totalAmount,
-      expenses: expenses
-    });
 
     const order = await prisma.directPurchaseOrder.create({
       data: {
@@ -4247,7 +4641,6 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
     
     // Update cost prices using inventory formulas
     if (items && items.length > 0) {
-      console.log(`💰 Updating cost prices on DPO creation for ${items.length} items with total expenses: ${totalExpenses} (DPO: ${dpo_number}, Status: ${status})`);
       
       try {
         const receiveResult = await processPurchaseReceive(
@@ -4260,16 +4653,7 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
           'value' // distribute expenses by item value (proportional)
         );
         
-        console.log(`✅ Cost prices updated successfully on DPO creation for ${dpo_number}`);
-        console.log(`📊 Receive result:`, receiveResult.items.map((item: any) => ({
-          partId: item.partId,
-          oldCost: item.oldAvgCost,
-          newCost: item.newAvgCost,
-          landedCost: item.landedCost
-        })));
       } catch (error: any) {
-        console.error(`❌ Error updating cost prices on DPO creation for ${dpo_number}:`, error);
-        console.error(`   Error details:`, error.message, error.stack);
         // Continue with stock movements even if cost update fails
       }
     }
@@ -4297,8 +4681,6 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
     // Check for both "Completed" and "Received" status (Received means the order was received/processed)
     // ALWAYS create vouchers when DPO is created, regardless of status (as long as totalAmount > 0)
     if (totalAmount > 0) {
-      console.log(`🔄 Starting voucher creation for DPO ${dpo_number}`);
-      console.log(`   Status: ${status}, Total Amount: ${totalAmount}, Supplier ID: ${supplier_id}`);
       try {
         // Find Inventory Account (NOT from account field - that's for bank/cash payment)
         // Always find Inventory Account separately - it's always needed for JV voucher
@@ -4340,18 +4722,13 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
           for (const acc of allAccounts) {
             if (acc.name && acc.name.toLowerCase().includes('inventory')) {
               inventoryAccount = acc;
-              console.log(`⚠️  Found Inventory Account by name (not subgroup 104): ${inventoryAccount.code} - ${inventoryAccount.name} (Subgroup: ${inventoryAccount.subgroup.code})`);
               break;
             }
           }
         }
         
         if (!inventoryAccount) {
-          console.error(`❌ Inventory Account not found! Cannot create vouchers without Inventory Account.`);
-          console.error(`   Please create an Inventory Account in subgroup 104 (Inventory) or name it with "Inventory"`);
-          console.error(`   DPO ${dpo_number} will be created without vouchers.`);
         } else {
-          console.log(`✅ Found Inventory Account: ${inventoryAccount.code} - ${inventoryAccount.name} (Subgroup: ${inventoryAccount.subgroup.code})`);
         }
 
         // Find the main payable account (for supplier payable - we need a liability account)
@@ -4428,9 +4805,7 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
                     },
                   });
                   
-                  console.log(`✅ Created supplier account ${accountCode} for ${supplierAccountName} with opening balance: ${supplier.openingBalance || 0}`);
                 } else {
-                  console.log(`✅ Using existing supplier account ${mainPayableAccount.code} - ${mainPayableAccount.name} (Current Balance: ${mainPayableAccount.currentBalance})`);
                 }
               }
             }
@@ -4724,15 +5099,11 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
               });
             }
 
-            console.log(`✅ Created journal entry ${entryNo} for Direct Purchase Order ${dpo_number}`);
-
             // Create Voucher automatically when DPO is created
             try {
-              console.log(`🔄 Starting voucher creation for DPO ${dpo_number}, totalAmount: ${totalAmount}`);
               
               // Use supplier name already captured (or 'Supplier' if no supplier)
               const supplierName = supplierAccountName;
-              console.log(`📝 Using voucher number: ${voucherNumber} for supplier: ${supplierName}`);
 
               // Get account details for voucher entries from journal lines
               const voucherEntries = [];
@@ -4751,8 +5122,6 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
                   sortOrder: line.lineOrder,
                 });
               }
-
-              console.log(`📋 Created ${voucherEntries.length} voucher entries`);
 
               // Create voucher with supplier name in narration (exactly as shown in screenshot - just supplier name)
               const voucher = await prisma.voucher.create({
@@ -4773,7 +5142,6 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
                 },
               });
 
-              console.log(`✅ Successfully created JV voucher ${voucherNumber} (ID: ${voucher.id}) against Supplier: ${supplierName} for DPO ${dpo_number}`);
               voucherCreationStatus.jvCreated = true;
               voucherCreationStatus.jvNumber = voucherNumber;
               
@@ -4781,8 +5149,6 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
               // This means user is paying the supplier immediately
               // NOTE: PV voucher should only include items total (NOT expenses)
               if (account && itemsTotal > 0 && mainPayableAccount) {
-                  console.log(`💳 Account selected for payment - Creating automatic PV voucher from account: ${account}`);
-                  console.log(`💰 PV voucher will use items total only: ${itemsTotal} (excluding expenses: ${expensesTotal})`);
                   
                   // Get the cash/bank account that was selected
                   const cashBankAccount = await prisma.account.findUnique({
@@ -4797,7 +5163,6 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
                   });
 
                   if (!cashBankAccount) {
-                    console.warn(`⚠️  Cash/Bank account ${account} not found, skipping PV voucher creation`);
                     voucherCreationStatus.errors.push(`Cash/Bank account ${account} not found`);
                   } else {
                     // Verify it's a Cash (101) or Bank (102) account
@@ -4807,11 +5172,9 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
                     if (!isCashOrBank) {
                       const accountType = cashBankAccount.subgroup?.mainGroup?.type?.toLowerCase() || '';
                       if (accountType !== 'asset') {
-                        console.warn(`⚠️  Account ${account} (${cashBankAccount.name}) is not a Cash (101) or Bank (102) account, skipping PV voucher creation`);
                         voucherCreationStatus.errors.push(`Account ${cashBankAccount.name} is not a Cash/Bank account`);
                       } else {
                         // Allow if it's an asset account even if not 101/102
-                        console.log(`ℹ️  Account ${account} is an asset account, proceeding with PV creation`);
                       }
                     }
                     
@@ -4903,56 +5266,34 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
                       },
                     });
 
-                    console.log(`✅ Successfully created Payment Voucher ${pvVoucherNumber} for supplier ${supplierName}, items amount: ${itemsTotal} (excluding expenses), from account: ${cashBankAccount.name}`);
                     voucherCreationStatus.pvCreated = true;
                     voucherCreationStatus.pvNumber = pvVoucherNumber;
                   }
               } // end if account selected
               } else if (!account) {
-                console.log(`ℹ️  No account selected - Only JV voucher created. PV voucher will be created later when payment is made.`);
               }
             } catch (voucherError: any) {
-              console.error('❌ Error creating JV voucher for direct purchase order:', voucherError);
-              console.error('Error details:', {
-                message: voucherError.message,
-                stack: voucherError.stack,
-                code: voucherError.code,
-              });
               voucherCreationStatus.errors.push(`JV creation failed: ${voucherError.message}`);
               // Don't fail the DPO creation if voucher creation fails
             }
 
           } else {
-            console.warn(`⚠️  Journal entry validation failed. Debits: ${totalDebit}, Credits: ${totalCredit}`);
             voucherCreationStatus.errors.push(`Journal entry validation failed: Debits ${totalDebit} ≠ Credits ${totalCredit}`);
           }
         } else {
-          console.error(`❌ Could not find required accounts for journal entry. Inventory: ${!!inventoryAccount}, Payable Account: ${!!mainPayableAccount}`);
-          console.error(`   DPO Number: ${dpo_number}, Status: ${status}, Total Amount: ${totalAmount}`);
-          console.error(`   Supplier ID: ${supplier_id}`);
           
           // Try to help diagnose the issue
           if (!inventoryAccount) {
-            console.error(`   ⚠️  Inventory Account (subgroup 104) not found!`);
             voucherCreationStatus.errors.push('Inventory Account (subgroup 104) not found');
           }
           if (!mainPayableAccount) {
-            console.error(`   ⚠️  Supplier Payable Account (subgroup 301) not found!`);
             voucherCreationStatus.errors.push('Supplier Payable Account not found');
             if (supplier_id) {
               const supplier = await prisma.supplier.findUnique({ where: { id: supplier_id } });
-              console.error(`   Supplier: ${supplier ? (supplier.name || supplier.companyName) : 'Not found'}`);
             }
           }
         }
       } catch (journalError: any) {
-        console.error('❌ Error creating journal entry for direct purchase order:', journalError);
-        console.error('Error details:', {
-          message: journalError.message,
-          stack: journalError.stack,
-          code: journalError.code,
-          dpoNumber: dpo_number,
-        });
         voucherCreationStatus.errors.push(`Journal entry creation failed: ${journalError.message}`);
         // Don't fail the DPO creation if journal entry creation fails
       }
@@ -4968,7 +5309,6 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
       vouchers: voucherCreationStatus,
     });
   } catch (error: any) {
-    console.error('Error creating direct purchase order:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -4977,9 +5317,6 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
 router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) => {
   // 🔍 ENTRY MARKER
   const entryMarker = `ENTRY:DPO_RECEIVE:${req.params.id}`;
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log(entryMarker);
-  console.log('═══════════════════════════════════════════════════════════');
   
   // Track updated parts for response
   const updatedParts: Array<{partNo: string, oldCost: number, newCost: number, partIdUpdated: string}> = [];
@@ -4993,13 +5330,10 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
 
     // Check for transaction wrapper
     const hasTransaction = typeof (prisma as any).$transaction === 'function';
-    console.log(`🔍 Transaction Check: ${hasTransaction ? 'Prisma transaction available' : 'No transaction wrapper detected'}`);
-    console.log(`🔍 Process PID: ${process.pid}`);
     const dbUrl = process.env.DATABASE_URL || 'not set';
     const maskedDbUrl = dbUrl.includes('file:') 
       ? `file:${dbUrl.split('/').pop()}` 
       : dbUrl.replace(/:[^:@]+@/, ':****@');
-    console.log(`🔍 DATABASE_URL: ${maskedDbUrl}`);
 
     // 🔍 LOG: Database connection info
     
@@ -5009,20 +5343,8 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
     const dbFileExists = fs.existsSync(actualDbPath);
     const dbFileStats = dbFileExists ? fs.statSync(actualDbPath) : null;
     
-    console.log('═══════════════════════════════════════════════════════════');
-    console.log('🔍 DPO RECEIVE - ENTRY POINT');
-    console.log('═══════════════════════════════════════════════════════════');
-    console.log(`  DPO ID: ${id}`);
-    console.log(`  Status: ${status}`);
-    console.log(`  DATABASE_URL: ${maskedDbUrl}`);
-    console.log(`  Actual DB Path: ${actualDbPath}`);
-    console.log(`  DB File Exists: ${dbFileExists ? 'YES' : 'NO'}`);
     if (dbFileStats) {
-      console.log(`  DB File Size: ${dbFileStats.size} bytes`);
-      console.log(`  DB File Modified: ${dbFileStats.mtime.toISOString()}`);
     }
-    console.log(`  Timestamp: ${new Date().toISOString()}`);
-    console.log(`  Process CWD: ${process.cwd()}`);
 
     const existingOrder = await prisma.directPurchaseOrder.findUnique({ 
       where: { id },
@@ -5036,14 +5358,8 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
     // Use supplier_id from request if provided, otherwise use existing supplier_id
     const finalSupplierId = supplier_id !== undefined ? supplier_id : existingOrder.supplierId;
     if (!finalSupplierId) {
-      console.error('❌ [DPO UPDATE] Validation failed: supplier_id is required');
       return res.status(400).json({ error: 'Supplier is required' });
     }
-
-    console.log(`  DPO Number: ${existingOrder.dpoNumber}`);
-    console.log(`  Current Status: ${existingOrder.status}`);
-    console.log(`  New Status: ${status}`);
-    console.log(`  Items Count: ${existingOrder.items?.length || 0}`);
 
     // Delete existing stock movements if items are being updated OR if status is changing to Received/Completed
     // This ensures we can recreate movements with correct data
@@ -5096,13 +5412,6 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
     const totalAmount = validItemsTotal + validExpensesTotal;
     
     // Debug logging
-    console.log('📊 DPO Update - Totals:', {
-      itemsCount: items?.length || 0,
-      itemsTotal: validItemsTotal,
-      expensesCount: expenses?.length || 0,
-      expensesTotal: validExpensesTotal,
-      totalAmount
-    });
 
     const order = await prisma.directPurchaseOrder.update({
       where: { id },
@@ -5168,7 +5477,6 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
     // This happens when stock is received from store panel, NOT when DPO is created
     if ((status === 'Received' || status === 'Completed') && 
         existingOrder.status !== 'Received' && existingOrder.status !== 'Completed') {
-      console.log(`📦 Processing stock receive for DPO ${order.dpoNumber} - Status changing to: ${status}`);
       
       // Use items from request or fetch from order (order.items will have updated items after order update)
       const itemsToProcess = items || order.items;
@@ -5193,25 +5501,14 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
       
       // Update cost prices using inventory formulas (only when stock is received)
       if (itemsToProcess && itemsToProcess.length > 0) {
-        console.log(`💰 Updating cost prices for DPO ${order.dpoNumber}`);
-        console.log(`   Status change: ${existingOrder.status} -> ${status}`);
-        console.log(`   Items to process: ${itemsToProcess.length}`);
-        console.log(`   Total expenses: ${totalExpenses}`);
-        console.log(`   Items data:`, itemsToProcess.map((item: any) => ({
-          partId: item.part_id || item.partId,
-          quantity: item.quantity,
-          purchasePrice: item.purchase_price || item.purchasePrice
-        })));
         
         try {
           // Validate all items have valid partId before processing
-          console.log(`🔍 Validating DPO items have valid partId...`);
           const validatedItems: Array<{partId: string, quantity: number, purchasePrice: number, partNo?: string}> = [];
           
           for (const item of itemsToProcess) {
             const partId = item.part_id || item.partId;
             if (!partId) {
-              console.error(`❌ DPO Item missing partId:`, item);
               continue;
             }
             
@@ -5222,16 +5519,12 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
             });
             
             if (!part) {
-              console.error(`❌ Part ID ${partId} from DPO item does not exist in database!`);
-              console.error(`   Item data:`, item);
               
               // Fallback: Try to find canonical part by partNo if available
               const partNoFromItem = item.part_no || item.partNo;
               if (partNoFromItem) {
-                console.log(`   🔍 Attempting fallback: Looking up canonical part by partNo: ${partNoFromItem}`);
                 const canonicalPartId = await getCanonicalPartId(prisma, partNoFromItem);
                 if (canonicalPartId) {
-                  console.log(`   ✅ Found canonical Part ID: ${canonicalPartId} for partNo: ${partNoFromItem}`);
                   const canonicalPart = await prisma.part.findUnique({
                     where: { id: canonicalPartId },
                     select: { id: true, partNo: true },
@@ -5243,13 +5536,11 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
                       purchasePrice: item.purchase_price || item.purchasePrice || 0,
                       partNo: canonicalPart.partNo,
                     });
-                    console.log(`   ✅ Using canonical Part ${canonicalPart.partNo} (ID: ${canonicalPartId})`);
                     continue;
                   }
                 }
               }
               
-              console.error(`   ❌ Could not find fallback canonical part`);
               continue;
             }
             
@@ -5260,14 +5551,12 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
               partNo: part.partNo,
             });
             
-            console.log(`   ✅ Validated: Part ${part.partNo} (ID: ${partId})`);
           }
           
           if (validatedItems.length === 0) {
             throw new Error('No valid items with partId found in DPO items');
           }
           
-          console.log(`✅ Validated ${validatedItems.length}/${itemsToProcess.length} items with valid partId`);
           
           receiveResult = await processPurchaseReceive(
             validatedItems.map(item => ({
@@ -5279,21 +5568,10 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
             'value' // distribute expenses by item value (proportional)
           );
           
-          console.log(`✅ Cost prices updated successfully for DPO ${order.dpoNumber}`);
-          console.log(`📊 Receive result:`, receiveResult.items.map((item: any) => ({
-            partId: item.partId,
-            oldCost: item.oldAvgCost,
-            newCost: item.newAvgCost,
-            landedCost: item.landedCost,
-            quantity: item.quantity
-          })));
 
           // ⭐ COST UPDATE WILL HAPPEN AT THE END (after all operations complete)
           // Store receiveResult for later cost update
         } catch (error: any) {
-          console.error(`❌ Error updating cost prices for DPO ${order.dpoNumber}:`, error);
-          console.error(`   Error message:`, error.message);
-          console.error(`   Error stack:`, error.stack);
           // Continue with stock movements even if cost update fails
         }
       }
@@ -5306,11 +5584,8 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
         },
       });
 
-      console.log(`📊 Existing stock movements count: ${existingMovements.length}`);
-
       // Only create if movements don't exist
       if (existingMovements.length === 0) {
-        console.log(`📋 Processing ${itemsToProcess?.length || 0} items for stock movements`);
         
         if (itemsToProcess && itemsToProcess.length > 0) {
           for (const item of itemsToProcess) {
@@ -5319,7 +5594,6 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
             const finalStoreId = store_id || order.storeId || null;
             
             if (!partId) {
-              console.warn(`⚠️ Skipping item - missing partId:`, item);
               continue;
             }
             
@@ -5336,9 +5610,7 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
                 notes: `Direct Purchase Order: ${order.dpoNumber} - ${status}`,
             },
           });
-            console.log(`✅ Created stock movement: Part ${partId}, Qty: ${quantity}, Store: ${finalStoreId}`);
           }
-          console.log(`✅ Successfully created ${itemsToProcess.length} stock movements for DPO ${order.dpoNumber}`);
           
           // Clear reserved stock when DPO is received
           // Delete stockReservation records for all parts in this DPO
@@ -5357,18 +5629,14 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
                 },
               });
               if (deletedReservations.count > 0) {
-                console.log(`✅ Cleared ${deletedReservations.count} reserved stock records for DPO ${order.dpoNumber}`);
               }
             }
           } catch (reservationError: any) {
-            console.error('Error clearing reserved stock for direct purchase order:', reservationError);
             // Don't fail the DPO update if reservation clearing fails
           }
         } else {
-          console.warn(`⚠️ No items to process for stock movements`);
         }
       } else {
-        console.log(`ℹ️ Stock movements already exist, skipping creation`);
       }
       
       // 🔍 FINAL VERIFICATION: Check that cost updates persisted after all operations
@@ -5381,13 +5649,6 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
         const verifyDbPath = verifyDbUrl.includes('file:') ? verifyDbUrl.replace('file:', '') : 'unknown';
         const verifyDbFileExists = fs.existsSync(verifyDbPath);
         
-        console.log('═══════════════════════════════════════════════════════════');
-        console.log('🔍 FINAL VERIFICATION - Checking cost updates after ALL operations complete');
-        console.log('═══════════════════════════════════════════════════════════');
-        console.log(`  Database: ${verifyMaskedDbUrl}`);
-        console.log(`  DB Path: ${verifyDbPath}`);
-        console.log(`  DB File Exists: ${verifyDbFileExists ? 'YES' : 'NO'}`);
-        console.log(`  Verification Time: ${new Date().toISOString()}`);
         
         for (const resultItem of receiveResult.items) {
           try {
@@ -5399,13 +5660,6 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
             
             if (finalPartById) {
               const costMatches = Math.abs((finalPartById.cost || 0) - resultItem.landedCost) < 0.01;
-              console.log(`  📦 Part ${finalPartById.partNo} (ID: ${resultItem.partId}):`);
-              console.log(`     Expected Cost: ${resultItem.landedCost}`);
-              console.log(`     Actual Cost (by ID): ${finalPartById.cost}`);
-              console.log(`     Cost Source: ${finalPartById.costSource || 'NULL'}`);
-              console.log(`     Cost Source Ref: ${finalPartById.costSourceRef || 'NULL'}`);
-              console.log(`     Cost Updated At: ${finalPartById.costUpdatedAt || 'NULL'}`);
-              console.log(`     Status: ${costMatches ? '✅✅✅ MATCH' : '❌❌❌ MISMATCH'}`);
               
               // Also query by partNo to see which part API would return
               const partsByPartNo = await prisma.part.findMany({
@@ -5419,26 +5673,16 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
               
               if (partsByPartNo.length > 0) {
                 const apiWillReturn = partsByPartNo[0];
-                console.log(`     🔍 API will return (by partNo, ordered by costUpdatedAt desc):`);
-                console.log(`        Part ID: ${apiWillReturn.id}`);
-                console.log(`        Cost: ${apiWillReturn.cost}`);
-                console.log(`        Cost Source: ${apiWillReturn.costSource || 'NULL'}`);
                 if (apiWillReturn.id !== resultItem.partId) {
-                  console.log(`     ⚠️  WARNING: API will return different part (ID mismatch)!`);
                 }
                 if (Math.abs((apiWillReturn.cost || 0) - resultItem.landedCost) > 0.01) {
-                  console.log(`     ⚠️  WARNING: API will return cost=${apiWillReturn.cost}, expected=${resultItem.landedCost}`);
                 }
               }
             } else {
-              console.error(`  ❌ Part ID ${resultItem.partId} NOT FOUND in database!`);
             }
           } catch (err: any) {
-            console.error(`  ❌ Error verifying part ${resultItem.partId}:`, err.message);
-            console.error(`     Stack:`, err.stack);
           }
         }
-        console.log('═══════════════════════════════════════════════════════════');
       }
     }
 
@@ -5456,7 +5700,6 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
       });
 
       if (existingJournalEntry) {
-        console.log(`ℹ️  Journal entry and vouchers already exist for DPO ${existingOrder.dpoNumber}, skipping duplicate creation`);
       } else {
         try {
         // Find Inventory Account
@@ -5537,7 +5780,6 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
               supplierAccountName = supplier.companyName || supplier.name || 'Supplier';
             }
           } catch (e) {
-            console.error('Error fetching supplier:', e);
           }
         }
 
@@ -5772,12 +6014,8 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
               });
             }
 
-            console.log(`✅ Created journal entry ${entryNo} for Direct Purchase Order ${order.dpoNumber}`);
-
             // Create Voucher
             try {
-              console.log(`🔄 Starting voucher creation for DPO ${order.dpoNumber}, totalAmount: ${totalAmount}`);
-              console.log(`📝 Using voucher number: ${voucherNumber} for supplier: ${supplierAccountName}`);
 
               const voucherEntries = [];
               for (const line of journalLines) {
@@ -5815,7 +6053,6 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
                 },
               });
 
-              console.log(`✅ Successfully created voucher ${voucherNumber} (ID: ${voucher.id}) against Supplier: ${supplierAccountName} for DPO ${order.dpoNumber}`);
               
               // If account (bank/cash) is selected, automatically create PV voucher for payment
               // This means user is paying the supplier immediately
@@ -5823,8 +6060,6 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
               const paymentAccount = account || order.account;
               if (paymentAccount && itemsTotal > 0 && finalSupplierId && mainPayableAccount) {
                 try {
-                  console.log(`💳 Account selected for payment - Creating automatic PV voucher from account: ${paymentAccount}`);
-                  console.log(`💰 PV voucher will use items total only: ${itemsTotal} (excluding expenses: ${expensesTotal})`);
                   
                   // Get the cash/bank account that was selected
                   const cashBankAccount = await prisma.account.findUnique({
@@ -5839,7 +6074,6 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
                   });
 
                   if (!cashBankAccount) {
-                    console.warn(`⚠️  Cash/Bank account ${paymentAccount} not found, skipping PV voucher creation`);
                   } else {
                     // Verify it's a Cash (101) or Bank (102) account
                     const subgroupCode = cashBankAccount.subgroup?.code || '';
@@ -5848,10 +6082,8 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
                     if (!isCashOrBank) {
                       const accountType = cashBankAccount.subgroup?.mainGroup?.type?.toLowerCase() || '';
                       if (accountType !== 'asset') {
-                        console.warn(`⚠️  Account ${paymentAccount} (${cashBankAccount.name}) is not a Cash (101) or Bank (102) account, skipping PV voucher creation`);
                       } else {
                         // Allow if it's an asset account even if not 101/102
-                        console.log(`ℹ️  Account ${paymentAccount} is an asset account, proceeding with PV creation`);
                       }
                     }
                     
@@ -5943,29 +6175,19 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
                         },
                       });
 
-                      console.log(`✅ Successfully created Payment Voucher ${pvVoucherNumber} for supplier ${supplierAccountName}, items amount: ${itemsTotal} (excluding expenses), from account: ${cashBankAccount.name}`);
                     }
                   }
                 } catch (pvError: any) {
-                  console.error('❌ Error creating automatic PV voucher:', pvError);
-                  console.error('PV Error details:', {
-                    message: pvError.message,
-                    stack: pvError.stack,
-                    code: pvError.code,
-                  });
                   // Don't fail DPO update if PV creation fails
                 }
               } else if (!paymentAccount) {
-                console.log(`ℹ️  No account selected - Only JV voucher created. PV voucher will be created later when payment is made.`);
               }
             } catch (voucherError: any) {
-              console.error('❌ Error creating voucher for direct purchase order:', voucherError);
               // Don't fail the update if voucher creation fails
             }
           }
         }
         } catch (journalError: any) {
-          console.error('Error creating journal entry/voucher for direct purchase order update:', journalError);
           // Don't fail the update if journal entry/voucher creation fails
         }
       }
@@ -5974,7 +6196,6 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
     // Update existing stock movements with rack/shelf when items are updated
     // This handles the case where locations are assigned after the DPO is already received
     if (items && items.length > 0 && (existingOrder.status === 'Received' || existingOrder.status === 'Completed')) {
-      console.log(`📍 Updating stock movement locations for received DPO ${order.dpoNumber}`);
       
       // Get current stock movements for this DPO
       const currentMovements = await prisma.stockMovement.findMany({
@@ -6006,12 +6227,10 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
                     shelfId: shelfId,
                   },
                 });
-                console.log(`   ✅ Updated movement ${movement.id}: rack=${rackId}, shelf=${shelfId}`);
               }
             }
           }
         }
-        console.log(`📍 Finished updating stock movement locations`);
       }
     }
 
@@ -6019,17 +6238,11 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
     // This ensures Part.cost matches the "Cost Price (includes distributed expenses)" shown in Purchase History
     // This MUST happen at the very end to prevent any later code from overwriting it
     if (receiveResult && receiveResult.items && receiveResult.items.length > 0) {
-      console.log('═══════════════════════════════════════════════════════════');
-      console.log(`💰 FINAL: UPDATING PART MASTER COST TO LANDED COST for DPO ${order.dpoNumber}`);
-      console.log('═══════════════════════════════════════════════════════════');
-      console.log(`  This update happens AFTER all operations (stock movements, vouchers, etc.)`);
-      console.log(`  This ensures the cost persists and is not overwritten`);
       
       for (const resultItem of receiveResult.items) {
         try {
           // Verify partId exists (from DPO item foreign key, not lookup by partNo)
           if (!resultItem.partId) {
-            console.error(`  ❌ Skipping - missing partId in receiveResult item:`, resultItem);
             continue;
           }
 
@@ -6040,24 +6253,14 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
           });
 
           if (!partBefore) {
-            console.error(`  ❌ Part ID ${resultItem.partId} NOT FOUND in database!`);
-            console.error(`     This should not happen - partId comes from DPO item foreign key`);
             continue;
           }
 
           const oldCost = partBefore.cost || 0;
           const partNo = partBefore.partNo || 'unknown';
           
-          console.log(`  📦 Part: ${partNo} (ID: ${resultItem.partId})`);
-          console.log(`     Old Cost: ${oldCost}`);
-          console.log(`     Landed Cost: ${resultItem.landedCost}`);
-          console.log(`     Weighted Avg (from processPurchaseReceive): ${resultItem.newAvgCost}`);
-          console.log(`     Quantity: ${resultItem.quantity}`);
           
           // Update to landed cost
-          console.log(`     🔄 Executing Prisma update query...`);
-          console.log(`        WHERE: id = ${resultItem.partId}`);
-          console.log(`        DATA: { cost: ${resultItem.landedCost}, costSource: 'DPO_RECEIVED', costSourceRef: '${order.dpoNumber}', costUpdatedAt: ${new Date().toISOString()} }`);
           
           const updateStartTime = Date.now();
           const updatedPart = await prisma.part.update({
@@ -6072,13 +6275,6 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
           });
           const updateEndTime = Date.now();
           
-          console.log(`     ✅ UPDATE QUERY COMPLETED in ${updateEndTime - updateStartTime}ms`);
-          console.log(`     ✅ Prisma returned:`);
-          console.log(`        Part No: ${updatedPart.partNo}`);
-          console.log(`        Cost: ${updatedPart.cost}`);
-          console.log(`        Cost Source: ${updatedPart.costSource}`);
-          console.log(`        Cost Source Ref: ${updatedPart.costSourceRef}`);
-          console.log(`        Cost Updated At: ${updatedPart.costUpdatedAt}`);
           
           // Track for response
           updatedParts.push({
@@ -6089,7 +6285,6 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
           });
           
           // 🔍 HARD VERIFICATION 1: Read back by partId
-          console.log(`     🔍 HARD VERIFICATION 1: Reading back by partId...`);
           const verifyPartById = await prisma.part.findUnique({
             where: { id: resultItem.partId },
             select: { 
@@ -6101,25 +6296,13 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
             },
           });
           
-          console.log(`     🔍 Verification by ID Result:`);
-          console.log(`        Part ID: ${resultItem.partId}`);
-          console.log(`        Part No: ${verifyPartById?.partNo || 'NOT FOUND'}`);
-          console.log(`        Cost in DB: ${verifyPartById?.cost ?? 'NULL'}`);
-          console.log(`        Expected Cost: ${resultItem.landedCost}`);
-          console.log(`        Cost Source: ${verifyPartById?.costSource || 'NULL'}`);
-          console.log(`        Cost Source Ref: ${verifyPartById?.costSourceRef || 'NULL'}`);
-          console.log(`        Cost Updated At: ${verifyPartById?.costUpdatedAt || 'NULL'}`);
           
           const costMatchesById = verifyPartById && Math.abs((verifyPartById.cost || 0) - resultItem.landedCost) < 0.01;
           if (costMatchesById) {
-            console.log(`     ✅✅✅ VERIFICATION BY ID PASSED - Cost in DB (${verifyPartById.cost}) matches landed cost (${resultItem.landedCost})`);
           } else {
-            console.error(`     ❌❌❌ VERIFICATION BY ID FAILED - Cost in DB (${verifyPartById?.cost ?? 'NULL'}) does NOT match landed cost (${resultItem.landedCost})`);
-            console.error(`     ⚠️  This indicates the update did not persist! Check database connection and transaction.`);
           }
           
           // 🔍 HARD VERIFICATION 2: Read back by partNo with API ordering (same as /api/parts)
-          console.log(`     🔍 HARD VERIFICATION 2: Reading back by partNo with API ordering...`);
           const partsByPartNo = await prisma.part.findMany({
             where: { partNo: partNo },
             select: { 
@@ -6140,45 +6323,25 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
           
           if (partsByPartNo.length > 0) {
             const apiWillReturn = partsByPartNo[0];
-            console.log(`     🔍 API will return (by partNo, ordered by costUpdatedAt desc):`);
-            console.log(`        Part ID: ${apiWillReturn.id}`);
-            console.log(`        Part No: ${apiWillReturn.partNo}`);
-            console.log(`        Cost: ${apiWillReturn.cost}`);
-            console.log(`        Cost Source: ${apiWillReturn.costSource || 'NULL'}`);
-            console.log(`        Cost Updated At: ${apiWillReturn.costUpdatedAt || 'NULL'}`);
             
             if (apiWillReturn.id !== resultItem.partId) {
-              console.log(`     ⚠️  WARNING: API will return different part (ID mismatch)!`);
-              console.log(`        Updated Part ID: ${resultItem.partId}`);
-              console.log(`        API Will Return Part ID: ${apiWillReturn.id}`);
             }
             
             const costMatchesApi = Math.abs((apiWillReturn.cost || 0) - resultItem.landedCost) < 0.01;
             if (costMatchesApi) {
-              console.log(`     ✅✅✅ API VERIFICATION PASSED - API will return cost=${apiWillReturn.cost}, expected=${resultItem.landedCost}`);
             } else {
-              console.error(`     ❌❌❌ API VERIFICATION FAILED - API will return cost=${apiWillReturn.cost}, expected=${resultItem.landedCost}`);
-              console.error(`     ⚠️  This means the Pricing API will show the wrong cost!`);
             }
           } else {
-            console.error(`     ❌ No parts found with partNo=${partNo}`);
           }
           
-          console.log('');
         } catch (partUpdateError: any) {
-          console.error(`  ❌ Error updating Part ${resultItem.partId} cost:`, partUpdateError);
-          console.error(`     Stack:`, partUpdateError.stack);
           // Don't fail the entire request if cost update fails
         }
       }
-      console.log('═══════════════════════════════════════════════════════════');
     }
 
     // 🔍 EXIT MARKER
     const exitMarker = `EXIT:DPO_RECEIVE:${id}`;
-    console.log('═══════════════════════════════════════════════════════════');
-    console.log(exitMarker);
-    console.log('═══════════════════════════════════════════════════════════');
 
     // Build response with debugging info (only in dev)
     const response: any = {
@@ -6197,7 +6360,6 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
 
     res.json(response);
   } catch (error: any) {
-    console.error('Error updating direct purchase order:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -6368,8 +6530,6 @@ router.post('/direct-purchase-orders/:dpoId/payment', async (req: Request, res: 
       },
     });
 
-    console.log(`✅ Successfully created Payment Voucher ${voucherNumber} for supplier ${supplierAccount.name}, amount: ${amount}`);
-
     res.status(201).json({
       data: {
         id: paymentVoucher.id,
@@ -6380,7 +6540,6 @@ router.post('/direct-purchase-orders/:dpoId/payment', async (req: Request, res: 
       },
     });
   } catch (error: any) {
-    console.error('Error creating payment voucher:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -6407,7 +6566,6 @@ router.delete('/direct-purchase-orders/:id', async (req: Request, res: Response)
 
     res.json({ message: 'Direct purchase order deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting direct purchase order:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -6467,8 +6625,6 @@ router.post('/stock/reserve', async (req: Request, res: Response) => {
     // Create a stock reservation entry
     // Using StockMovement with special referenceType to track reservations separately
     // This won't affect normal stock in/out calculations when filtered properly
-    console.log(`💾 Creating reservation with Prisma - PartId=${partId}, Quantity=${quantity}`);
-    console.log(`   Database URL: ${process.env.DATABASE_URL}`);
     
     const reservation = await prisma.stockMovement.create({
       data: {
@@ -6488,7 +6644,6 @@ router.post('/stock/reserve', async (req: Request, res: Response) => {
       },
     });
 
-    console.log(`✅ Reserved stock created: PartId=${partId}, Quantity=${quantity}, ReservationId=${reservation.id}, ReferenceType=${reservation.referenceType}, ReferenceId=${reservation.referenceId}`);
     
     // Verify it was saved by immediately querying it back
     const verifyReservation = await prisma.stockMovement.findUnique({
@@ -6496,9 +6651,7 @@ router.post('/stock/reserve', async (req: Request, res: Response) => {
     });
     
     if (verifyReservation) {
-      console.log(`✅ Verification: Reservation found in database immediately after creation - ID=${verifyReservation.id}, Quantity=${verifyReservation.quantity}`);
     } else {
-      console.error(`❌ WARNING: Reservation NOT found in database immediately after creation! This indicates a database issue.`);
     }
 
     res.status(201).json({
@@ -6510,7 +6663,6 @@ router.post('/stock/reserve', async (req: Request, res: Response) => {
       message: `${quantity} units reserved successfully`,
     });
   } catch (error: any) {
-    console.error('Error reserving stock:', error);
     res.status(500).json({ error: error.message });
   }
 });

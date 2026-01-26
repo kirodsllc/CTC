@@ -113,7 +113,6 @@ router.get('/', async (req, res) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching activity logs:', error);
     res.status(500).json({ error: error.message });
   }
 });

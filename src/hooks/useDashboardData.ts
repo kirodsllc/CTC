@@ -228,7 +228,6 @@ export const useDashboardData = (timeRange: 'Week' | 'Month' | 'Year' = 'Month')
           error: null,
         });
       } catch (error: any) {
-        console.error('Error fetching dashboard data:', error);
         setData(prev => ({
           ...prev,
           loading: false,

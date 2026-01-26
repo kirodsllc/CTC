@@ -70,7 +70,6 @@ export const PartEntryPage = ({
           setParts(transformedParts);
         }
       } catch (error: any) {
-        console.error("Error fetching parts:", error);
         toast({
           title: "Error",
           description: error.error || "Failed to fetch parts",
@@ -172,7 +171,6 @@ export const PartEntryPage = ({
         setParts((prev) => [newPart, ...prev]);
       }
 
-      console.log("🔄 Refreshing items after save with filters:", searchFilters);
       await fetchItems(itemsPage, itemsPerPage, searchFilters);
 
       toast({
@@ -180,7 +178,6 @@ export const PartEntryPage = ({
         description: selectedPart ? "Part updated successfully" : "Part created successfully",
       });
     } catch (error: any) {
-      console.error("Error saving part:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to save part",
@@ -286,7 +283,6 @@ export const PartEntryPage = ({
                         setParts(transformedParts);
                       }
                     } catch (error: any) {
-                      console.error("Error fetching all parts:", error);
                     } finally {
                       setLoading(false);
                     }
@@ -310,7 +306,6 @@ export const PartEntryPage = ({
                     const fetchPartsByMasterPart = async () => {
                       setLoading(true);
                       try {
-                        console.log("🔍 Fetching family parts for Master Part No:", valueFromDropdown.trim());
                         // First try with part_no parameter
                         let response = await apiClient.getParts({
                           part_no: valueFromDropdown.trim(),
@@ -332,7 +327,6 @@ export const PartEntryPage = ({
 
                         // If no results with part_no, try search and filter client-side
                         if (partsData.length === 0) {
-                          console.log("🔄 Trying search parameter...");
                           response = await apiClient.getParts({
                             search: valueFromDropdown.trim(),
                             limit: 10000,
@@ -356,8 +350,6 @@ export const PartEntryPage = ({
                           );
                         }
 
-                        console.log(`📋 Found ${partsData.length} family parts for "${valueFromDropdown}"`);
-
                         if (partsData.length > 0) {
                           // SWAPPED: partNo shows master_part_no, masterPartNo shows part_no
                           const transformedParts: Part[] = partsData.map((p: any) => ({
@@ -370,14 +362,11 @@ export const PartEntryPage = ({
                             stock: 0,
                             masterPartNo: (p.part_no || "").trim(),
                           }));
-                          console.log(`✅ Family parts:`, transformedParts.map((p) => p.partNo));
                           setParts(transformedParts);
                         } else {
-                          console.log("⚠️ No family parts found for:", valueFromDropdown);
                           setParts([]);
                         }
                       } catch (error: any) {
-                        console.error("Error fetching parts:", error);
                         setParts([]);
                       } finally {
                         setLoading(false);
@@ -459,14 +448,12 @@ export const PartEntryPage = ({
                                 stock: 0,
                                 masterPartNo: (p.part_no || "").trim(),
                               }));
-                              console.log(`✅ Showing ${transformedParts.length} family parts`);
                               setParts(transformedParts);
                               setSelectedMasterPartNo(masterPartNo);
                             }
                           }
                         }
                       } catch (error: any) {
-                        console.error("Error fetching family parts:", error);
                       } finally {
                         setLoading(false);
                       }
@@ -502,7 +489,6 @@ export const PartEntryPage = ({
                           setParts(transformedParts);
                         }
                       } catch (error: any) {
-                        console.error("Error fetching all parts:", error);
                       } finally {
                         setLoading(false);
                       }
@@ -628,11 +614,9 @@ export const PartEntryPage = ({
                           stock: 0,
                           masterPartNo: (p.part_no || "").trim(),
                         }));
-                        console.log(`✅ Family parts for "${part.masterPartNo}":`, transformedParts.map((p) => p.partNo));
                         setParts(transformedParts);
                       }
                     } catch (error: any) {
-                      console.error("Error fetching family parts:", error);
                     } finally {
                       setLoading(false);
                     }

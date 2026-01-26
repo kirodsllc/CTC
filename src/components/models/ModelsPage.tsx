@@ -88,7 +88,6 @@ export const ModelsPage = () => {
         });
         
         if (response.error) {
-          console.error('Error fetching parts:', response.error);
           setParts([]);
         } else {
           const responseData = response.data as any;
@@ -118,7 +117,6 @@ export const ModelsPage = () => {
           setParts(transformedParts);
         }
       } catch (error: any) {
-        console.error('Error fetching initial parts:', error);
         setParts([]);
       } finally {
         setLoadingParts(false);
@@ -165,7 +163,6 @@ export const ModelsPage = () => {
 
         const response = await apiClient.getParts(params);
         if (response.error) {
-          console.error('Error fetching parts:', response.error);
           setApiParts([]);
         } else {
           const responseData = response.data as any;
@@ -195,7 +192,6 @@ export const ModelsPage = () => {
           setApiParts(transformedParts);
         }
       } catch (error: any) {
-        console.error('Error fetching parts from API:', error);
         setApiParts([]);
       } finally {
         setLoadingParts(false);
@@ -280,7 +276,6 @@ export const ModelsPage = () => {
           setModels(transformedModels);
         }
       } catch (error: any) {
-        console.error("Error fetching models:", error);
         toast({
           title: "Error",
           description: error.message || "Failed to fetch models",
@@ -368,7 +363,6 @@ export const ModelsPage = () => {
           }
         }
       } catch (error) {
-        console.error('Error searching for part:', error);
       }
     }
   };
@@ -394,7 +388,6 @@ export const ModelsPage = () => {
 
       return true;
     } catch (error: any) {
-      console.error("Error saving models:", error);
       throw error;
     }
   };
@@ -555,7 +548,6 @@ export const ModelsPage = () => {
             toast({ title: "Data refreshed" });
           }
         } catch (error: any) {
-          console.error("Error refreshing models:", error);
           toast({
             title: "Error",
             description: error.message || "Failed to refresh models",

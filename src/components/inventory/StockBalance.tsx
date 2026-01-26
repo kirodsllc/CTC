@@ -94,7 +94,6 @@ export const StockBalance = () => {
           setStockData([]);
         }
       } catch (error) {
-        console.error('Error fetching stock balance data:', error);
         toast({
           title: "Error",
           description: "Failed to fetch stock balance data",
@@ -142,7 +141,6 @@ export const StockBalance = () => {
             setStockData([]);
           }
         } catch (error) {
-          console.error('Error fetching stock balance data:', error);
           toast({
             title: "Error",
             description: "Failed to fetch stock balance data",
@@ -171,7 +169,6 @@ export const StockBalance = () => {
         ]);
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
     }
   };
 
@@ -186,10 +183,8 @@ export const StockBalance = () => {
         ]);
       }
     } catch (error) {
-      console.error('Error fetching stores:', error);
     }
   };
-
 
   // Use stockData directly since filtering is done server-side
   const filteredData = useMemo(() => {

@@ -2,10 +2,8 @@ import prisma from '../config/database';
 
 async function seedKitsAndSuppliers() {
   try {
-    console.log('🌱 Seeding kits and suppliers...');
     
     // Create tables if they don't exist
-    console.log('📋 Creating tables if needed...');
     try {
       await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "Kit" (
@@ -39,22 +37,18 @@ async function seedKitsAndSuppliers() {
       
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "KitItem_kitId_idx" ON "KitItem"("kitId");`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "KitItem_partId_idx" ON "KitItem"("partId");`);
-      console.log('✅ Tables created/verified');
     } catch (error: any) {
       if (!error.message.includes('already exists')) {
-        console.log('⚠️  Tables may already exist or error creating:', error.message);
       }
     }
     
     // Get parts for kits
     const parts = await prisma.part.findMany({ take: 20 });
     if (parts.length < 5) {
-      console.log('⚠️  Need at least 5 parts to create kits');
       return;
     }
 
     // Seed Kits
-    console.log('📦 Seeding kits...');
     const kitsData = [
       {
         badge: 'KIT-001',
@@ -157,15 +151,12 @@ async function seedKitsAndSuppliers() {
           createdKits.push(kit);
         } catch (error: any) {
           if (error.code !== 'P2002') {
-            console.error(`Error creating kit ${kitData.badge}:`, error);
           }
         }
       }
     }
-    console.log(`✅ ${createdKits.length} kits seeded`);
 
     // Seed Additional Suppliers
-    console.log('🏭 Seeding additional suppliers...');
     const additionalSuppliersData = [
       {
         code: 'SUP-005',
@@ -210,18 +201,12 @@ async function seedKitsAndSuppliers() {
         create: supplierData,
       });
     }
-    console.log(`✅ ${additionalSuppliersData.length} additional suppliers seeded`);
 
     // Final count
     const allKits = await prisma.kit.findMany({ where: { status: 'Active' } });
     const allSuppliers = await prisma.supplier.findMany({ where: { status: 'active' } });
     
-    console.log('✅ Seeding completed!');
-    console.log(`📊 Summary:`);
-    console.log(`   - Active Kits: ${allKits.length}`);
-    console.log(`   - Active Suppliers: ${allSuppliers.length}`);
   } catch (error) {
-    console.error('❌ Seeding failed:', error);
     throw error;
   } finally {
     await prisma.$disconnect();
@@ -235,11 +220,9 @@ async function seedKitsAndSuppliers() {
 if (require.main === module) {
   seedKitsAndSuppliers()
     .then(() => {
-      console.log('✅ Seed process completed');
       process.exit(0);
     })
     .catch((error) => {
-      console.error('❌ Seed process failed:', error);
       process.exit(1);
     });
 }

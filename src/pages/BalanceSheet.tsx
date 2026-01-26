@@ -61,10 +61,8 @@ const BalanceSheet = () => {
         const result = await response.json();
         setData(result);
       } else {
-        console.error("Failed to fetch balance sheet");
       }
     } catch (error) {
-      console.error("Error fetching balance sheet:", error);
     } finally {
       setLoading(false);
     }

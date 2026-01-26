@@ -104,7 +104,6 @@ router.get('/', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching vouchers:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -151,7 +150,6 @@ router.get('/:id', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching voucher:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -243,7 +241,6 @@ router.post('/', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error creating voucher:', error);
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Voucher number already exists' });
     }
@@ -369,7 +366,6 @@ router.put('/:id', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error updating voucher:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -404,7 +400,6 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     // If voucher is posted, reverse account balances before deletion
     if (voucher.status === 'posted' && voucher.entries.length > 0) {
-      console.log(`🔄 Reversing account balances for voucher ${voucher.voucherNumber}...`);
       
       for (const entry of voucher.entries) {
         if (!entry.accountId || !entry.account) {
@@ -434,11 +429,9 @@ router.delete('/:id', async (req: Request, res: Response) => {
             },
           });
 
-          console.log(`   ✓ Reversed account ${entry.account.code}-${entry.account.name}: ${balanceReversal > 0 ? '+' : ''}${balanceReversal.toFixed(2)}`);
         }
       }
       
-      console.log(`✅ Account balances reversed for voucher ${voucher.voucherNumber}`);
     }
 
     // Delete related journal entries if they reference this voucher
@@ -452,7 +445,6 @@ router.delete('/:id', async (req: Request, res: Response) => {
     });
 
     if (journalEntries.length > 0) {
-      console.log(`🗑️  Deleting ${journalEntries.length} related journal entry(ies)...`);
       
       for (const journalEntry of journalEntries) {
         // Reverse journal entry account balances if posted
@@ -496,7 +488,6 @@ router.delete('/:id', async (req: Request, res: Response) => {
         });
       }
       
-      console.log(`✅ Deleted ${journalEntries.length} related journal entry(ies)`);
     }
 
     // Delete voucher entries (will cascade, but explicit for clarity)
@@ -509,15 +500,12 @@ router.delete('/:id', async (req: Request, res: Response) => {
       where: { id },
     });
 
-    console.log(`✅ Successfully deleted voucher ${voucher.voucherNumber} and reversed all account balances`);
-
     res.json({ 
       message: 'Voucher deleted successfully',
       reversedAccounts: voucher.status === 'posted' ? voucher.entries.length : 0,
       deletedJournalEntries: journalEntries.length,
     });
   } catch (error: any) {
-    console.error('Error deleting voucher:', error);
     res.status(500).json({ error: error.message });
   }
 });

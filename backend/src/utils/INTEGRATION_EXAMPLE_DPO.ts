@@ -71,21 +71,6 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
       'value' // distribute expenses by item value (proportional)
     );
 
-    console.log('📊 Purchase Receive Result:', {
-      dpo_number,
-      totalItems: receiveResult.items.length,
-      totalExpenses: receiveResult.totalExpenses,
-      items: receiveResult.items.map(item => ({
-        partId: item.partId,
-        qty: item.quantity,
-        purchasePrice: item.purchasePrice,
-        expensePerUnit: item.expensePerUnit.toFixed(2),
-        landedCost: item.landedCost.toFixed(2),
-        oldAvgCost: item.oldAvgCost.toFixed(2),
-        newAvgCost: item.newAvgCost.toFixed(2),
-      })),
-    });
-
     // ========================================================================
     // Continue with normal DPO creation (existing logic)
     // ========================================================================
@@ -217,7 +202,6 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
         },
       });
       
-      console.log('✅ Payment Voucher Created:', voucherNumber);
     }
 
     // Return response with formula results
@@ -237,7 +221,6 @@ router.post('/direct-purchase-orders', async (req: Request, res: Response) => {
     });
 
   } catch (error: any) {
-    console.error('Error creating direct purchase order:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -298,7 +281,6 @@ router.put('/direct-purchase-orders/:id', async (req: Request, res: Response) =>
     });
 
   } catch (error: any) {
-    console.error('Error updating DPO:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -354,7 +336,6 @@ router.get('/parts/:partId/stock', async (req: Request, res: Response) => {
     });
 
   } catch (error: any) {
-    console.error('Error getting stock:', error);
     res.status(500).json({ error: error.message });
   }
 });

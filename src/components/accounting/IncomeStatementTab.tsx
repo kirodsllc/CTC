@@ -74,10 +74,8 @@ export const IncomeStatementTab = () => {
         }
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.error("Error fetching income statement:", errorData.error || response.statusText);
       }
     } catch (error) {
-      console.error("Error fetching income statement:", error);
     } finally {
       setLoading(false);
     }
@@ -168,7 +166,6 @@ export const IncomeStatementTab = () => {
     link.click();
     URL.revokeObjectURL(url);
   };
-
 
   const totalRevenue = revenueData.reduce((sum, cat) => 
     sum + cat.items.reduce((s, item) => s + item.amount, 0), 0

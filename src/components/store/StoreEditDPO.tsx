@@ -201,7 +201,6 @@ export const StoreEditDPO = ({ order, open, onOpenChange, onSuccess }: StoreEdit
         await fetchRacks(storeId);
       }
     } catch (error: any) {
-      console.error("Error loading order data:", error);
       toast.error("Failed to load order details");
     }
   };
@@ -215,7 +214,6 @@ export const StoreEditDPO = ({ order, open, onOpenChange, onSuccess }: StoreEdit
         setStores(storesData.map((s: any) => ({ id: s.id, name: s.name })));
       }
     } catch (error: any) {
-      console.error("Error fetching dropdown data:", error);
     }
   };
 
@@ -247,7 +245,6 @@ export const StoreEditDPO = ({ order, open, onOpenChange, onSuccess }: StoreEdit
         );
       }
     } catch (error: any) {
-      console.error("Error fetching racks:", error);
     }
   };
 
@@ -390,7 +387,6 @@ export const StoreEditDPO = ({ order, open, onOpenChange, onSuccess }: StoreEdit
         onSuccess();
       }
     } catch (error: any) {
-      console.error("Error updating DPO:", error);
       toast.error(error.error || "Failed to update order");
     } finally {
       setLoading(false);

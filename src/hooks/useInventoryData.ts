@@ -64,7 +64,6 @@ const saveToStorage = <T>(key: string, data: T): void => {
   try {
     localStorage.setItem(key, JSON.stringify(data));
   } catch (error) {
-    console.error('Failed to save to localStorage:', error);
   }
 };
 
@@ -162,7 +161,6 @@ export const useInventoryStats = () => {
         categoriesCount,
       });
     } catch (error: any) {
-      console.error('Error fetching inventory stats:', error);
       // Keep existing stats on error
     } finally {
       setLoading(false);

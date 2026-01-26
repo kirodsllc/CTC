@@ -273,7 +273,6 @@ export const SalesInvoice = () => {
     (inv) => inv.status === "pending" || inv.status === "partially_delivered"
   ).length;
 
-
   // Add new inline item row
   const handleAddNewItem = () => {
     const newItem: InlineItemRow = {
@@ -335,7 +334,6 @@ export const SalesInvoice = () => {
     try {
       const response = await apiClient.getStockBalance(partId) as any;
       if (response.error) {
-        console.error("Error fetching stock balance:", response.error);
         return;
       }
 
@@ -348,7 +346,6 @@ export const SalesInvoice = () => {
         }
       }));
     } catch (error) {
-      console.error("Error fetching stock balance:", error);
     } finally {
       setLoadingStock(prev => ({ ...prev, [partId]: false }));
     }
@@ -422,7 +419,6 @@ export const SalesInvoice = () => {
         setParts(transformedParts);
       }
     } catch (error) {
-      console.error("Error fetching parts:", error);
       setParts([]);
     } finally {
       setPartsLoading(false);
@@ -500,7 +496,6 @@ export const SalesInvoice = () => {
         }) as any;
 
         if (response.error) {
-          console.error('Error fetching invoices:', response.error);
           toast({
             title: "Error",
             description: "Failed to load invoices",
@@ -558,7 +553,6 @@ export const SalesInvoice = () => {
 
         setInvoices(transformedInvoices);
       } catch (error: any) {
-        console.error('Error fetching invoices:', error);
         toast({
           title: "Error",
           description: error.message || "Failed to fetch invoices",
@@ -604,7 +598,6 @@ export const SalesInvoice = () => {
           setCustomers(filteredCustomers);
         }
       } catch (error: any) {
-        console.error("Error fetching customers:", error);
         // Fall back to mockCustomers on error
         setCustomers([]);
       } finally {
@@ -620,7 +613,6 @@ export const SalesInvoice = () => {
     const fetchAccounts = async () => {
       try {
         setLoadingAccounts(true);
-        console.log("Fetching Bank and Cash accounts from Accounting API...");
 
         // Fetch accounts from Accounting API using apiClient
         // Note: Backend expects "Active" with capital A
@@ -628,18 +620,14 @@ export const SalesInvoice = () => {
 
         // apiClient returns { data: [...] } or the data directly
         const accountsData = Array.isArray(response) ? response : (response.data || []);
-        console.log("Raw accounts data:", accountsData);
-        console.log("Accounts count:", Array.isArray(accountsData) ? accountsData.length : 0);
 
         if (!Array.isArray(accountsData)) {
-          console.error("Invalid response format - expected array, got:", typeof accountsData);
           setBankAccounts([]);
           setCashAccounts([]);
           return;
         }
 
         if (accountsData.length === 0) {
-          console.log("No active accounts found. Please add accounts in Accounting → Accounts.");
           setBankAccounts([]);
           setCashAccounts([]);
           return;
@@ -698,11 +686,9 @@ export const SalesInvoice = () => {
             code: acc.code || "",
           }));
 
-        console.log("Successfully loaded", bankAccountsList.length, "Bank accounts and", cashAccountsList.length, "Cash accounts");
         setBankAccounts(bankAccountsList);
         setCashAccounts(cashAccountsList);
       } catch (error) {
-        console.error("Error loading accounts from Accounting API:", error);
         setBankAccounts([]);
         setCashAccounts([]);
       } finally {
@@ -907,7 +893,6 @@ export const SalesInvoice = () => {
       }));
       setInvoices(transformedInvoices);
     } catch (error: any) {
-      console.error('Error creating invoice:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to create invoice",
@@ -1020,7 +1005,6 @@ export const SalesInvoice = () => {
       });
       setShowAddCustomerDialog(false);
     } catch (error: any) {
-      console.error("Error creating customer:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to create customer",
@@ -1112,7 +1096,6 @@ export const SalesInvoice = () => {
         setSelectedInvoice(updatedInvoice);
       }
     } catch (error: any) {
-      console.error('Error recording delivery:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to record delivery",
@@ -1194,7 +1177,6 @@ export const SalesInvoice = () => {
       }));
       setInvoices(transformedInvoices);
     } catch (error: any) {
-      console.error('Error approving invoice:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to approve invoice",
@@ -1281,7 +1263,6 @@ export const SalesInvoice = () => {
       setHoldReason("");
       setInvoiceToHold(null);
     } catch (error: any) {
-      console.error('Error holding invoice:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to put invoice on hold",
@@ -1363,7 +1344,6 @@ export const SalesInvoice = () => {
       setShowCancelConfirm(false);
       setInvoiceToCancel(null);
     } catch (error: any) {
-      console.error('Error cancelling invoice:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to cancel invoice",
@@ -1437,7 +1417,6 @@ export const SalesInvoice = () => {
       }));
       setInvoices(transformedInvoices);
     } catch (error: any) {
-      console.error('Error releasing hold:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to release hold",
@@ -1525,7 +1504,6 @@ export const SalesInvoice = () => {
       }));
       setInvoices(transformedInvoices);
     } catch (error: any) {
-      console.error('Error updating invoice status:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update invoice status",
@@ -1611,7 +1589,6 @@ export const SalesInvoice = () => {
       setShowStatusConfirm(false);
       setStatusToUpdate(null);
     } catch (error: any) {
-      console.error('Error updating invoice status:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update invoice status",
@@ -1677,7 +1654,6 @@ export const SalesInvoice = () => {
       case "D": return "bg-red-500/10 text-red-600 border-red-500/20";
     }
   };
-
 
   return (
     <div className="space-y-4">
@@ -2379,7 +2355,6 @@ export const SalesInvoice = () => {
                   <Select
                     value={selectedBankAccount}
                     onValueChange={(value) => {
-                      console.log("Bank account selected:", value);
                       setSelectedBankAccount(value);
                       if (!value) setBankAmount(0); // Reset amount if account is deselected
                     }}
@@ -2436,7 +2411,6 @@ export const SalesInvoice = () => {
                   <Select
                     value={selectedCashAccount}
                     onValueChange={(value) => {
-                      console.log("Cash account selected:", value);
                       setSelectedCashAccount(value);
                       if (!value) setCashAmount(0); // Reset amount if account is deselected
                     }}
@@ -2768,7 +2742,6 @@ export const SalesInvoice = () => {
           </CardContent>
         </Card>
       )}
-
 
       {/* View Invoice Dialog */}
       <Dialog open={showViewInvoice} onOpenChange={setShowViewInvoice}>

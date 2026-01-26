@@ -20,10 +20,8 @@ router.get('/master-parts', async (req: Request, res: Response) => {
       // Explicitly no limit - get all records
     });
 
-    console.log(`Fetched ${masterParts.length} master parts`);
     res.json(masterParts.map((mp) => mp.masterPartNo));
   } catch (error: any) {
-    console.error('Error fetching master parts:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -48,7 +46,6 @@ router.get('/brands', async (req: Request, res: Response) => {
 
     res.json(brands);
   } catch (error: any) {
-    console.error('Error fetching brands:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -72,7 +69,6 @@ router.get('/categories', async (req: Request, res: Response) => {
 
     res.json(categories);
   } catch (error: any) {
-    console.error('Error fetching categories:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -99,7 +95,6 @@ router.get('/subcategories', async (req: Request, res: Response) => {
 
     res.json(subcategories);
   } catch (error: any) {
-    console.error('Error fetching subcategories:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -109,7 +104,7 @@ router.get('/applications', async (req: Request, res: Response) => {
   try {
     const { subcategory_id, search } = req.query;
     
-    const where: any = { status: 'active' };
+    const where: any = { status: 'active', NOT: [{ name: '.' }, { name: '' }] };
     if (subcategory_id) {
       where.subcategoryId = subcategory_id as string;
     }
@@ -126,7 +121,6 @@ router.get('/applications', async (req: Request, res: Response) => {
 
     res.json(applications);
   } catch (error: any) {
-    console.error('Error fetching applications:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -136,7 +130,7 @@ router.get('/applications/all', async (req: Request, res: Response) => {
   try {
     const { search, status, subcategory_id } = req.query;
     
-    const where: any = {};
+    const where: any = { NOT: [{ name: '.' }, { name: '' }] };
     if (status && status !== 'all') {
       where.status = status as string;
     }
@@ -169,7 +163,6 @@ router.get('/applications/all', async (req: Request, res: Response) => {
       }))
     );
   } catch (error: any) {
-    console.error('Error fetching all applications:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -179,8 +172,12 @@ router.post('/applications', async (req: Request, res: Response) => {
   try {
     const { name, subcategory_id, status } = req.body;
 
-    if (!name || !name.trim()) {
+    const trimmedName = String(name ?? '').trim();
+    if (!trimmedName) {
       return res.status(400).json({ error: 'Application name is required' });
+    }
+    if (/^\.+$/.test(trimmedName)) {
+      return res.status(400).json({ error: 'Invalid application name' });
     }
     if (!subcategory_id) {
       return res.status(400).json({ error: 'Subcategory is required' });
@@ -188,7 +185,7 @@ router.post('/applications', async (req: Request, res: Response) => {
 
     const application = await prisma.application.create({
       data: {
-        name: name.trim(),
+        name: trimmedName,
         subcategoryId: subcategory_id,
         status: status === 'Inactive' ? 'inactive' : 'active',
       },
@@ -212,7 +209,6 @@ router.post('/applications', async (req: Request, res: Response) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Application with this name already exists in this subcategory' });
     }
-    console.error('Error creating application:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -223,8 +219,12 @@ router.put('/applications/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     const { name, subcategory_id, status } = req.body;
 
-    if (!name || !name.trim()) {
+    const trimmedName = String(name ?? '').trim();
+    if (!trimmedName) {
       return res.status(400).json({ error: 'Application name is required' });
+    }
+    if (/^\.+$/.test(trimmedName)) {
+      return res.status(400).json({ error: 'Invalid application name' });
     }
     if (!subcategory_id) {
       return res.status(400).json({ error: 'Subcategory is required' });
@@ -233,7 +233,7 @@ router.put('/applications/:id', async (req: Request, res: Response) => {
     const application = await prisma.application.update({
       where: { id },
       data: {
-        name: name.trim(),
+        name: trimmedName,
         subcategoryId: subcategory_id,
         status: status === 'Inactive' ? 'inactive' : 'active',
       },
@@ -260,7 +260,6 @@ router.put('/applications/:id', async (req: Request, res: Response) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Application with this name already exists in this subcategory' });
     }
-    console.error('Error updating application:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -296,7 +295,6 @@ router.delete('/applications/:id', async (req: Request, res: Response) => {
 
     res.json({ message: 'Application deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting application:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -345,7 +343,6 @@ router.get('/parts', async (req: Request, res: Response) => {
       }))
     );
   } catch (error: any) {
-    console.error('Error fetching parts:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -386,7 +383,6 @@ router.get('/categories/all', async (req: Request, res: Response) => {
       }))
     );
   } catch (error: any) {
-    console.error('Error fetching all categories:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -423,7 +419,6 @@ router.post('/categories', async (req: Request, res: Response) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Category with this name already exists' });
     }
-    console.error('Error creating category:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -465,7 +460,6 @@ router.put('/categories/:id', async (req: Request, res: Response) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Category with this name already exists' });
     }
-    console.error('Error updating category:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -501,7 +495,6 @@ router.delete('/categories/:id', async (req: Request, res: Response) => {
 
     res.json({ message: 'Category deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting category:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -546,7 +539,6 @@ router.get('/subcategories/all', async (req: Request, res: Response) => {
       }))
     );
   } catch (error: any) {
-    console.error('Error fetching all subcategories:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -588,7 +580,6 @@ router.post('/subcategories', async (req: Request, res: Response) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Subcategory with this name already exists in this category' });
     }
-    console.error('Error creating subcategory:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -635,7 +626,6 @@ router.put('/subcategories/:id', async (req: Request, res: Response) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Subcategory with this name already exists in this category' });
     }
-    console.error('Error updating subcategory:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -671,7 +661,6 @@ router.delete('/subcategories/:id', async (req: Request, res: Response) => {
 
     res.json({ message: 'Subcategory deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting subcategory:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -706,7 +695,6 @@ router.get('/brands/all', async (req: Request, res: Response) => {
       }))
     );
   } catch (error: any) {
-    console.error('Error fetching all brands:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -737,7 +725,6 @@ router.post('/brands', async (req: Request, res: Response) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Brand with this name already exists' });
     }
-    console.error('Error creating brand:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -773,7 +760,6 @@ router.put('/brands/:id', async (req: Request, res: Response) => {
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Brand with this name already exists' });
     }
-    console.error('Error updating brand:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -809,7 +795,6 @@ router.delete('/brands/:id', async (req: Request, res: Response) => {
 
     res.json({ message: 'Brand deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting brand:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -34,7 +34,6 @@ router.get('/', async (req, res) => {
 
     res.json({ data: formattedRoles });
   } catch (error: any) {
-    console.error('Error fetching roles:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -63,7 +62,6 @@ router.get('/:id', async (req, res) => {
 
     res.json({ data: { ...role, permissions, usersCount } });
   } catch (error: any) {
-    console.error('Error fetching role:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -100,7 +98,6 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({ data: { ...role, permissions: parsedPermissions, usersCount: 0 } });
   } catch (error: any) {
-    console.error('Error creating role:', error);
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Role with this name already exists' });
     }
@@ -141,7 +138,6 @@ router.put('/:id', async (req, res) => {
 
     res.json({ data: { ...role, permissions: parsedPermissions, usersCount } });
   } catch (error: any) {
-    console.error('Error updating role:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Role not found' });
     }
@@ -158,7 +154,6 @@ router.delete('/:id', async (req, res) => {
 
     res.json({ message: 'Role deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting role:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Role not found' });
     }

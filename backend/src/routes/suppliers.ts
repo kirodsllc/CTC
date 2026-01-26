@@ -34,7 +34,6 @@ async function generateSupplierCode(): Promise<string> {
     // If format doesn't match, start from 001
     return 'SUP-001';
   } catch (error) {
-    console.error('Error generating supplier code:', error);
     // Fallback: generate based on count
     const count = await prisma.supplier.count();
     return `SUP-${String(count + 1).padStart(3, '0')}`;
@@ -112,7 +111,6 @@ router.get('/', async (req, res) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching suppliers:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -130,7 +128,6 @@ router.get('/:id', async (req, res) => {
 
     res.json({ data: supplier });
   } catch (error: any) {
-    console.error('Error fetching supplier:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -248,9 +245,7 @@ router.post('/', async (req, res) => {
           });
 
           // Create journal entry and update balances ONLY if opening balance > 0
-          console.log(`🔍 DEBUG: parsedOpeningBalance = ${parsedOpeningBalance}, condition = ${parsedOpeningBalance > 0}`);
           if (parsedOpeningBalance > 0) {
-            console.log('✅ Opening balance > 0, creating voucher...');
             // Find or create Owner Capital account (501003)
             let ownerCapitalAccount = await prisma.account.findFirst({
               where: { code: '501003' },
@@ -263,7 +258,6 @@ router.post('/', async (req, res) => {
               });
 
               if (!capitalSubgroup) {
-                console.error('❌ Capital subgroup (501) not found. Cannot create Owner Capital account.');
                 throw new Error('Capital subgroup (501) not found. Please create accounting structure first.');
               }
 
@@ -280,7 +274,6 @@ router.post('/', async (req, res) => {
                   canDelete: false,
                 },
               });
-              console.log(`✅ Created Owner Capital account (501003)`);
             }
 
             // Generate voucher number
@@ -326,19 +319,6 @@ router.post('/', async (req, res) => {
               },
             });
             
-            console.log(`✅ Created voucher ${voucherNumber}:`, {
-              id: voucher.id,
-              status: voucher.status,
-              date: voucher.date,
-              totalDebit: voucher.totalDebit,
-              totalCredit: voucher.totalCredit,
-              entries: voucher.entries.map(e => ({
-                accountId: e.accountId,
-                accountName: e.accountName,
-                debit: e.debit,
-                credit: e.credit
-              }))
-            });
 
             // Update account balances
             await prisma.account.update({
@@ -359,25 +339,19 @@ router.post('/', async (req, res) => {
               },
             });
 
-            console.log(`✅ Created supplier account ${accountCode} and JV voucher ${voucherNumber} for opening balance`);
           } else {
             // No opening balance, just create the account
-            console.log(`✅ Created supplier account ${accountCode} (no opening balance)`);
           }
         } else {
-          console.log(`ℹ️  Supplier account already exists: ${existingAccount.code} - ${existingAccount.name}`);
         }
       } else {
-        console.error('❌ Purchase Orders Payables subgroup (301) not found. Cannot create supplier account.');
       }
     } catch (accountError: any) {
-      console.error('Error creating supplier account/journal entry:', accountError);
       // Don't fail supplier creation if account creation fails
     }
 
     res.status(201).json({ data: supplier });
   } catch (error: any) {
-    console.error('Error creating supplier:', error);
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Supplier code already exists' });
     }
@@ -440,7 +414,6 @@ router.put('/:id', async (req, res) => {
 
     res.json({ data: supplier });
   } catch (error: any) {
-    console.error('Error updating supplier:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Supplier not found' });
     }
@@ -460,7 +433,6 @@ router.delete('/:id', async (req, res) => {
 
     res.json({ message: 'Supplier deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting supplier:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Supplier not found' });
     }

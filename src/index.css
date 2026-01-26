@@ -130,3 +130,25 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Default "Caps Lock" behavior for the whole system (with safe exclusions). */
+@layer base {
+  input:not([data-preserve-case="true"])
+    :not([type="password"])
+    :not([type="email"])
+    :not([type="url"])
+    :not([type="search"])
+    :not([type="number"])
+    :not([type="tel"])
+    :not([type="date"])
+    :not([type="datetime-local"])
+    :not([type="time"])
+    :not([type="week"])
+    :not([type="month"])
+    :not([type="color"])
+    :not([type="range"])
+    :not([type="file"]),
+  textarea:not([data-preserve-case="true"]) {
+    text-transform: uppercase;
+  }
+}

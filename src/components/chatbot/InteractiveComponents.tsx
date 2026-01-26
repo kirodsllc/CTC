@@ -35,7 +35,6 @@ export const ItemDropdown: React.FC<ItemDropdownProps> = ({ onSelect, selectedIt
           setOptions(parts);
         }
       } catch (error) {
-        console.error('Error fetching parts:', error);
       } finally {
         setLoading(false);
       }
@@ -92,7 +91,6 @@ export const SupplierDropdown: React.FC<SupplierDropdownProps> = ({ onSelect, di
           setOptions(suppliers);
         }
       } catch (error) {
-        console.error('Error fetching suppliers:', error);
       } finally {
         setLoading(false);
       }
@@ -145,7 +143,6 @@ export const StoreDropdown: React.FC<StoreDropdownProps> = ({ onSelect, disabled
           setOptions(stores);
         }
       } catch (error) {
-        console.error('Error fetching stores:', error);
       } finally {
         setLoading(false);
       }
@@ -203,7 +200,6 @@ export const RackDropdown: React.FC<RackDropdownProps> = ({ storeId, onSelect, d
           setOptions(racks);
         }
       } catch (error) {
-        console.error('Error fetching racks:', error);
       } finally {
         setLoading(false);
       }
@@ -261,7 +257,6 @@ export const ShelfDropdown: React.FC<ShelfDropdownProps> = ({ rackId, onSelect, 
           setOptions(shelves);
         }
       } catch (error) {
-        console.error('Error fetching shelves:', error);
       } finally {
         setLoading(false);
       }

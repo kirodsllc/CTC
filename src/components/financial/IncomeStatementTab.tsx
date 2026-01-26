@@ -59,12 +59,10 @@ export const IncomeStatementTab = () => {
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Failed to fetch income statement:", response.status, response.statusText, errorText);
         return;
       }
       
       const result = await response.json();
-      console.log("Full API Response:", JSON.stringify(result, null, 2));
       
       // Transform accounting endpoint data to match expected format
       const revenueAccounts: IncomeAccount[] = [];
@@ -83,7 +81,6 @@ export const IncomeStatementTab = () => {
           }
         });
       }
-      console.log("Transformed Revenue Accounts:", revenueAccounts);
       
       const costAccounts: IncomeAccount[] = [];
       if (result.cost && Array.isArray(result.cost)) {
@@ -101,7 +98,6 @@ export const IncomeStatementTab = () => {
           }
         });
       }
-      console.log("Transformed Cost Accounts:", costAccounts);
       
       const expenseAccounts: IncomeAccount[] = [];
       if (result.expenses && Array.isArray(result.expenses)) {
@@ -119,11 +115,9 @@ export const IncomeStatementTab = () => {
           }
         });
       }
-      console.log("Transformed Expense Accounts:", expenseAccounts);
       
       // If no accounts found, set empty arrays to ensure UI still renders
       if (revenueAccounts.length === 0 && costAccounts.length === 0 && expenseAccounts.length === 0) {
-        console.warn("No accounts found in API response. Response structure:", result);
       }
       
       const totalRevenue = revenueAccounts.reduce((sum, acc) => sum + acc.amount, 0);
@@ -157,7 +151,6 @@ export const IncomeStatementTab = () => {
         },
       });
     } catch (error) {
-      console.error("Error fetching income statement:", error);
     } finally {
       setLoading(false);
     }

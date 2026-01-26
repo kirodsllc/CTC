@@ -81,7 +81,6 @@ router.get('/main-groups', async (req: Request, res: Response) => {
     });
     res.json(groups);
   } catch (error: any) {
-    console.error('Error fetching main groups:', error);
     res.status(500).json({ 
       error: error.message,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
@@ -718,7 +717,6 @@ router.get('/general-journal', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching general journal:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -891,7 +889,6 @@ router.get('/trial-balance', async (req: Request, res: Response) => {
       }
     }
     
-    console.log('[Trial Balance] Date filters:', { dateFilter, voucherDateFilter });
     
     const accounts = await prisma.account.findMany({
       include: {
@@ -929,8 +926,6 @@ router.get('/trial-balance', async (req: Request, res: Response) => {
       ],
     });
     
-    console.log(`[Trial Balance] Found ${accounts.length} accounts`);
-    console.log(`[Trial Balance] Accounts with voucher entries: ${accounts.filter(a => a.voucherEntries && a.voucherEntries.length > 0).length}`);
     
     // Group accounts by main group and subgroup
     const groupedData: any[] = [];
@@ -947,10 +942,6 @@ router.get('/trial-balance', async (req: Request, res: Response) => {
       
       // Debug logging for accounts with voucher entries
       if (account.voucherEntries && account.voucherEntries.length > 0) {
-        console.log(`[Trial Balance] Account ${account.code}-${account.name}:`);
-        console.log(`  - Journal: Dr ${journalDebit}, Cr ${journalCredit}`);
-        console.log(`  - Voucher: Dr ${voucherDebit}, Cr ${voucherCredit} (${account.voucherEntries.length} entries)`);
-        console.log(`  - Opening Balance: ${account.openingBalance || 0}`);
       }
       
       const totalDebit = journalDebit + voucherDebit;
@@ -1082,27 +1073,15 @@ router.get('/trial-balance', async (req: Request, res: Response) => {
     const openingBalanceDifference = Math.abs(totalOpeningDebit - totalOpeningCredit);
     
     if (unbalancedJournalEntries.length > 0 || unbalancedVouchers.length > 0) {
-      console.warn('[Trial Balance] Found unbalanced entries:');
       if (unbalancedJournalEntries.length > 0) {
-        console.warn(`  - ${unbalancedJournalEntries.length} unbalanced journal entries:`, 
-          unbalancedJournalEntries.map(e => `${e.entryNo} (Dr: ${e.totalDebit}, Cr: ${e.totalCredit}, Diff: ${Math.abs(e.totalDebit - e.totalCredit)})`));
       }
       if (unbalancedVouchers.length > 0) {
-        console.warn(`  - ${unbalancedVouchers.length} unbalanced vouchers:`, 
-          unbalancedVouchers.map(v => `${v.voucherNumber} (Dr: ${v.totalDebit}, Cr: ${v.totalCredit}, Diff: ${Math.abs(v.totalDebit - v.totalCredit)})`));
       }
     }
     
-    console.log(`[Trial Balance] Summary:`);
-    console.log(`  - Total Accounts: ${accounts.length}`);
-    console.log(`  - Total Journal Entries: ${allJournalEntries.length}`);
-    console.log(`  - Total Vouchers: ${allVouchers.length}`);
-    console.log(`  - Opening Balance - Total Debit: ${totalOpeningDebit}, Total Credit: ${totalOpeningCredit}, Difference: ${openingBalanceDifference}`);
-    console.log(`  - Trial Balance - Total Debit: ${calculatedTotalDebit}, Total Credit: ${calculatedTotalCredit}, Difference: ${Math.abs(calculatedTotalDebit - calculatedTotalCredit)}`);
     
     res.json(groupedData);
   } catch (error: any) {
-    console.error('Error fetching trial balance:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1429,7 +1408,6 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
       },
     });
     
-    console.log(`[Balance Sheet] Found ${assetAccounts.length} asset accounts`);
     
     // Log all asset accounts by subgroup for debugging
     const assetAccountsBySubgroup: Record<string, any[]> = {};
@@ -1440,9 +1418,7 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
       }
       assetAccountsBySubgroup[subgroupKey].push(acc);
     });
-    console.log(`[Balance Sheet] Asset accounts by subgroup:`, Object.keys(assetAccountsBySubgroup).map(sg => `${sg}: ${assetAccountsBySubgroup[sg].length} accounts`));
     Object.entries(assetAccountsBySubgroup).forEach(([sg, accounts]) => {
-      console.log(`  - ${sg}:`, accounts.map(a => `${a.code}-${a.name}`).join(', '));
     });
     
     const liabilityAccounts = await prisma.account.findMany({
@@ -1492,15 +1468,11 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
       },
     });
     
-    console.log(`[Balance Sheet] Date filter: ${asOfDate.toISOString()}`);
-    console.log(`[Balance Sheet] Found ${liabilityAccounts.length} liability accounts`);
     
     // Log accounts with voucher entries for debugging
     liabilityAccounts.forEach(acc => {
       if (acc.voucherEntries && acc.voucherEntries.length > 0) {
-        console.log(`[Balance Sheet] Liability account ${acc.code}-${acc.name} has ${acc.voucherEntries.length} voucher entries`);
         acc.voucherEntries.forEach(ve => {
-          console.log(`  - Voucher ${ve.voucher.voucherNumber} dated ${ve.voucher.date}, Dr: ${ve.debit}, Cr: ${ve.credit}`);
         });
       }
     });
@@ -1552,11 +1524,8 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
       },
     });
     
-    console.log(`[Balance Sheet] Found ${liabilityAccounts.length} liability accounts`);
-    console.log(`[Balance Sheet] Found ${equityAccounts.length} equity accounts`);
     
     // Group by Main Group -> Subgroup -> Accounts
-    console.log(`[Balance Sheet] Processing accounts...`);
     const processAccounts = async (accounts: any[], accountType: string) => {
       // First, get ALL main groups for this account type to ensure we include empty ones
       const mainGroupType = accountType; // 'Asset', 'Liability', or 'Equity'
@@ -1569,7 +1538,6 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
         },
       });
       
-      console.log(`[Balance Sheet] Found ${allMainGroups.length} main groups for ${accountType} type:`, allMainGroups.map(mg => `${mg.code}-${mg.name}`).join(', '));
       
       // Then, get all subgroups for this account type to ensure we include empty ones
       const allSubgroups = await prisma.subgroup.findMany({
@@ -1587,13 +1555,10 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
         },
       });
       
-      console.log(`[Balance Sheet] Found ${allSubgroups.length} subgroups for ${accountType} type`);
       allSubgroups.forEach(sg => {
         const mainGroupKey = `${sg.mainGroup.code}-${sg.mainGroup.name}`;
         const subgroupKey = `${sg.code}-${sg.name}`;
-        console.log(`  [Balance Sheet] Subgroup: ${subgroupKey}, Main Group: ${mainGroupKey}`);
         if (sg.code === '103') {
-          console.log(`  [Balance Sheet] *** FOUND 103-Bank! Main group key: ${mainGroupKey}, Subgroup key: ${subgroupKey}`);
         }
       });
       
@@ -1616,13 +1581,11 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
         }
       });
       
-      console.log(`[Balance Sheet] Processing ${accounts.length} accounts for ${accountType}`);
       
       // Process accounts - include ALL accounts, even with zero balances
       accounts.forEach((account) => {
         // Verify account has subgroup and mainGroup
         if (!account.subgroup || !account.subgroup.mainGroup) {
-          console.warn(`[Balance Sheet] Account ${account.code}-${account.name} is missing subgroup or mainGroup, skipping`);
           return;
         }
         
@@ -1635,41 +1598,46 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
         const subgroupKey = `${subgroupCode}-${subgroupName}`;
         
         if (!byMainGroup[mainGroupKey]) {
-          console.warn(`[Balance Sheet] Main group ${mainGroupKey} not initialized, creating it`);
           byMainGroup[mainGroupKey] = {};
         }
         
         if (!byMainGroup[mainGroupKey][subgroupKey]) {
-          console.warn(`[Balance Sheet] Subgroup ${subgroupKey} not initialized for main group ${mainGroupKey}, creating it`);
           byMainGroup[mainGroupKey][subgroupKey] = [];
         }
         
-        // Calculate totals from journal lines and voucher entries
-        const journalDebit = account.journalLines?.reduce((sum: number, line: any) => sum + (line.debit || 0), 0) || 0;
-        const journalCredit = account.journalLines?.reduce((sum: number, line: any) => sum + (line.credit || 0), 0) || 0;
-        const voucherDebit = account.voucherEntries?.reduce((sum: number, entry: any) => sum + (entry.debit || 0), 0) || 0;
-        const voucherCredit = account.voucherEntries?.reduce((sum: number, entry: any) => sum + (entry.credit || 0), 0) || 0;
+        // Use currentBalance directly for balance sheet - it's already calculated and maintained
+        // This is more accurate and faster than recalculating from all transactions
+        let balance = account.currentBalance || 0;
         
-        // Debug logging for accounts with voucher entries
-        if (account.voucherEntries && account.voucherEntries.length > 0) {
-          console.log(`[Balance Sheet] Account ${account.code}-${account.name}:`);
-          console.log(`  - Journal: Dr ${journalDebit}, Cr ${journalCredit}`);
-          console.log(`  - Voucher: Dr ${voucherDebit}, Cr ${voucherCredit} (${account.voucherEntries.length} entries)`);
-          console.log(`  - Opening Balance: ${account.openingBalance || 0}`);
-        }
-        
-        const totalDebit = journalDebit + voucherDebit;
-        const totalCredit = journalCredit + voucherCredit;
-        
-        // Calculate balance using proper accounting logic
         // Normalize accountType to lowercase for the calculation function
         const normalizedType = accountType.toLowerCase();
-        const balance = calculateAccountBalance(
-          account.openingBalance || 0,
-          totalDebit,
-          totalCredit,
-          normalizedType
-        );
+        
+        // If currentBalance is null/undefined or 0, fall back to calculating from transactions
+        if (balance === 0 && (account.journalLines?.length > 0 || account.voucherEntries?.length > 0)) {
+          const journalDebit = account.journalLines?.reduce((sum: number, line: any) => sum + (line.debit || 0), 0) || 0;
+          const journalCredit = account.journalLines?.reduce((sum: number, line: any) => sum + (line.credit || 0), 0) || 0;
+          const voucherDebit = account.voucherEntries?.reduce((sum: number, entry: any) => sum + (entry.debit || 0), 0) || 0;
+          const voucherCredit = account.voucherEntries?.reduce((sum: number, entry: any) => sum + (entry.credit || 0), 0) || 0;
+          
+          const totalDebit = journalDebit + voucherDebit;
+          const totalCredit = journalCredit + voucherCredit;
+          
+          // Calculate balance using proper accounting logic
+          balance = calculateAccountBalance(
+            account.openingBalance || 0,
+            totalDebit,
+            totalCredit,
+            normalizedType
+          );
+          
+          // Debug logging for accounts with voucher entries
+          if (account.voucherEntries && account.voucherEntries.length > 0) {
+          }
+        } else {
+          // Use currentBalance - log for debugging
+          if (balance !== 0) {
+          }
+        }
         
         // For balance sheet display:
         // - Assets (debit normal): show balance as-is (positive = debit balance, negative = credit balance)
@@ -1705,14 +1673,8 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
           amount: displayAmount,
         });
         
-        console.log(`[Balance Sheet] Added account ${accountDisplayName} to main group ${mainGroupKey}, subgroup ${subgroupKey} with balance ${displayAmount}`);
       });
       
-      console.log(`[Balance Sheet] After processing, main groups structure:`, Object.keys(byMainGroup).map(mg => {
-        const subgroups = Object.keys(byMainGroup[mg]);
-        const totalAccounts = subgroups.reduce((sum, sg) => sum + byMainGroup[mg][sg].length, 0);
-        return `${mg}: ${subgroups.length} subgroups, ${totalAccounts} accounts`;
-      }).join('; '));
       
       // Convert to nested structure: Main Group -> Subgroups -> Accounts
       const result: any[] = [];
@@ -1726,11 +1688,8 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
         }
         const subgroupKey = `${sg.code}-${sg.name}`;
         allSubgroupsByMainGroup[mainGroupKey].push(subgroupKey);
-        console.log(`[Balance Sheet] Mapping subgroup ${subgroupKey} to main group ${mainGroupKey}`);
       });
       
-      console.log(`[Balance Sheet] All subgroups by main group:`, Object.entries(allSubgroupsByMainGroup).map(([mg, sgs]) => `${mg}: [${sgs.join(', ')}]`).join('; '));
-      console.log(`[Balance Sheet] Processed accounts structure:`, Object.keys(byMainGroup).map(mg => `${mg}: ${Object.keys(byMainGroup[mg]).length} subgroups`).join(', '));
       
       // CRITICAL: Initialize all main groups, even if they have no subgroups
       // This ensures main groups like "2-Long Term Assets" are included even if empty
@@ -1738,23 +1697,18 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
         const mainGroupKey = `${mg.code}-${mg.name}`;
         if (!byMainGroup[mainGroupKey]) {
           byMainGroup[mainGroupKey] = {};
-          console.log(`[Balance Sheet] Initialized empty main group: ${mainGroupKey}`);
         }
         // Initialize empty subgroups array for this main group if it has no subgroups
         if (!allSubgroupsByMainGroup[mainGroupKey]) {
           allSubgroupsByMainGroup[mainGroupKey] = [];
-          console.log(`[Balance Sheet] Main group ${mainGroupKey} has no subgroups - will show as empty`);
         }
       });
       
       // Log which subgroups were initialized
       Object.entries(byMainGroup).forEach(([mgKey, subgroups]) => {
-        console.log(`[Balance Sheet] Main group ${mgKey} has initialized subgroups:`, Object.keys(subgroups).join(', '));
         const expectedForThisMainGroup = allSubgroupsByMainGroup[mgKey] || [];
-        console.log(`[Balance Sheet] Expected subgroups for ${mgKey}:`, expectedForThisMainGroup.join(', '));
         const missing = expectedForThisMainGroup.filter(sg => !Object.keys(subgroups).includes(sg));
         if (missing.length > 0) {
-          console.error(`[Balance Sheet] WARNING: Missing initialized subgroups for ${mgKey}:`, missing);
         }
       });
       
@@ -1765,12 +1719,7 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
         const expectedSubgroups = allSubgroupsByMainGroup[mainGroupKey] || [];
         const processedSubgroups = new Set<string>();
         
-        console.log(`[Balance Sheet] Processing main group: ${mainGroupKey}`);
-        console.log(`[Balance Sheet] Expected subgroups:`, expectedSubgroups.join(', '));
-        console.log(`[Balance Sheet] Subgroups in structure:`, Object.keys(subgroups).join(', '));
         if (mainGroupKey.includes('Current Assets')) {
-          console.log(`[Balance Sheet] *** Checking for 103-Bank in expectedSubgroups:`, expectedSubgroups.includes('103-Bank'));
-          console.log(`[Balance Sheet] *** Checking for 103-Bank in subgroups keys:`, Object.keys(subgroups).includes('103-Bank'));
         }
         
         // First, add all subgroups that have accounts (or were initialized)
@@ -1795,9 +1744,7 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
           });
           
           processedSubgroups.add(subgroupKey);
-          console.log(`[Balance Sheet] Subgroup ${subgroupKey}: ${sortedAccounts.length} accounts, total: ${subgroupTotal}`);
           if (sortedAccounts.length > 0) {
-            console.log(`  [Balance Sheet] Accounts in ${subgroupKey}:`, sortedAccounts.map(a => `${a.name} (${a.amount || 0})`).join(', '));
           }
         });
         
@@ -1811,9 +1758,7 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
               items: [],
               total: 0,
             });
-            console.log(`[Balance Sheet] Subgroup ${subgroupKey}: 0 accounts (empty subgroup) - ADDED`);
           } else {
-            console.log(`[Balance Sheet] Subgroup ${subgroupKey}: Already processed with accounts`);
           }
         });
         
@@ -1821,7 +1766,6 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
         const finalSubgroupNames = subgroupItems.map(sg => sg.name);
         const missingSubgroups = expectedSubgroups.filter(sg => !finalSubgroupNames.includes(sg));
         if (missingSubgroups.length > 0) {
-          console.error(`[Balance Sheet] ERROR: Missing subgroups for ${mainGroupKey}:`, missingSubgroups);
           // Force add missing subgroups
           missingSubgroups.forEach(subgroupKey => {
             subgroupItems.push({
@@ -1829,7 +1773,6 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
               items: [],
               total: 0,
             });
-            console.log(`[Balance Sheet] FORCE ADDED missing subgroup: ${subgroupKey}`);
           });
         }
         
@@ -1844,7 +1787,6 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
         const finalSubgroupNamesAfterSort = subgroupItems.map(sg => sg.name);
         const stillMissing = expectedSubgroups.filter(sg => !finalSubgroupNamesAfterSort.includes(sg));
         if (stillMissing.length > 0) {
-          console.error(`[Balance Sheet] CRITICAL: Still missing subgroups for ${mainGroupKey} after processing:`, stillMissing);
           // Force add them before sorting
           stillMissing.forEach(subgroupKey => {
             subgroupItems.push({
@@ -1852,7 +1794,6 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
               items: [],
               total: 0,
             });
-            console.log(`[Balance Sheet] FORCE ADDED missing subgroup before final sort: ${subgroupKey}`);
           });
           // Re-sort after adding missing subgroups
           subgroupItems.sort((a, b) => {
@@ -1862,8 +1803,6 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
           });
         }
         
-        console.log(`[Balance Sheet] Final subgroup count for ${mainGroupKey}: ${subgroupItems.length} (expected: ${expectedSubgroups.length})`);
-        console.log(`[Balance Sheet] Final subgroups:`, subgroupItems.map(sg => sg.name).join(', '));
         
         const mainGroupTotal = subgroupItems.reduce((sum, sg) => sum + (sg.total || 0), 0);
         
@@ -1886,7 +1825,6 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
             items: [],
             total: 0,
           });
-          console.log(`[Balance Sheet] Added empty main group: ${mainGroupKey} (no subgroups)`);
         }
       });
       
@@ -1897,11 +1835,8 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
         return codeA.localeCompare(codeB);
       });
       
-      console.log(`[Balance Sheet] Processed ${result.length} main groups with ${allSubgroups.length} total subgroups`);
       result.forEach((mg: any, idx: number) => {
-        console.log(`[Balance Sheet] Main group ${idx + 1}: ${mg.name} has ${mg.items.length} subgroups`);
         mg.items.forEach((sg: any, sgIdx: number) => {
-          console.log(`  [Balance Sheet] Subgroup ${sgIdx + 1}: ${sg.name} has ${sg.items.length} accounts, total: ${sg.total}`);
         });
       });
       
@@ -1978,30 +1913,44 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
     });
     
     // Calculate total revenue (Revenue accounts: credit normal, so credits - debits)
+    // Use currentBalance if available, otherwise calculate from transactions
     let totalRevenue = 0;
     revenueAccounts.forEach(account => {
-      const journalDebit = account.journalLines?.reduce((sum: number, line: any) => sum + (line.debit || 0), 0) || 0;
-      const journalCredit = account.journalLines?.reduce((sum: number, line: any) => sum + (line.credit || 0), 0) || 0;
-      const voucherDebit = account.voucherEntries?.reduce((sum: number, entry: any) => sum + (entry.debit || 0), 0) || 0;
-      const voucherCredit = account.voucherEntries?.reduce((sum: number, entry: any) => sum + (entry.credit || 0), 0) || 0;
-      const totalDebit = journalDebit + voucherDebit;
-      const totalCredit = journalCredit + voucherCredit;
-      // Revenue: credits - debits (credit normal)
-      const revenue = (account.openingBalance || 0) + totalCredit - totalDebit;
+      let revenue = account.currentBalance || 0;
+      
+      // If currentBalance is 0 but has transactions, calculate it
+      if (revenue === 0 && (account.journalLines?.length > 0 || account.voucherEntries?.length > 0)) {
+        const journalDebit = account.journalLines?.reduce((sum: number, line: any) => sum + (line.debit || 0), 0) || 0;
+        const journalCredit = account.journalLines?.reduce((sum: number, line: any) => sum + (line.credit || 0), 0) || 0;
+        const voucherDebit = account.voucherEntries?.reduce((sum: number, entry: any) => sum + (entry.debit || 0), 0) || 0;
+        const voucherCredit = account.voucherEntries?.reduce((sum: number, entry: any) => sum + (entry.credit || 0), 0) || 0;
+        const totalDebit = journalDebit + voucherDebit;
+        const totalCredit = journalCredit + voucherCredit;
+        // Revenue: credits - debits (credit normal)
+        revenue = (account.openingBalance || 0) + totalCredit - totalDebit;
+      }
+      
       totalRevenue += revenue > 0 ? revenue : 0;
     });
     
     // Calculate total expenses (Expense/Cost accounts: debit normal, so debits - credits)
+    // Use currentBalance if available, otherwise calculate from transactions
     let totalExpenses = 0;
     expenseAccounts.forEach(account => {
-      const journalDebit = account.journalLines?.reduce((sum: number, line: any) => sum + (line.debit || 0), 0) || 0;
-      const journalCredit = account.journalLines?.reduce((sum: number, line: any) => sum + (line.credit || 0), 0) || 0;
-      const voucherDebit = account.voucherEntries?.reduce((sum: number, entry: any) => sum + (entry.debit || 0), 0) || 0;
-      const voucherCredit = account.voucherEntries?.reduce((sum: number, entry: any) => sum + (entry.credit || 0), 0) || 0;
-      const totalDebit = journalDebit + voucherDebit;
-      const totalCredit = journalCredit + voucherCredit;
-      // Expense/Cost: debits - credits (debit normal)
-      const expense = (account.openingBalance || 0) + totalDebit - totalCredit;
+      let expense = account.currentBalance || 0;
+      
+      // If currentBalance is 0 but has transactions, calculate it
+      if (expense === 0 && (account.journalLines?.length > 0 || account.voucherEntries?.length > 0)) {
+        const journalDebit = account.journalLines?.reduce((sum: number, line: any) => sum + (line.debit || 0), 0) || 0;
+        const journalCredit = account.journalLines?.reduce((sum: number, line: any) => sum + (line.credit || 0), 0) || 0;
+        const voucherDebit = account.voucherEntries?.reduce((sum: number, entry: any) => sum + (entry.debit || 0), 0) || 0;
+        const voucherCredit = account.voucherEntries?.reduce((sum: number, entry: any) => sum + (entry.credit || 0), 0) || 0;
+        const totalDebit = journalDebit + voucherDebit;
+        const totalCredit = journalCredit + voucherCredit;
+        // Expense/Cost: debits - credits (debit normal)
+        expense = (account.openingBalance || 0) + totalDebit - totalCredit;
+      }
+      
       totalExpenses += expense > 0 ? expense : 0;
     });
     
@@ -2015,9 +1964,6 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
     const totalCapital = totalEquity + netIncome;
     const totalLiabilitiesAndCapital = totalLiabilities + totalCapital;
     
-    console.log(`[Balance Sheet] Final results - Assets: ${assetsResult.length}, Liabilities: ${liabilitiesResult.length}, Equity: ${equityResult.length}`);
-    console.log(`[Balance Sheet] Net Income: Revenue=${totalRevenue}, Expenses=${totalExpenses}, Net=${netIncome}`);
-    console.log(`[Balance Sheet] Totals: Assets=${totalAssets}, Liabilities=${totalLiabilities}, Capital=${totalCapital}, Total=${totalLiabilitiesAndCapital}`);
     
     res.json({
       assets: assetsResult,
@@ -2033,8 +1979,6 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching balance sheet:', error);
-    console.error('Error stack:', error.stack);
     res.status(500).json({ 
       error: 'Failed to fetch balance sheet',
       message: error.message || 'Unknown error',

@@ -33,14 +33,12 @@ export const WhatsAppSettingsTab = () => {
       try {
         const response = await apiClient.getWhatsAppSettings();
         if (response.error) {
-          console.error(response.error);
         } else if (response.data) {
           setAppKey(response.data.appKey || "");
           setAuthKey(response.data.authKey || "");
           setAdministratorPhoneNumber(response.data.administratorPhoneNumber || "");
         }
       } catch (error: any) {
-        console.error("Failed to fetch WhatsApp settings:", error);
       }
     };
     fetchSettings();

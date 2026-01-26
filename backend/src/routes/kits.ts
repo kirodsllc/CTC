@@ -92,7 +92,6 @@ router.get('/', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching kits:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -149,7 +148,6 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     res.json({ data: transformedKit });
   } catch (error: any) {
-    console.error('Error fetching kit:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -277,7 +275,6 @@ router.post('/', async (req: Request, res: Response) => {
 
     res.status(201).json({ data: transformedKit });
   } catch (error: any) {
-    console.error('Error creating kit:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -473,7 +470,6 @@ router.put('/:id', async (req: Request, res: Response) => {
       return res.json({ data: transformedKit });
     }
   } catch (error: any) {
-    console.error('Error updating kit:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -499,7 +495,6 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     res.json({ message: 'Kit deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting kit:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -7,7 +7,6 @@ import { PostExpenseTab } from "./PostExpenseTab";
 import { OperationalExpensesTab } from "./OperationalExpensesTab";
 import { apiClient } from "@/lib/api";
 
-
 export const ExpenseManagement = () => {
   const [activeTab, setActiveTab] = useState("expense-types");
   const [stats, setStats] = useState({
@@ -28,7 +27,6 @@ export const ExpenseManagement = () => {
         setStats(response.data);
       }
     } catch (error) {
-      console.error('Error fetching expense statistics:', error);
     }
   };
 
@@ -125,7 +123,6 @@ export const ExpenseManagement = () => {
         <TabsContent value="post-expense" className="mt-6">
           <PostExpenseTab onUpdate={fetchStats} />
         </TabsContent>
-
 
         <TabsContent value="operational-expenses" className="mt-6">
           <OperationalExpensesTab onUpdate={fetchStats} />

@@ -68,10 +68,8 @@ export const TrialBalanceTab = () => {
         setTrialBalanceData(data);
       } else {
         const errorData = await response.json().catch(() => ({}));
-        console.error("Error fetching trial balance:", errorData.error || response.statusText);
       }
     } catch (error) {
-      console.error("Error fetching trial balance:", error);
     } finally {
       setLoading(false);
     }

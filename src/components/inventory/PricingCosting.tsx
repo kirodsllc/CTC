@@ -176,8 +176,9 @@ export const PricingCosting = () => {
   const [showPriceUpdateHistory, setShowPriceUpdateHistory] = useState(false);
   const [selectedPriceUpdateItem, setSelectedPriceUpdateItem] = useState<PriceItem | null>(null);
   const [showModifiedItems, setShowModifiedItems] = useState(false);
+  const [showAllItems, setShowAllItems] = useState(false); // Toggle to show all items without pagination
   const historyPerPage = 10;
-  const itemsPerPage = 25;
+  const itemsPerPage = 100; // Increased from 25 to 100 for better performance with large datasets
 
   // Profitability tab filters
   const [profitabilitySearch, setProfitabilitySearch] = useState("");
@@ -227,7 +228,6 @@ export const PricingCosting = () => {
   useEffect(() => {
     const partNoFromDPO = localStorage.getItem('pricingCostingSearchPartNo');
     if (partNoFromDPO) {
-      console.log('🔍 [PricingCosting] Navigating from DPO, partNo:', partNoFromDPO);
       setSearchTerm(partNoFromDPO);
       setActiveTab('price-updating');
       // Clear the stored part number after using it
@@ -246,7 +246,6 @@ export const PricingCosting = () => {
   // Refetch when window gains focus (user returns to tab/window)
   useEffect(() => {
     const handleFocus = () => {
-      console.log('🔍 [PricingCosting] Window focused - refetching parts for fresh data');
       lastFetchParams.current = '';
       if (activeTab === "price-updating" || activeTab === "profitability") {
         fetchParts();
@@ -321,7 +320,7 @@ export const PricingCosting = () => {
       }
       const params: any = {
         page: 1,
-        limit: 10000, // Reduced limit to prevent timeouts - can be increased if needed
+        limit: 1000000, // Very high limit to fetch all items - backend will handle efficiently
       };
 
       if (searchTerm) {
@@ -356,7 +355,7 @@ export const PricingCosting = () => {
       // Validate params before sending
       const cleanParams: any = {
         page: params.page || 1,
-        limit: params.limit || 50000,
+        limit: params.limit || 1000000, // Very high default limit to fetch all items
         _t: params._t, // Include cache-busting timestamp
       };
       
@@ -385,41 +384,22 @@ export const PricingCosting = () => {
       let response;
       try {
         if (process.env.NODE_ENV === 'development') {
-          console.log('Fetching parts with params:', cleanParams);
         }
         response = await Promise.race([
           apiClient.getParts(cleanParams),
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Request timeout')), 10000) // 10 second timeout for faster feedback
+            setTimeout(() => reject(new Error('Request timeout')), 60000) // 60 second timeout for large datasets
           )
         ]) as any;
         
-        // 🔍 DEBUG: Log actual API response for part 6C0570
-        if (cleanParams.search && cleanParams.search.includes('6C0570')) {
-          console.log('🔍 [PricingCosting] RAW API RESPONSE:', JSON.stringify(response, null, 2));
-          if (response?.data && Array.isArray(response.data)) {
-            const part6C0570 = response.data.find((p: any) => p.part_no === '6C0570' || p.master_part_no === '6C0570');
-            if (part6C0570) {
-              console.log('🔍 [PricingCosting] Part 6C0570 from API:', {
-                cost: part6C0570.cost,
-                costSource: part6C0570.costSource,
-                costSourceRef: part6C0570.costSourceRef,
-                costUpdatedAt: part6C0570.costUpdatedAt,
-                allFields: Object.keys(part6C0570),
-              });
-            }
-          }
-        }
         
         if (process.env.NODE_ENV === 'development') {
-          console.log('Parts API response:', response);
         }
       } catch (timeoutError: any) {
         if (timeoutError?.message === 'Request timeout') {
           throw new Error('Request timed out. Please try again with a more specific search.');
         }
         if (process.env.NODE_ENV === 'development') {
-          console.error('Error fetching parts:', timeoutError);
         }
         throw timeoutError;
       }
@@ -438,7 +418,6 @@ export const PricingCosting = () => {
         } else {
           // Only show error on final failure
           if (process.env.NODE_ENV === 'development') {
-            console.error("API error (502) after retries:", responseError);
           }
           toast({
             title: "Server Error",
@@ -453,7 +432,6 @@ export const PricingCosting = () => {
       // Handle other errors gracefully
       if (response?.error && !is502Error) {
         if (process.env.NODE_ENV === 'development') {
-          console.error("API error:", response.error);
         }
         toast({
           title: "Error",
@@ -468,7 +446,6 @@ export const PricingCosting = () => {
       // Check if response is null or undefined
       if (!response) {
         if (process.env.NODE_ENV === 'development') {
-          console.error("API returned null or undefined response");
         }
         toast({
           title: "Error",
@@ -484,7 +461,6 @@ export const PricingCosting = () => {
       const responseStr = typeof response === 'string' ? response : String(response || '');
       if (responseStr.includes('<!DOCTYPE') || responseStr.includes('<html')) {
         if (process.env.NODE_ENV === 'development') {
-          console.error("Received HTML instead of JSON (502 error)");
         }
         toast({
           title: "Server Error",
@@ -524,7 +500,6 @@ export const PricingCosting = () => {
         } else {
           // If responseData is an object but not an array, log and show error
           if (process.env.NODE_ENV === 'development') {
-            console.error("Response data is not an array:", responseData);
           }
           toast({
             title: "Error",
@@ -538,7 +513,6 @@ export const PricingCosting = () => {
       } else if (!responseData && !Array.isArray(response)) {
         // If response.data is undefined and response is not an array, log and show error
         if (process.env.NODE_ENV === 'development') {
-          console.error("Response data is undefined:", response);
         }
         toast({
           title: "Error",
@@ -585,13 +559,15 @@ export const PricingCosting = () => {
         } catch (error) {
           // Silently handle localStorage errors in production
           if (process.env.NODE_ENV === 'development') {
-            console.error('Error reading priceUpdatedItems from localStorage:', error);
           }
         }
 
         // 🔍 DEDUPLICATE: If multiple parts with same partNo, keep only the canonical one
         // Canonical priority: costSource='DPO_RECEIVED' > latest costUpdatedAt > latest updatedAt > lowest createdAt
+        // Optimized for performance with large datasets
         const partNoMap = new Map<string, any>();
+        const now = Date.now(); // Cache current time
+        
         for (const item of data) {
           const partNoValue = (item.master_part_no || item.part_no || "").trim();
           if (!partNoValue) continue;
@@ -600,22 +576,30 @@ export const PricingCosting = () => {
           if (!existing) {
             partNoMap.set(partNoValue, item);
           } else {
-            // Determine which is canonical
-            const existingIsCanonical = existing.costSource === 'DPO_RECEIVED' || 
-              (existing.costUpdatedAt && (!item.costUpdatedAt || new Date(existing.costUpdatedAt) > new Date(item.costUpdatedAt)));
-            const itemIsCanonical = item.costSource === 'DPO_RECEIVED' || 
-              (item.costUpdatedAt && (!existing.costUpdatedAt || new Date(item.costUpdatedAt) > new Date(existing.costUpdatedAt)));
+            // Determine which is canonical - optimized date comparisons
+            const existingIsDPO = existing.costSource === 'DPO_RECEIVED';
+            const itemIsDPO = item.costSource === 'DPO_RECEIVED';
             
-            if (itemIsCanonical && !existingIsCanonical) {
-              // Replace with canonical
+            if (itemIsDPO && !existingIsDPO) {
+              // Item is DPO, existing is not - replace
               partNoMap.set(partNoValue, item);
-              console.log(`🔄 [PricingCosting] Deduplicated partNo '${partNoValue}': Using canonical (cost=${item.cost}, costSource=${item.costSource}) instead of (cost=${existing.cost}, costSource=${existing.costSource})`);
-            } else if (!itemIsCanonical && !existingIsCanonical) {
-              // Neither is DPO_RECEIVED, use latest updatedAt or lowest createdAt
-              const existingUpdated = existing.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
-              const itemUpdated = item.updatedAt ? new Date(item.updatedAt).getTime() : 0;
-              if (itemUpdated > existingUpdated || (itemUpdated === existingUpdated && item.createdAt && existing.createdAt && new Date(item.createdAt) < new Date(existing.createdAt))) {
+            } else if (!itemIsDPO && existingIsDPO) {
+              // Existing is DPO, item is not - keep existing
+              continue;
+            } else {
+              // Both or neither are DPO - compare dates (optimized)
+              const existingCostUpdated = existing.costUpdatedAt ? new Date(existing.costUpdatedAt).getTime() : 0;
+              const itemCostUpdated = item.costUpdatedAt ? new Date(item.costUpdatedAt).getTime() : 0;
+              
+              if (itemCostUpdated > existingCostUpdated) {
                 partNoMap.set(partNoValue, item);
+              } else if (itemCostUpdated === existingCostUpdated) {
+                // Same costUpdatedAt, compare updatedAt
+                const existingUpdated = existing.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+                const itemUpdated = item.updatedAt ? new Date(item.updatedAt).getTime() : 0;
+                if (itemUpdated > existingUpdated || (itemUpdated === existingUpdated && item.createdAt && existing.createdAt && new Date(item.createdAt).getTime() < new Date(existing.createdAt).getTime())) {
+                  partNoMap.set(partNoValue, item);
+                }
               }
             }
           }
@@ -632,37 +616,6 @@ export const PricingCosting = () => {
           // SWAPPED: partNo shows master_part_no (actual Part No), not part_no (Master Part No)
           // Get master_part_no directly from API response
           const partNoValue = (item.master_part_no || "").trim();
-
-          // 🔍 DEBUG: Log for part 6C0570
-          if (partNoValue === '6C0570' || item.part_no === '6C0570') {
-            console.log('🔍 [PricingCosting] PricingRow (CANONICAL):', {
-              partNo: partNoValue,
-              part_no: item.part_no,
-              apiCost: item.cost,
-              costSource: item.costSource,
-              costSourceRef: item.costSourceRef,
-              costUpdatedAt: item.costUpdatedAt,
-              rawRow: item,
-              itemId: item.id,
-              allFields: Object.keys(item), // Show all available fields
-            });
-            
-            // Warn if cost seems stale (old value)
-            if (item.cost === 4037) {
-              console.error('❌ [PricingCosting] Part 6C0570 shows old cost (4037). Expected 12000.');
-              console.error('   API Response fields:', Object.keys(item));
-              console.error('   costSource:', item.costSource, '(should be "DPO_RECEIVED")');
-              console.error('   costSourceRef:', item.costSourceRef);
-              console.error('   costUpdatedAt:', item.costUpdatedAt);
-              console.error('   ⚠️ This indicates the API response is missing costSource field or returning old data.');
-              console.error('   Check Network tab in DevTools to see actual API response.');
-            }
-            
-            // Success log if correct
-            if (item.cost === 12000 && item.costSource === 'DPO_RECEIVED') {
-              console.log('✅ [PricingCosting] Part 6C0570 has correct cost and costSource!');
-            }
-          }
 
           return {
             id: item.id,
@@ -718,13 +671,6 @@ export const PricingCosting = () => {
       setLoading(false);
       
       if (process.env.NODE_ENV === 'development') {
-        console.error('Error fetching parts:', error);
-        console.error('Error details:', {
-          message: error?.message,
-          status: error?.status,
-          response: error?.response,
-          stack: error?.stack
-        });
       }
       
       // Handle different types of errors
@@ -841,7 +787,6 @@ export const PricingCosting = () => {
         setPriceHistory([]);
       }
     } catch (error) {
-      console.error('Error fetching price history:', error);
       toast({
         title: "Error",
         description: "Failed to fetch price history",
@@ -900,8 +845,9 @@ export const PricingCosting = () => {
     return subs;
   }, [items]);
 
-  // Filter items
-  const filteredItems = items.filter(item => {
+  // Filter items - memoized for performance
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
     const partNoStr = String(item.partNo || "");
     const descriptionStr = String(item.description || "");
     const searchTermStr = String(searchTerm || "");
@@ -942,7 +888,6 @@ export const PricingCosting = () => {
             }
           }
         } catch (error) {
-          console.error('Error parsing date:', error);
           matchesDate = false;
         }
       } else {
@@ -952,7 +897,8 @@ export const PricingCosting = () => {
     }
 
     return matchesSearch && matchesCategory && matchesSubCategory && matchesBrand && matchesUpdateStatus && matchesDate;
-  });
+    });
+  }, [items, searchTerm, filterCategory, filterSubCategory, filterBrand, filterUpdateStatus, filterStartDate, filterEndDate]);
 
   // Sort filtered items
   const sortedItems = useMemo(() => {
@@ -982,10 +928,10 @@ export const PricingCosting = () => {
     return sorted;
   }, [filteredItems, sortOrder]);
 
-  // Pagination
-  const totalPages = Math.ceil(sortedItems.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedItems = sortedItems.slice(startIndex, startIndex + itemsPerPage);
+  // Pagination - show all items if showAllItems is true
+  const totalPages = showAllItems ? 1 : Math.ceil(sortedItems.length / itemsPerPage);
+  const startIndex = showAllItems ? 0 : (currentPage - 1) * itemsPerPage;
+  const paginatedItems = showAllItems ? sortedItems : sortedItems.slice(startIndex, startIndex + itemsPerPage);
 
   // Selected and modified counts
   const selectedCount = items.filter(item => item.selected).length;
@@ -1182,16 +1128,12 @@ export const PricingCosting = () => {
           previousPrice: previousPrice, // Store ALL previous prices for popup
         };
         localStorage.setItem('priceUpdatedItems', JSON.stringify(priceUpdatedItems));
-        console.log('Price update stored in localStorage for item:', item.id, item.partNo);
-        console.log('Previous Price stored:', previousPrice);
-        console.log('New Amount stored:', updatedAmounts);
 
         // Dispatch custom event to notify other components
         window.dispatchEvent(new CustomEvent('priceUpdated', {
           detail: { itemId: item.id, partNo: item.partNo }
         }));
       } catch (error) {
-        console.error('Failed to store price update info:', error);
       }
 
       toast({
@@ -1203,7 +1145,6 @@ export const PricingCosting = () => {
       // The lastUpdated field is preserved in the updatedItem we just set
       // If refresh is needed, it will happen naturally through other user actions
     } catch (error) {
-      console.error('Error updating item:', error);
       toast({
         title: "Error",
         description: "Failed to update item. Please try again.",
@@ -1289,7 +1230,6 @@ export const PricingCosting = () => {
       });
       setUpdateReason("");
     } catch (error) {
-      console.error('Error applying changes:', error);
       toast({
         title: "Error",
         description: "Failed to apply changes. Please try again.",
@@ -1369,7 +1309,6 @@ export const PricingCosting = () => {
       });
       setShowSetMargins(false);
     } catch (error) {
-      console.error('Error applying margins:', error);
       toast({
         title: "Error",
         description: "Failed to apply margins. Please try again.",
@@ -1488,7 +1427,6 @@ export const PricingCosting = () => {
               <Button
                 variant="outline"
                 onClick={() => {
-                  console.log('🔄 [PricingCosting] Manual refresh triggered');
                   lastFetchParams.current = '';
                   fetchParts(0, true);
                 }}
@@ -1516,6 +1454,14 @@ export const PricingCosting = () => {
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Total Items</p>
                 <p className="text-2xl font-bold">{items.length}</p>
+                {!showAllItems && sortedItems.length > itemsPerPage && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {itemsPerPage} per page • Use "Show All" to see all
+                  </p>
+                )}
+                {showAllItems && (
+                  <p className="text-xs text-success mt-1">✓ All {sortedItems.length} items displayed</p>
+                )}
               </CardContent>
             </Card>
             <Card className="border-success/50">
@@ -1828,23 +1774,43 @@ export const PricingCosting = () => {
               {/* Pagination and Actions */}
               <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border-t">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, sortedItems.length)} of {sortedItems.length}
+                  {showAllItems ? (
+                    <span>Showing all {sortedItems.length} items</span>
+                  ) : (
+                    <>
+                      Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, sortedItems.length)} of {sortedItems.length}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                      >
+                        Prev
+                      </Button>
+                      <span className="px-2 text-primary font-medium">{currentPage} / {totalPages}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                      >
+                        Next
+                      </Button>
+                    </>
+                  )}
                   <Button
-                    variant="outline"
+                    variant={showAllItems ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
+                    onClick={() => {
+                      setShowAllItems(!showAllItems);
+                      if (!showAllItems) {
+                        setCurrentPage(1); // Reset to first page when enabling show all
+                      }
+                    }}
+                    className="ml-2"
+                    title={showAllItems ? "Switch to paginated view (100 items per page)" : "Show all items at once (no pagination)"}
                   >
-                    Prev
-                  </Button>
-                  <span className="px-2 text-primary font-medium">{currentPage} / {totalPages}</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
+                    {showAllItems ? "Show Paginated" : `Show All (${sortedItems.length})`}
                   </Button>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1863,7 +1829,6 @@ export const PricingCosting = () => {
             </CardContent>
           </Card>
         </TabsContent>
-
 
         {/* Profitability Tab */}
         <TabsContent value="profitability" className="space-y-4">
@@ -2314,8 +2279,6 @@ export const PricingCosting = () => {
           </Card>
         </TabsContent>
 
-
-
       </Tabs >
 
       {/* New Landed Cost Dialog */}
@@ -2735,16 +2698,11 @@ export const PricingCosting = () => {
             let amount = selectedPriceUpdateItem.lastUpdated.amount || {};
             let previousPrice = selectedPriceUpdateItem.lastUpdated.previousPrice || {};
 
-            console.log('Popup - lastUpdated data:', selectedPriceUpdateItem.lastUpdated);
-            console.log('Popup - initial amount:', amount);
-            console.log('Popup - initial previousPrice:', previousPrice);
-
             // Always check localStorage first as it has the most complete data
             try {
               const priceUpdatedItems = JSON.parse(localStorage.getItem('priceUpdatedItems') || '{}');
               if (priceUpdatedItems[selectedPriceUpdateItem.id]) {
                 const localStorageData = priceUpdatedItems[selectedPriceUpdateItem.id];
-                console.log('Popup - localStorage data found:', localStorageData);
 
                 // Use localStorage data if it exists (it's more complete)
                 if (localStorageData.amount && Object.keys(localStorageData.amount).length > 0) {
@@ -2755,11 +2713,7 @@ export const PricingCosting = () => {
                 }
               }
             } catch (error) {
-              console.error('Error reading from localStorage:', error);
             }
-
-            console.log('Popup - final amount:', amount);
-            console.log('Popup - final previousPrice:', previousPrice);
 
             // If still no new price data, use current item prices as fallback for "New Price"
             if (!amount || Object.keys(amount).length === 0 || !Object.values(amount).some((v: any) => v !== undefined && v !== null)) {
@@ -2769,7 +2723,6 @@ export const PricingCosting = () => {
                 priceB: selectedPriceUpdateItem.priceB,
                 priceM: selectedPriceUpdateItem.priceM,
               };
-              console.log('Popup - using current item prices as fallback:', amount);
             }
 
             const hasPreviousPrice = previousPrice && Object.keys(previousPrice).length > 0 && Object.values(previousPrice).some((v: any) => v !== undefined && v !== null);

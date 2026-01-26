@@ -38,9 +38,7 @@ export const handleReserveStockFixed = async ({
         // Try to save to backend (optional)
         try {
             await apiClient.reserveStock({ partId, quantity });
-            console.log('✅ Saved to backend');
         } catch (err) {
-            console.warn('⚠️ Backend failed, using localStorage only');
         }
 
         // Update localStorage (SET to new quantity, NOT add)

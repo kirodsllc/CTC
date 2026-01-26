@@ -123,7 +123,6 @@ const RealTimeDashboard = () => {
 
       setLastUpdated(new Date());
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
     }

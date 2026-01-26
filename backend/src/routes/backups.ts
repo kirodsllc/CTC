@@ -13,7 +13,6 @@ router.get('/', async (req, res) => {
 
     res.json({ data: backups });
   } catch (error: any) {
-    console.error('Error fetching backups:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -42,7 +41,6 @@ router.get('/schedules', async (req, res) => {
 
     res.json({ data: formattedSchedules });
   } catch (error: any) {
-    console.error('Error fetching backup schedules:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -56,8 +54,6 @@ router.post('/import', async (req, res) => {
       return res.status(400).json({ error: 'Invalid backup file format. Missing required fields.' });
     }
 
-    console.log(`📥 Import request for backup: ${backupData.name}`);
-    console.log(`   Type: ${backupData.type}, Tables: ${backupData.tables || 'All'}`);
 
     // Validate backup data structure
     const requiredFields = ['name', 'type', 'status', 'createdAt'];
@@ -82,15 +78,12 @@ router.post('/import', async (req, res) => {
       },
     });
 
-    console.log(`✅ Backup imported successfully: ${importedBackup.name}`);
 
     // Simulate restore process
     // In production, implement actual restore logic here based on backupData
-    console.log(`🔄 Starting restore from imported backup: ${backupData.name}`);
     
     // Simulate restore delay
     setTimeout(() => {
-      console.log(`✅ Restore completed from imported backup: ${backupData.name}`);
     }, 2000);
 
     res.json({ 
@@ -100,7 +93,6 @@ router.post('/import', async (req, res) => {
       backupId: importedBackup.id
     });
   } catch (error: any) {
-    console.error('Error importing backup:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -108,22 +100,18 @@ router.post('/import', async (req, res) => {
 // GET /api/backups/:id/download - Download backup (must be before /:id)
 router.get('/:id/download', async (req, res) => {
   try {
-    console.log(`📥 Download request for backup ID: ${req.params.id}`);
     const backup = await prisma.backup.findUnique({
       where: { id: req.params.id },
     });
 
     if (!backup) {
-      console.log(`❌ Backup not found: ${req.params.id}`);
       return res.status(404).json({ error: 'Backup not found' });
     }
 
     if (backup.status !== 'completed') {
-      console.log(`⚠️ Backup not completed: ${backup.name} (status: ${backup.status})`);
       return res.status(400).json({ error: 'Backup is not completed' });
     }
     
-    console.log(`✅ Preparing download for backup: ${backup.name}`);
 
     // Create backup metadata JSON
     const backupData = {
@@ -143,7 +131,6 @@ router.get('/:id/download', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="backup_${backup.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.json"`);
     res.json(backupData);
   } catch (error: any) {
-    console.error('Error downloading backup:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -161,7 +148,6 @@ router.get('/:id', async (req, res) => {
 
     res.json({ data: backup });
   } catch (error: any) {
-    console.error('Error fetching backup:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -219,7 +205,6 @@ router.post('/', async (req, res) => {
               size: `${finalSize} MB`,
             },
           });
-          console.log(`✅ Backup ${backup.name} completed successfully`);
           
           // Log activity when backup completes
           await logActivity({
@@ -235,7 +220,6 @@ router.post('/', async (req, res) => {
           });
         }
       } catch (error) {
-        console.error('Error updating backup progress:', error);
         clearInterval(progressInterval);
       }
     }, 300);
@@ -255,7 +239,6 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({ data: backup });
   } catch (error: any) {
-    console.error('Error creating backup:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -277,11 +260,9 @@ router.post('/:id/restore', async (req, res) => {
 
     // Simulate restore process
     // In production, implement actual restore logic here
-    console.log(`🔄 Starting restore from backup: ${backup.name}`);
     
     // Simulate restore delay
     setTimeout(() => {
-      console.log(`✅ Restore completed from backup: ${backup.name}`);
     }, 2000);
 
     res.json({ 
@@ -290,7 +271,6 @@ router.post('/:id/restore', async (req, res) => {
       backupName: backup.name
     });
   } catch (error: any) {
-    console.error('Error restoring backup:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -304,7 +284,6 @@ router.delete('/:id', async (req, res) => {
 
     res.json({ message: 'Backup deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting backup:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Backup not found' });
     }

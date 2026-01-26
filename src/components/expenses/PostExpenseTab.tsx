@@ -51,7 +51,6 @@ export const PostExpenseTab = ({ onUpdate }: PostExpenseTabProps) => {
         setExpenseTypes(Array.isArray(response.data) ? response.data : []);
       }
     } catch (error) {
-      console.error('Error fetching expense types:', error);
     }
   };
 
@@ -90,7 +89,6 @@ export const PostExpenseTab = ({ onUpdate }: PostExpenseTabProps) => {
       setAttachments([]);
       onUpdate?.();
     } catch (error: any) {
-      console.error('Error posting expense:', error);
       toast.error(error.error || "Failed to post expense");
     } finally {
       setLoading(false);

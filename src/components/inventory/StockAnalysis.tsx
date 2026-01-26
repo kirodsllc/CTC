@@ -95,7 +95,6 @@ export const StockAnalysis = () => {
       const uniqueCategories = [...new Set(data.map((item: StockItem) => item.category))].sort();
       setCategories(uniqueCategories);
     } catch (error: any) {
-      console.error('Error fetching stock analysis:', error);
       toast.error('Failed to fetch stock analysis data');
       setStockData([]);
     } finally {

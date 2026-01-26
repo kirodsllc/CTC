@@ -99,7 +99,6 @@ export const GeneralLedgerTab = () => {
         setAccounts(data);
       }
     } catch (error) {
-      console.error("Error fetching ledger data:", error);
     } finally {
       setLoading(false);
     }

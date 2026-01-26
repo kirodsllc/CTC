@@ -19,7 +19,6 @@ const devKonceptsDbPath = path.resolve(backendRoot, `prisma/${DEV_KONCEPTS_DB_NA
 // Verify we're in Dev-Koncepts project (safety check)
 const projectRoot = path.resolve(backendRoot, '../..');
 if (!backendRoot.includes('Dev-Koncepts')) {
-  console.warn(`⚠️  WARNING: Backend root doesn't contain 'Dev-Koncepts': ${backendRoot}`);
 }
 
 // STRONG ENFORCEMENT: Always use dev-koncepts.db for Dev-Koncepts project
@@ -31,14 +30,6 @@ const enforcedDbUrl = `file:${devKonceptsDbPath}`;
 
 // If .env had a different database, log a warning but always override
 if (originalDbUrl && !originalDbUrl.includes(DEV_KONCEPTS_DB_NAME)) {
-  console.log(`═══════════════════════════════════════════════════════════`);
-  console.log(`⚠️  DATABASE ISOLATION ENFORCEMENT`);
-  console.log(`═══════════════════════════════════════════════════════════`);
-  console.log(`   Original DATABASE_URL from .env: ${originalDbUrl}`);
-  console.log(`   OVERRIDDEN to Dev-Koncepts database: ${enforcedDbUrl}`);
-  console.log(`   Reason: Dev-Koncepts MUST use its own isolated database`);
-  console.log(`   This prevents conflicts with nextapp database`);
-  console.log(`═══════════════════════════════════════════════════════════`);
 }
 
 // CRITICAL: ALWAYS enforce the Dev-Koncepts database regardless of .env
@@ -49,7 +40,6 @@ process.env.DATABASE_URL = enforcedDbUrl;
 const prismaDir = path.resolve(backendRoot, 'prisma');
 if (!fs.existsSync(prismaDir)) {
   fs.mkdirSync(prismaDir, { recursive: true });
-  console.log(`✅ Created prisma directory: ${prismaDir}`);
 }
 
 // Ensure Dev-Koncepts database file exists (Prisma will initialize it if needed)
@@ -57,23 +47,12 @@ const finalDbPath = process.env.DATABASE_URL?.replace('file:', '') || devKoncept
 if (!fs.existsSync(finalDbPath)) {
   // Touch the file - Prisma migrations will create the schema
   fs.writeFileSync(finalDbPath, '');
-  console.log(`✅ Created Dev-Koncepts database file: ${finalDbPath}`);
 }
 
 // Log database info at startup (once)
 if (!process.env.DB_INFO_LOGGED) {
   const dbPath = process.env.DATABASE_URL?.replace('file:', '') || 'unknown';
   const fileExists = fs.existsSync(dbPath);
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log('  DEV-KONCEPTS DATABASE CONFIGURATION');
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log(`  Project: Dev-Koncepts (isolated database)`);
-  console.log(`  Database: ${DEV_KONCEPTS_DB_NAME}`);
-  console.log(`  process.cwd(): ${process.cwd()}`);
-  console.log(`  DATABASE_URL: ${process.env.DATABASE_URL}`);
-  console.log(`  SQLite file: ${dbPath}`);
-  console.log(`  File exists: ${fileExists ? 'YES' : 'NO'}`);
-  console.log('═══════════════════════════════════════════════════════════');
   process.env.DB_INFO_LOGGED = '1';
 }
 

@@ -111,16 +111,6 @@ export const ItemsListPage = ({
           }
         });
         // Store all subcategories - we'll deduplicate when displaying, but keep all for filtering
-        console.log(`Loaded ${subData.length} subcategories from API`);
-        console.log(`Subcategories by category:`,
-          Object.entries(
-            subcategoryOptionsList.reduce((acc: Record<string, number>, sub) => {
-              const cat = sub.categoryName || 'Unknown';
-              acc[cat] = (acc[cat] || 0) + 1;
-              return acc;
-            }, {})
-          )
-        );
         setSubcategoryOptions(subcategoryOptionsList);
 
         const appData = Array.isArray((apps as any)?.data)
@@ -144,9 +134,7 @@ export const ItemsListPage = ({
         // Remove duplicates and create options
         const uniqueApps = Array.from(new Set(validApplications));
         setApplicationOptions(uniqueApps.map(name => ({ value: name, label: name })));
-        console.log(`Loaded ${appData.length} applications from API, ${uniqueApps.length} valid unique applications`);
       } catch (err) {
-        console.error("Failed to load filter dropdowns", err);
       }
     };
     fetchDropdowns();
@@ -208,7 +196,6 @@ export const ItemsListPage = ({
 
     // Listen for custom priceUpdated event (when price is updated in Pricing & Costing page)
     const handlePriceUpdated = (e: CustomEvent) => {
-      console.log('Price updated event received:', e.detail);
       syncPriceUpdatedFlags();
     };
 
@@ -242,11 +229,9 @@ export const ItemsListPage = ({
         // Show badge if updated within last 24 hours
         priceUpdated = hoursSinceUpdate < 24;
         if (priceUpdated) {
-          console.log('Price updated badge will show for item:', p.id, p.part_no || p.master_part_no);
         }
       }
     } catch (error) {
-      console.error('Error checking priceUpdatedItems:', error);
     }
 
     // Format createdAt date and time
@@ -338,7 +323,6 @@ export const ItemsListPage = ({
       });
 
       const mergedItems = Array.from(allItemsMap.values());
-      console.log(`✅ Found ${mergedItems.length} family items (${partNoItems.length} by part_no, ${masterPartNoItems.length} by master_part_no)`);
 
       // Transform to Item format
       let transformedItems = mergedItems.map(transformApiDataToItem);
@@ -348,7 +332,6 @@ export const ItemsListPage = ({
 
       // FIXED: Load reserved quantities from localStorage instead of broken backend API
       try {
-        console.log(`🔄 Loading reserved quantities from localStorage for ${transformedItems.length} items...`);
 
         const itemsWithReserved = transformedItems.map(item => ({
           ...item,
@@ -356,11 +339,9 @@ export const ItemsListPage = ({
         }));
 
         const totalReserved = itemsWithReserved.reduce((sum, item) => sum + (item.reservedQuantity || 0), 0);
-        console.log(`✅ Loaded reserved quantities from localStorage: ${totalReserved} total reserved units`);
 
         setItems(itemsWithReserved);
       } catch (error: any) {
-        console.error('❌ Error loading reserved quantities from localStorage:', error?.message || error);
         setItems(transformedItems.map(item => ({ ...item, reservedQuantity: 0 })));
       }
       setTotalItems(transformedItems.length);
@@ -379,7 +360,6 @@ export const ItemsListPage = ({
           masterPartNo: (p.master_part_no || p.masterPartNo || "").trim(),
         }));
         onPartsUpdate(transformedParts);
-        console.log('✅ Set', transformedParts.length, 'family parts in Parts List');
       }
 
       // Update filters to show we're in "family view"
@@ -389,9 +369,7 @@ export const ItemsListPage = ({
         master_part_no: masterPartNo || ''
       }));
 
-      console.log('✅ Set', transformedItems.length, 'family items in list');
     } catch (error: any) {
-      console.error("Error fetching family items:", error);
       toast({
         title: "Error",
         description: error.error || "Failed to fetch family items",
@@ -409,13 +387,6 @@ export const ItemsListPage = ({
 
     const activeFilters = filters || searchFilters;
     const requestId = ++latestRequestIdRef.current;
-
-    console.log('📞 fetchItems called:', {
-      page,
-      limit,
-      part_no: activeFilters.part_no || 'none',
-      master_part_no: activeFilters.master_part_no || 'none'
-    });
 
     setItemsLoading(true);
     try {
@@ -467,15 +438,9 @@ export const ItemsListPage = ({
         partsData = responseData.data;
       }
 
-      console.log('✅ Fetched', partsData.length, 'items with filter:', {
-        part_no: activeFilters.part_no || 'none',
-        master_part_no: activeFilters.master_part_no || 'none'
-      });
-
       if (partsData.length > 0) {
         const filterType = activeFilters.master_part_no ? 'master part' : activeFilters.part_no ? 'part number' : 'none';
         const filterValue = activeFilters.master_part_no || activeFilters.part_no || 'none';
-        console.log(`📦 Found ${partsData.length} items with ${filterType} filter:`, filterValue);
 
         // Transform API data to Item format for ItemsListView
         let transformedItems = partsData.map(transformApiDataToItem);
@@ -487,7 +452,6 @@ export const ItemsListPage = ({
 
         // FIXED: Load reserved quantities from localStorage instead of broken backend API
         try {
-          console.log(`🔄 Loading reserved quantities from localStorage for ${transformedItems.length} items...`);
 
           const itemsWithReserved = transformedItems.map(item => ({
             ...item,
@@ -495,14 +459,12 @@ export const ItemsListPage = ({
           }));
 
           const totalReserved = itemsWithReserved.reduce((sum, item) => sum + (item.reservedQuantity || 0), 0);
-          console.log(`✅ Loaded reserved quantities from localStorage: ${totalReserved} total reserved units`);
 
           // Update items with reserved quantities (only if still latest request)
           if (latestRequestIdRef.current === requestId) {
             setItems(itemsWithReserved);
           }
         } catch (error: any) {
-          console.error('❌ Error loading reserved quantities from localStorage:', error?.message || error);
           // If loading fails, still set items without reserved quantities
           if (latestRequestIdRef.current === requestId) {
             setItems(transformedItems.map(item => ({ ...item, reservedQuantity: 0 })));
@@ -534,19 +496,15 @@ export const ItemsListPage = ({
             masterPartNo: (p.master_part_no || p.masterPartNo || "").trim(),
           }));
           onPartsUpdate(transformedParts);
-          console.log('✅ Set', transformedParts.length, 'parts in Parts List');
         }
 
-        console.log('✅ Set', transformedItems.length, 'items in list');
       } else {
         if (latestRequestIdRef.current === requestId) {
           setItems([]);
           setTotalItems(0);
         }
-        console.log('⚠️ No items found');
       }
     } catch (error: any) {
-      console.error("Error fetching items:", error);
       toast({
         title: "Error",
         description: error.error || "Failed to fetch items",
@@ -615,10 +573,8 @@ export const ItemsListPage = ({
 
           // Silently refresh in background to sync with server (use current filters)
           fetchItems(itemsPage, itemsPerPage, searchFilters).catch(err => {
-            console.error("Background refresh failed:", err);
           });
         } catch (error: any) {
-          console.error("Error deleting item:", error);
           // Restore item on error (use current filters)
           fetchItems(itemsPage, itemsPerPage, searchFilters);
 
@@ -654,7 +610,6 @@ export const ItemsListPage = ({
             }
             success.push(id);
           } catch (error: any) {
-            console.error(`Error deleting item ${id}:`, error);
             failed.push(id);
             // Store error details for later display if needed
             (error as any).itemId = id;
@@ -665,7 +620,6 @@ export const ItemsListPage = ({
 
         // Silently refresh in background to sync (use current filters)
         fetchItems(itemsPage, itemsPerPage, searchFilters).catch(err => {
-          console.error("Background refresh failed:", err);
         });
 
         return { success, failed };
@@ -711,7 +665,6 @@ export const ItemsListPage = ({
             description: "Status updated successfully",
           });
         } catch (error: any) {
-          console.error("Error updating status:", error);
           toast({
             title: "Error",
             description: error.message || "Failed to update status",
@@ -735,15 +688,6 @@ export const ItemsListPage = ({
           const masterPartNoValue = (partData.masterPartNo && String(partData.masterPartNo).trim())
             ? String(partData.masterPartNo).trim()
             : null;
-
-          console.log("💾 Saving part with data:", {
-            masterPartNo: partData.masterPartNo,
-            masterPartNoValue: masterPartNoValue,
-            partNo: partData.partNo,
-            isEdit,
-            editItemId,
-            fullPartData: partData
-          });
 
           const apiData: any = {
             master_part_no: masterPartNoValue,
@@ -824,16 +768,15 @@ export const ItemsListPage = ({
                 master_part_no: ''
               };
               setSearchFilters(updatedFilters);
-              fetchItems(1, itemsPerPage, updatedFilters).catch(console.error);
+              fetchItems(1, itemsPerPage, updatedFilters).catch(() => {});
             } else {
-              fetchItems(itemsPage, itemsPerPage, searchFilters).catch(console.error);
+              fetchItems(itemsPage, itemsPerPage, searchFilters).catch(() => {});
             }
           } else {
             // Refresh in background
-            fetchItems(itemsPage, itemsPerPage, searchFilters).catch(console.error);
+            fetchItems(itemsPage, itemsPerPage, searchFilters).catch(() => {});
           }
         } catch (error: any) {
-          console.error("Error saving item:", error);
           setItemsLoading(false);
           toast({
             title: "Error",

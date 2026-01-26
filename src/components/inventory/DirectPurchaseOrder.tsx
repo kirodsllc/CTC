@@ -85,9 +85,7 @@ interface DirectPurchaseOrder {
   account: string;
 }
 
-
 // Expense types are fetched from API - only user-created expense types will be shown
-
 
 type ViewMode = "list" | "create" | "edit";
 
@@ -232,7 +230,6 @@ export const DirectPurchaseOrder = () => {
         setStores(storesData.map((s: any) => ({ value: s.id, label: s.name })));
       }
     } catch (error: any) {
-      console.error('Error fetching stores:', error);
     }
   };
 
@@ -253,10 +250,8 @@ export const DirectPurchaseOrder = () => {
         })));
       }
     } catch (error: any) {
-      console.error('Error fetching parts:', error);
     }
   };
-
 
   // Fetch brands from API
   const fetchBrands = async () => {
@@ -270,7 +265,6 @@ export const DirectPurchaseOrder = () => {
       } else if (response && Array.isArray(response.data)) {
         brandsData = response.data;
       } else if (response && response.error) {
-        console.error('Error from API:', response.error);
         setBrands([]);
         return;
       }
@@ -283,10 +277,8 @@ export const DirectPurchaseOrder = () => {
           label: brand.name || brand.label || '',
         }));
 
-      console.log('Fetched brands:', formattedBrands.length);
       setBrands(formattedBrands);
     } catch (error: any) {
-      console.error('Error fetching brands:', error);
       setBrands([]);
     }
   };
@@ -311,7 +303,6 @@ export const DirectPurchaseOrder = () => {
 
       setSuppliers(formattedSuppliers);
     } catch (error: any) {
-      console.error('Error fetching suppliers:', error);
       setSuppliers([]);
     }
   };
@@ -349,11 +340,8 @@ export const DirectPurchaseOrder = () => {
           label: acc.name || '',
         }));
 
-      console.log(`[DPO] Found ${formattedAccounts.length} Cash/Bank accounts:`, 
-        formattedAccounts.map(acc => acc.label));
       setAccounts(formattedAccounts);
     } catch (error: any) {
-      console.error('Error fetching accounts:', error);
       setAccounts([]);
     }
   };
@@ -390,11 +378,8 @@ export const DirectPurchaseOrder = () => {
           label: acc.name || '',
         }));
 
-      console.log(`[DPO] Found ${formattedAccounts.length} Cash/Bank accounts for payment:`, 
-        formattedAccounts.map(acc => acc.label));
       setBankCashAccounts(formattedAccounts);
     } catch (error: any) {
-      console.error('Error fetching bank/cash accounts:', error);
       setBankCashAccounts([]);
     }
   };
@@ -430,12 +415,9 @@ export const DirectPurchaseOrder = () => {
         }));
 
       // Debug: Log fetched payable accounts
-      console.log(`[DPO] Fetched ${formattedPayableAccounts.length} Purchase Expenses Payables accounts (subgroup 302):`, 
-        formattedPayableAccounts.map(acc => acc.label));
 
       setPayableAccounts(formattedPayableAccounts);
     } catch (error: any) {
-      console.error('Error fetching payable accounts:', error);
       setPayableAccounts([]);
     }
   };
@@ -467,7 +449,6 @@ export const DirectPurchaseOrder = () => {
       // Only use expense types from API - no default/fallback types
       setExpenseTypes(activeExpenseTypes);
     } catch (error: any) {
-      console.error('Error fetching expense types:', error);
       // If API fails, show empty list (user must create expense types first)
       setExpenseTypes([]);
     }
@@ -621,7 +602,6 @@ export const DirectPurchaseOrder = () => {
                 if (priceM === null) priceM = partResponse.price_m || null;
               }
             } catch (error) {
-              console.error('Error fetching part details:', error);
             }
           }
 
@@ -793,7 +773,6 @@ export const DirectPurchaseOrder = () => {
           partPriceM = partResponse.price_m ?? partResponse.priceM ?? null;
         }
       } catch (error: any) {
-        console.error('Error fetching part details:', error);
         // Don't throw - just continue without part prices
       }
 
@@ -803,11 +782,9 @@ export const DirectPurchaseOrder = () => {
         dpoResponse = await apiClient.getDirectPurchaseOrders({ limit: 100 }) as any;
         // Check if response has error (like 502 Bad Gateway)
         if (dpoResponse?.error) {
-          console.warn('Error fetching DPO list for history:', dpoResponse.error);
           dpoResponse = null; // Set to null to skip processing
         }
       } catch (error: any) {
-        console.error('Error fetching DPO list for history:', error);
         dpoResponse = null; // Set to null to skip processing
       }
 
@@ -835,7 +812,6 @@ export const DirectPurchaseOrder = () => {
             const fullOrderResponse = await apiClient.getDirectPurchaseOrder(order.id) as any;
             // Check if response has error (like 502 Bad Gateway)
             if (fullOrderResponse?.error) {
-              console.warn(`Error fetching DPO ${order.id} details:`, fullOrderResponse.error);
               continue; // Skip this order
             }
             if (fullOrderResponse && fullOrderResponse.items && Array.isArray(fullOrderResponse.items)) {
@@ -891,18 +867,6 @@ export const DirectPurchaseOrder = () => {
                   foundDPO = true;
 
                   // Debug: Log what we're getting from the API
-                  console.log('🔍 DPO History Debug - Found most recent DPO:', {
-                    partId,
-                    dpoNumber: orderDpoNo,
-                    basePrice: purchasePrice,
-                    quantity: itemQty,
-                    itemAmount: itemAmount,
-                    totalExpenses: totalExpenses,
-                    distributedExpense: distributedExpense,
-                    costPerUnitWithExpenses: costPerUnitWithExpenses,
-                    finalPrice: lastPurchasePrice,
-                    date: lastPurchaseDate,
-                  });
 
                   // Since we're sorted by date and this is the most recent DPO, we can break
                   break;
@@ -910,11 +874,9 @@ export const DirectPurchaseOrder = () => {
               }
             }
           } catch (error: any) {
-            console.error(`Error fetching order ${order?.id || 'unknown'} details:`, error);
             // Continue to next order - don't break the loop
           }
         }
-
 
         // Always use prices from the Part Entry (parts table)
         // Since Price A, B, M fields were removed from DPO, they should always come from the part itself
@@ -922,27 +884,12 @@ export const DirectPurchaseOrder = () => {
         priceB = partPriceB;
         priceM = partPriceM;
 
-        console.log('🔍 DPO History Debug - Using Part prices from Part Entry:', {
-          partId,
-          partPriceA,
-          partPriceB,
-          partPriceM,
-          foundDPO,
-        });
       }
 
       // Debug: Log final values being set (only if we have some data)
       const hasAnyData = priceA !== null || priceB !== null || priceM !== null ||
         lastPurchasePrice !== null || lastPurchaseDate !== null || lastPurchaseDpoNo !== null;
       if (hasAnyData) {
-        console.log('📊 Setting Part History:', {
-          priceA,
-          priceB,
-          priceM,
-          lastPurchasePrice,
-          lastPurchaseDate,
-          lastPurchaseDpoNo,
-        });
       }
 
       setPartHistory({
@@ -954,7 +901,6 @@ export const DirectPurchaseOrder = () => {
         lastPurchaseDpoNo,
       });
     } catch (error: any) {
-      console.error('Error fetching part history:', error);
       // Set all values to null to show N/A in the UI
       setPartHistory({
         priceA: null,
@@ -993,7 +939,6 @@ export const DirectPurchaseOrder = () => {
                   const part = partResponse as any;
                   // Check if response has error (like 502 Bad Gateway)
                   if (part?.error) {
-                    console.warn(`Error fetching part ${value} details:`, part.error);
                     return; // Exit early if there's an error
                   }
                   if (part) {
@@ -1009,7 +954,6 @@ export const DirectPurchaseOrder = () => {
                   }
                 })
                 .catch((error: any) => {
-                  console.error(`Error fetching part ${value} details:`, error);
                   // Don't throw - just log and continue
                 });
               setSelectedPartForHistory(value);
@@ -1022,7 +966,6 @@ export const DirectPurchaseOrder = () => {
       })
     );
   };
-
 
   // Calculate total
   // Calculate items total
@@ -1214,15 +1157,10 @@ export const DirectPurchaseOrder = () => {
       // Extract vouchers from response (might be at root or in data property)
       const voucherStatus = response.vouchers || response.data?.vouchers || null;
 
-      console.log('📋 Full API Response:', response);
-      console.log('📋 Voucher Status:', voucherStatus);
-
       // Show voucher creation status
       if (voucherStatus) {
         const { jvCreated, pvCreated, jvNumber, pvNumber, errors } = voucherStatus;
         let message = viewMode === "edit" ? "Direct Purchase Order updated successfully" : "Direct Purchase Order created successfully";
-
-        console.log('📋 Voucher Creation Status:', { jvCreated, pvCreated, jvNumber, pvNumber, errors });
 
         if (jvCreated && pvCreated) {
           message += `. ✅ Vouchers auto-created: JV ${jvNumber}, PV ${pvNumber}`;
@@ -1247,7 +1185,6 @@ export const DirectPurchaseOrder = () => {
         }
       } else {
         // No voucher status in response - this shouldn't happen
-        console.warn('⚠️ No voucher creation status in response');
         toast.success(viewMode === "edit" ? "Direct Purchase Order updated successfully" : "Direct Purchase Order created successfully");
         toast.warning("⚠️ Unable to verify voucher creation status. Please check vouchers manually.");
       }
@@ -1314,12 +1251,6 @@ export const DirectPurchaseOrder = () => {
         description: paymentDescription || undefined,
       };
 
-      console.log('💰 Payment Request:', {
-        url: `${API_BASE_URL}/inventory/direct-purchase-orders/${selectedOrder.id}/payment`,
-        payload: paymentPayload,
-        dpoId: selectedOrder.id,
-      });
-
       const response = await fetch(`${API_BASE_URL}/inventory/direct-purchase-orders/${selectedOrder.id}/payment`, {
         method: 'POST',
         headers: {
@@ -1331,21 +1262,8 @@ export const DirectPurchaseOrder = () => {
 
       const result = await response.json();
 
-      console.log('💰 Payment Response:', {
-        status: response.status,
-        ok: response.ok,
-        result: result,
-      });
-
       if (!response.ok || result.error) {
         const errorMsg = result.error || result.message || `HTTP ${response.status}: ${response.statusText}` || "Failed to create payment voucher";
-        console.error('❌ Payment Error:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: result.error,
-          message: result.message,
-          fullResult: result,
-        });
         toast.error(errorMsg);
         setLoading(false);
         return;
@@ -1353,11 +1271,6 @@ export const DirectPurchaseOrder = () => {
 
       const voucherData = result.data || result;
       const voucherNumber = voucherData?.voucherNumber || 'PV';
-      console.log('✅ Payment Voucher Created:', {
-        voucherNumber,
-        voucherData,
-        fullResult: result,
-      });
       toast.success(`Payment Voucher ${voucherNumber} created successfully!`);
 
       // Reset payment form

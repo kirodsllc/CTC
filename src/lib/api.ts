@@ -98,15 +98,6 @@ class ApiClient {
       
       // Debug logging for POST requests
       if (fetchOptions.method === 'POST' || fetchOptions.method === 'PUT' || fetchOptions.method === 'PATCH') {
-        console.log('📤 [API] Sending request:', {
-          url,
-          method: fetchOptions.method,
-          hasBody: !!fetchOptions.body,
-          bodyType: typeof fetchOptions.body,
-          bodyLength: typeof fetchOptions.body === 'string' ? fetchOptions.body.length : 'N/A',
-          bodyPreview: typeof fetchOptions.body === 'string' ? fetchOptions.body.substring(0, 200) : 'N/A',
-          contentType: mergedHeaders.get('Content-Type'),
-        });
       }
 
       const response = await fetch(url, fetchOptions);
@@ -114,12 +105,6 @@ class ApiClient {
       // Check for redirect status codes (301, 302, 307, 308)
       if (response.status === 301 || response.status === 302 || response.status === 307 || response.status === 308) {
         const location = response.headers.get('location');
-        console.error('API redirect detected:', {
-          status: response.status,
-          location,
-          url,
-          redirected: response.redirected
-        });
         return {
           error: `API endpoint redirected (${response.status}). This may indicate a configuration issue. Please check the API base URL and server configuration.`
         };
@@ -127,10 +112,6 @@ class ApiClient {
 
       // Check if response was redirected (even if status is 200)
       if (response.redirected && response.url !== url) {
-        console.warn('API request was redirected:', {
-          originalUrl: url,
-          finalUrl: response.url
-        });
       }
 
       // Check if response is actually JSON before trying to parse
@@ -170,7 +151,6 @@ class ApiClient {
       const data = await response.json();
       return data;
     } catch (error: any) {
-      console.error('API request failed:', error);
       // Provide more helpful error messages
       if (error.message && error.message.includes('HTML')) {
         return {
@@ -719,6 +699,35 @@ class ApiClient {
     });
   }
 
+  async getAdjustmentsByStore(params: {
+    store_id: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, String(value));
+      }
+    });
+    const queryString = queryParams.toString();
+    return this.request(`/inventory/adjustments/by-store${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async approveAdjustment(id: string, data: {
+    items: Array<{
+      id: string;
+      rack_id?: string;
+      shelf_id?: string;
+    }>;
+  }) {
+    return this.request(`/inventory/adjustments/${id}/approve`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
   async getPurchaseOrders(params?: {
     status?: string;
     from_date?: string;
@@ -975,7 +984,6 @@ class ApiClient {
     });
   }
 
-
   async getDirectPurchaseOrder(id: string) {
     return this.request(`/inventory/direct-purchase-orders/${id}`);
   }
@@ -1007,13 +1015,6 @@ class ApiClient {
     }>;
   }) {
     // Debug logging
-    console.log('📤 [API] createDirectPurchaseOrder called with:', {
-      hasDate: !!data.date,
-      dateValue: data.date,
-      hasItems: !!data.items,
-      itemsLength: Array.isArray(data.items) ? data.items.length : 'N/A',
-      itemsPreview: Array.isArray(data.items) ? data.items.slice(0, 2) : data.items,
-    });
     return this.request('/inventory/direct-purchase-orders', {
       method: 'POST',
       body: JSON.stringify(data),

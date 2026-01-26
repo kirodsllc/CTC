@@ -79,7 +79,6 @@ router.get('/', async (req, res) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching customers:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -97,7 +96,6 @@ router.get('/:id', async (req, res) => {
 
     res.json({ data: customer });
   } catch (error: any) {
-    console.error('Error fetching customer:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -206,7 +204,6 @@ router.post('/', async (req, res) => {
               });
 
               if (!capitalSubgroup) {
-                console.error('❌ Capital subgroup (501) not found. Cannot create Owner Capital account.');
                 throw new Error('Capital subgroup (501) not found. Please create accounting structure first.');
               }
 
@@ -223,7 +220,6 @@ router.post('/', async (req, res) => {
                   canDelete: false,
                 },
               });
-              console.log(`✅ Created Owner Capital account (501003)`);
             }
 
             // Generate voucher number
@@ -287,25 +283,19 @@ router.post('/', async (req, res) => {
               },
             });
 
-            console.log(`✅ Created customer account ${accountCode} and JV voucher ${voucherNumber} for opening balance`);
           } else {
             // No opening balance, just create the account
-            console.log(`✅ Created customer account ${accountCode} (no opening balance)`);
           }
         } else {
-          console.log(`ℹ️  Customer account already exists: ${existingAccount.code} - ${existingAccount.name}`);
         }
       } else {
-        console.error('❌ Accounts Receivable subgroup (103) not found. Cannot create customer account.');
       }
     } catch (accountError: any) {
-      console.error('Error creating customer account/journal entry:', accountError);
       // Don't fail customer creation if account creation fails
     }
 
     res.status(201).json({ data: customer });
   } catch (error: any) {
-    console.error('Error creating customer:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -348,7 +338,6 @@ router.put('/:id', async (req, res) => {
 
     res.json({ data: customer });
   } catch (error: any) {
-    console.error('Error updating customer:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Customer not found' });
     }
@@ -365,7 +354,6 @@ router.delete('/:id', async (req, res) => {
 
     res.json({ message: 'Customer deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting customer:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Customer not found' });
     }

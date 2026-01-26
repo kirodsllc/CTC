@@ -63,14 +63,12 @@ export const MainGroupsTab = () => {
         } else if (data.data && Array.isArray(data.data)) {
           setMainGroups(data.data);
         } else {
-          console.error("Unexpected response format:", data);
           setMainGroups([]);
         }
       } else {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
     } catch (error: any) {
-      console.error("Error fetching main groups:", error);
       toast({
         title: "Error",
         description: error?.message || "Failed to load main groups. Please check if the backend is running.",
@@ -123,7 +121,6 @@ export const MainGroupsTab = () => {
       setFormData({ code: "", name: "", type: "" });
       fetchMainGroups();
     } catch (error: any) {
-      console.error("Error creating main group:", error);
       toast({
         title: "Error",
         description: error?.error || "Failed to create main group",
@@ -210,7 +207,6 @@ export const MainGroupsTab = () => {
       description: "Chart of Accounts exported successfully!",
     });
   };
-
 
   return (
     <Card className="border-border/50 shadow-sm transition-all duration-300 hover:shadow-md">

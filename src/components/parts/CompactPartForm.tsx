@@ -114,7 +114,6 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        console.log("🔄 Fetching dropdown data...");
 
         const [catsRes, brandsRes, masterPartsRes] = await Promise.all([
           apiClient.getCategories(),
@@ -126,31 +125,23 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
         let categoriesData: any[] = [];
         const catsResponse = catsRes as any;
         if (catsResponse?.error) {
-          console.error("Categories error:", catsResponse.error);
         } else if (Array.isArray(catsResponse)) {
           categoriesData = catsResponse;
         } else if (catsResponse?.data && Array.isArray(catsResponse.data)) {
           categoriesData = catsResponse.data;
         }
         setCategories(categoriesData);
-        console.log("✅ Categories loaded:", categoriesData.length);
 
         // Handle brands - Extract from API response
         let brandsData: any[] = [];
         const brandsResponse = brandsRes as any;
 
-        console.log("🔍 [BRANDS] API Response Analysis:");
-        console.log("  - Response type:", typeof brandsResponse);
-        console.log("  - Is Array:", Array.isArray(brandsResponse));
-        console.log("  - Response length:", Array.isArray(brandsResponse) ? brandsResponse.length : 'N/A');
         if (Array.isArray(brandsResponse) && brandsResponse.length > 0) {
-          console.log("  - First brand:", brandsResponse[0]);
         }
 
         try {
           // Check for error first
           if (brandsResponse?.error) {
-            console.error("❌ [BRANDS] API error:", brandsResponse.error);
             toast({
               title: "Error",
               description: `Failed to load brands: ${brandsResponse.error}`,
@@ -160,12 +151,10 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
           }
           // Check if response is null or undefined
           else if (brandsResponse === null || brandsResponse === undefined) {
-            console.warn("⚠️ [BRANDS] Response is null/undefined");
             setBrands([]);
           }
           // Check if response is directly an array (most likely case from backend)
           else if (Array.isArray(brandsResponse)) {
-            console.log("✅ [BRANDS] Response is array with", brandsResponse.length, "items");
 
             // Process ALL brands - accept any object with id and name (exactly as API returns)
             brandsData = brandsResponse
@@ -175,15 +164,10 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
               }))
               .filter((b: any) => b.name && b.name.trim() !== '');
 
-            console.log("✅ [BRANDS] Processed", brandsData.length, "brands from", brandsResponse.length, "items");
-
             // ALWAYS set brands if we have any data
             if (brandsData.length > 0) {
               setBrands(brandsData);
-              console.log("✅ [BRANDS] State SET with", brandsData.length, "brands");
-              console.log("  - First 3:", brandsData.slice(0, 3).map((b: any) => b.name));
             } else {
-              console.error("❌ [BRANDS] All brands filtered out!");
               setBrands([]);
             }
           }
@@ -200,9 +184,7 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
                   id: b.id || b._id,
                   name: b.name,
                 }));
-              console.log("✅ Brands loaded (wrapped in data):", brandsData.length);
             } else {
-              console.warn("⚠️ brandsResponse.data exists but is not an array:", brandsResponse.data);
               setBrands([]);
             }
           }
@@ -221,37 +203,23 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
                   id: b.id || b._id,
                   name: b.name,
                 }));
-              console.log("✅ Brands loaded (found array in object):", brandsData.length);
             } else {
-              console.warn("⚠️ Unexpected brands response format (object with no array):", brandsResponse);
-              console.warn("  - Keys:", Object.keys(brandsResponse));
               setBrands([]);
             }
           }
           else {
-            console.warn("⚠️ Unexpected brands response format:", brandsResponse);
-            console.warn("  - Full response structure:", JSON.stringify(brandsResponse, null, 2));
           }
 
           // Set brands if we found any
           if (brandsData.length > 0) {
             setBrands(brandsData);
-            console.log("📊 Final brands state set:", brandsData.length, "brands");
-            console.log("📋 Sample brands:", brandsData.slice(0, 5).map((b: any) => ({ id: b.id, name: b.name })));
           } else {
-            console.error("❌ NO BRANDS LOADED from brands API! Response was:", brandsResponse);
-            console.error("  - Response type:", typeof brandsResponse);
-            console.error("  - Is array:", Array.isArray(brandsResponse));
 
             // Only run fallback if brandsData is still empty
             if (brandsData.length === 0) {
-              console.warn("⚠️ Attempting fallback: Fetching brands from parts...");
 
               try {
-                console.log("🔄 Fetching brands from parts as fallback...");
                 const partsResponse = await apiClient.getParts({ limit: 2000 }) as any;
-                console.log("  - Parts response type:", typeof partsResponse);
-                console.log("  - Parts response is array:", Array.isArray(partsResponse));
 
                 let partsData: any[] = [];
                 if (Array.isArray(partsResponse)) {
@@ -261,8 +229,6 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
                 } else if (partsResponse?.data?.data && Array.isArray(partsResponse.data.data)) {
                   partsData = partsResponse.data.data;
                 }
-
-                console.log(`  - Found ${partsData.length} parts to extract brands from`);
 
                 // Extract unique brand names from parts
                 const uniqueBrands = new Map<string, { id: string; name: string }>();
@@ -284,15 +250,10 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
                 if (uniqueBrands.size > 0) {
                   brandsData = Array.from(uniqueBrands.values());
                   setBrands(brandsData);
-                  console.log(`✅ Loaded ${brandsData.length} unique brands from parts as fallback`);
-                  console.log("📋 Fallback brands:", brandsData.slice(0, 10).map(b => b.name));
                 } else {
-                  console.warn("⚠️ No brands found in parts data either");
                   setBrands([]);
                 }
               } catch (fallbackError: any) {
-                console.error("❌ Fallback brand fetch failed:", fallbackError);
-                console.error("  - Error:", fallbackError.message);
                 setBrands([]);
               }
             } else {
@@ -300,15 +261,12 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
             }
           }
         } catch (error: any) {
-          console.error("❌ Error processing brands response:", error);
-          console.error("  - Error stack:", error.stack);
           setBrands([]);
         }
 
         // Handle master parts
         let masterPartsData: any[] = [];
         if ((masterPartsRes as any).error) {
-          console.error("Master parts error:", (masterPartsRes as any).error);
         } else if (Array.isArray(masterPartsRes)) {
           masterPartsData = masterPartsRes;
         } else if ((masterPartsRes as any).data && Array.isArray((masterPartsRes as any).data)) {
@@ -316,7 +274,6 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
         }
         setMasterParts(masterPartsData);
       } catch (error: any) {
-        console.error("❌ Error fetching dropdown data:", error);
         toast({
           title: "Error",
           description: `Failed to load dropdown data: ${error.message || "Unknown error"}`,
@@ -338,7 +295,6 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
             setSubcategories(Array.isArray(res.data) ? res.data : []);
           }
         } catch (error) {
-          console.error("Error fetching subcategories:", error);
         }
       };
       fetchSubcategories();
@@ -358,7 +314,6 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
             setApplications(Array.isArray(res.data) ? res.data : []);
           }
         } catch (error) {
-          console.error("Error fetching applications:", error);
         }
       };
       fetchApplications();
@@ -385,8 +340,6 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
           const part = (response.data || response) as any;
 
           if (part && part.id) {
-            console.log("Loading part data:", part); // Debug log
-            console.log("Origin from API:", part.origin, "Type:", typeof part.origin); // Debug origin
 
             // Step 1: Master Part No - Map correctly
             const masterPartNo = part.master_part_no || "";
@@ -492,10 +445,8 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
             setImageP1(part.image_p1 || null);
             setImageP2(part.image_p2 || null);
 
-            console.log("Form data set:", { masterPartNo, partNo, brandName, description, categoryName, applicationName, cost, priceA, priceB, priceM, origin }); // Debug log
           }
         } catch (error: any) {
-          console.error("Error loading part data:", error);
           toast({
             title: "Error",
             description: error.error || error.message || "Failed to load part details",
@@ -888,15 +839,8 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
           // Convert map back to array
           const uniqueMasterParts = Array.from(masterPartMap.values());
 
-          console.log('🔍 Master Part Search Results:', {
-            total: allParts.length,
-            unique: uniqueMasterParts.length,
-            masterParts: uniqueMasterParts.map(p => p.masterPartNo)
-          });
-
           setPartsForMasterPartSearch(uniqueMasterParts);
         } catch (error) {
-          console.error("Error searching parts for master part:", error);
           setPartsForMasterPartSearch([]);
         } finally {
           setMasterPartSearchLoading(false);
@@ -993,15 +937,6 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
       imageP2
     };
 
-    console.log("💾 CompactPartForm saving with data:", {
-      masterPartNo: finalFormData.masterPartNo,
-      partNo: finalFormData.partNo,
-      isEditing,
-      editItemId: editItem?.id,
-      masterPartSearch: masterPartSearch,
-      formDataMasterPartNo: formData.masterPartNo
-    });
-
     onSave(
       finalFormData,
       isEditing,
@@ -1058,7 +993,6 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
             setImageP2(part.image_p2 || null);
           }
         } catch (error) {
-          console.error("Error loading part data:", error);
         } finally {
           setLoading(false);
         }
@@ -1066,7 +1000,6 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
       loadPartData();
     } else {
       // Reset ALL fields and states - use a fresh copy of initialFormData
-      console.log("🔄 Resetting all form fields - Entering NEW MODE");
       setIsNewMode(true);
       setFormData({
         masterPartNo: "",
@@ -1327,7 +1260,6 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
                   // If brands are empty, try to refetch them
                   if (brands.length === 0) {
                     try {
-                      console.log("🔄 Refetching brands on focus...");
                       const brandsRes = await apiClient.getBrands();
                       const brandsResponse = brandsRes as any;
 
@@ -1344,9 +1276,7 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
                       }));
 
                       setBrands(brandsData);
-                      console.log("✅ Brands refetched:", brandsData.length);
                     } catch (error) {
-                      console.error("❌ Error refetching brands:", error);
                     }
                   }
 
@@ -1361,7 +1291,6 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
                   // If brands are empty, try to refetch them
                   if (brands.length === 0) {
                     try {
-                      console.log("🔄 Refetching brands on click...");
                       const brandsRes = await apiClient.getBrands();
                       const brandsResponse = brandsRes as any;
 
@@ -1378,9 +1307,7 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
                       }));
 
                       setBrands(brandsData);
-                      console.log("✅ Brands refetched:", brandsData.length);
                     } catch (error) {
-                      console.error("❌ Error refetching brands:", error);
                     }
                   }
 
@@ -1393,18 +1320,11 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
                 <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
                   {/* Debug info */}
                   {(() => {
-                    console.log("🔍 BRAND DROPDOWN DEBUG:");
-                    console.log("  - brands state:", brands);
-                    console.log("  - brands.length:", brands.length);
-                    console.log("  - filteredBrands:", filteredBrands);
-                    console.log("  - filteredBrands.length:", filteredBrands?.length || 0);
-                    console.log("  - brandSearch:", brandSearch);
                     return null;
                   })()}
 
                   {(() => {
                     // Debug: Force render brands
-                    console.log("[DROPDOWN] Rendering - brands.length:", brands.length, "filteredBrands.length:", filteredBrands?.length || 0);
                     return null;
                   })()}
 
@@ -1416,7 +1336,6 @@ export const CompactPartForm = ({ onSave, onCancel, editItem }: CompactPartFormP
                     <>
                       {filteredBrands.map((b, idx) => {
                         if (!b || !b.name) {
-                          console.warn("[DROPDOWN] Invalid brand at index", idx, ":", b);
                           return null;
                         }
                         return (

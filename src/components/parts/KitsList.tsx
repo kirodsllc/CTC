@@ -96,7 +96,6 @@ export const KitsList = ({
         setKits(transformedKits);
       }
     } catch (error) {
-      console.error('Error fetching kits:', error);
       toast({
         title: "Error",
         description: "Failed to fetch kits",
@@ -143,7 +142,6 @@ export const KitsList = ({
           description: `"${kitToDelete.name}" has been deleted successfully.`,
         });
       } catch (error: any) {
-        console.error('Error deleting kit:', error);
         toast({
           title: "Error",
           description: error.message || "Failed to delete kit",

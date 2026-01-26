@@ -127,7 +127,6 @@ export const StoreLocationAssign = ({
         );
       }
     } catch (error: any) {
-      console.error("Error fetching racks:", error);
       toast.error("Failed to fetch racks and shelves");
     } finally {
       setFetchingRacks(false);
@@ -198,7 +197,6 @@ export const StoreLocationAssign = ({
       toast.success("Locations assigned successfully");
       onSuccess();
     } catch (error: any) {
-      console.error("Error assigning locations:", error);
       toast.error(error.error || "Failed to assign locations");
     } finally {
       setLoading(false);

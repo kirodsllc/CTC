@@ -34,7 +34,6 @@ export async function logActivity(params: LogActivityParams) {
     });
   } catch (error) {
     // Don't throw errors for logging - just log to console
-    console.error('Failed to log activity:', error);
   }
 }
 

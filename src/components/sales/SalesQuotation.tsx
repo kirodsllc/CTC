@@ -113,7 +113,6 @@ export const SalesQuotation = () => {
       try {
         const response = await apiClient.getSalesQuotations();
         if (response.error) {
-          console.error('Error fetching quotations:', response.error);
           toast({
             title: "Error",
             description: "Failed to load quotations",
@@ -124,7 +123,6 @@ export const SalesQuotation = () => {
         const quotationsData = Array.isArray(response) ? response : (response.data || []);
         setQuotations(quotationsData);
       } catch (error: any) {
-        console.error('Error fetching quotations:', error);
         toast({
           title: "Error",
           description: error.message || "Failed to fetch quotations",
@@ -163,7 +161,6 @@ export const SalesQuotation = () => {
         });
 
         if (partsResponse.error) {
-          console.error('Error fetching parts:', partsResponse.error);
           setAvailableParts([]);
           return;
         }
@@ -210,7 +207,6 @@ export const SalesQuotation = () => {
             }
           } catch (err) {
             // Silently continue without stock data - don't block the UI
-            console.warn('Stock balances not available:', err);
           }
         }
 
@@ -278,24 +274,9 @@ export const SalesQuotation = () => {
           });
         
         // Debug: Log what we found
-        console.log('🔍 Search Results:', {
-          searchTerm: itemSearchTerm,
-          totalPartsFromAPI: partsData.length,
-          filteredParts: transformedParts.length,
-          sampleResults: transformedParts.slice(0, 3).map(p => ({ partNo: p.partNo, masterPartNo: p.masterPartNo })),
-          samplePartsWithSearchTerm: partsData
-            .filter((p: any) => {
-              const pn = String(p.part_no || '').toLowerCase();
-              const mpn = String(p.master_part_no || '').toLowerCase();
-              return pn.includes(searchTermLower) || mpn.includes(searchTermLower);
-            })
-            .slice(0, 5)
-            .map((p: any) => ({ part_no: p.part_no, master_part_no: p.master_part_no }))
-        });
         
         setAvailableParts(transformedParts);
       } catch (error: any) {
-        console.error('Error fetching parts:', error);
         setAvailableParts([]);
       } finally {
         setLoadingParts(false);
@@ -470,7 +451,6 @@ export const SalesQuotation = () => {
       setDeleteDialogOpen(false);
       setSelectedQuotation(null);
     } catch (error: any) {
-      console.error('Error deleting quotation:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete quotation",
@@ -517,7 +497,6 @@ export const SalesQuotation = () => {
       setConvertDialogOpen(false);
       setSelectedQuotation(null);
     } catch (error: any) {
-      console.error('Error converting quotation:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to convert quotation",
@@ -666,7 +645,6 @@ export const SalesQuotation = () => {
         });
       }
     } catch (error: any) {
-      console.error('Error saving quotation:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to save quotation",
@@ -674,7 +652,6 @@ export const SalesQuotation = () => {
       });
     }
   };
-
 
   const getStatusColor = (status: Quotation["status"]) => {
     switch (status) {

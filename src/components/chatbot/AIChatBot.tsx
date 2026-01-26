@@ -255,7 +255,6 @@ const loadStoredMessages = (): Message[] => {
       }));
     }
   } catch (error) {
-    console.error('Failed to load chat history:', error);
   }
   return [];
 };
@@ -274,7 +273,6 @@ const saveMessages = (messages: Message[]) => {
       }));
     localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(toStore));
   } catch (error) {
-    console.error('Failed to save chat history:', error);
   }
 };
 
@@ -312,7 +310,6 @@ const AIChatBot: React.FC = () => {
           setLongCatConfigured(true);
         }
       } catch (error) {
-        console.error('Failed to check LongCat config:', error);
       }
     };
     checkLongCatConfig();
@@ -1080,12 +1077,9 @@ const AIChatBot: React.FC = () => {
         })),
       };
 
-      console.log('Creating purchase order with data:', poData);
       const response = await apiClient.createPurchaseOrder(poData as any);
-      console.log('Purchase order response:', response);
       
       if (response.error) {
-        console.error('Purchase order creation error:', response.error);
         throw new Error(response.error);
       }
 
@@ -1095,11 +1089,8 @@ const AIChatBot: React.FC = () => {
       const poNumber = responseData?.po_number || responseData?.poNumber || responseData?.data?.po_number || responseData?.data?.poNumber;
 
       if (!poId) {
-        console.error('No PO ID in response:', response);
         throw new Error('Failed to create purchase order: No ID returned');
       }
-
-      console.log('Purchase order created successfully:', { poId, poNumber });
 
       setConversationFlow({
         type: 'purchase_order_receiving',
@@ -1349,12 +1340,9 @@ const AIChatBot: React.FC = () => {
         // Note: store_id, rack_id, shelf_id are handled via stock movements
       };
 
-      console.log('Receiving purchase order with data:', updateData);
       const response = await apiClient.updatePurchaseOrder(flow.data.purchaseOrderId, updateData);
-      console.log('Receive purchase order response:', response);
       
       if (response.error) {
-        console.error('Purchase order receiving error:', response.error);
         throw new Error(response.error);
       }
 
@@ -1375,9 +1363,7 @@ const AIChatBot: React.FC = () => {
                 reference_id: flow.data.purchaseOrderId,
                 notes: `Purchase Order Received via AI Chatbot`,
               });
-              console.log(`Stock movement created for part ${item.partNo}, quantity: ${receivedQty}`);
             } catch (err: any) {
-              console.error(`Failed to create stock movement for ${item.partNo}:`, err);
               // Don't fail the whole operation if stock movement fails
             }
           }
@@ -1394,9 +1380,7 @@ const AIChatBot: React.FC = () => {
               priceB: prices.priceB,
               priceM: prices.priceM,
             });
-            console.log(`Prices updated for part ${firstItem.partNo}`);
           } catch (err) {
-            console.error('Failed to update prices:', err);
           }
         }
       }
@@ -1590,7 +1574,6 @@ const AIChatBot: React.FC = () => {
       setTimeout(() => scrollToBottom(true), 250);
 
     } catch (error: any) {
-      console.error('LongCat API error:', error);
       
       // Fallback to rule-based response
       const intent = processUserIntent(currentInput);

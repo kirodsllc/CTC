@@ -1,13 +1,13 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Lock, Mail, Store, User, ArrowRight, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { saveAuth, isAuthenticated, getUserRole } from "@/utils/auth";
 
 const Login = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -16,6 +16,22 @@ const Login = () => {
     const [storeEmail, setStoreEmail] = useState("");
     const [storePassword, setStorePassword] = useState("");
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // Redirect if already authenticated
+    useEffect(() => {
+        if (isAuthenticated()) {
+            const userRole = getUserRole();
+            const from = (location.state as any)?.from?.pathname || "/";
+            
+            // If user is already logged in, redirect to appropriate page
+            if (userRole === 'store') {
+                navigate("/store", { replace: true });
+            } else {
+                navigate(from === "/login" ? "/" : from, { replace: true });
+            }
+        }
+    }, [navigate, location]);
 
     const handleLogin = (role: 'admin' | 'store') => {
         setIsLoading(true);
@@ -26,17 +42,22 @@ const Login = () => {
 
             if (role === 'admin') {
                 if (adminEmail === "ctc@admin.com" && adminPassword === "ctc123456") {
-                    localStorage.setItem("userRole", "admin");
+                    // Save authentication with 30-day expiration
+                    saveAuth("admin");
                     toast.success("Login Successful - Administrator Access Granted");
-                    navigate("/");
+                    
+                    // Redirect to the page user was trying to access, or home
+                    const from = (location.state as any)?.from?.pathname || "/";
+                    navigate(from === "/login" ? "/" : from, { replace: true });
                 } else {
                     toast.error("Invalid credentials. Please use the authorized admin account.");
                 }
             } else {
                 if (storeEmail === "ctc@store.com" && storePassword === "ctc123456") {
-                    localStorage.setItem("userRole", "store");
+                    // Save authentication with 30-day expiration
+                    saveAuth("store");
                     toast.success("Login Successful - Store Access Granted");
-                    navigate("/store");
+                    navigate("/store", { replace: true });
                 } else {
                     toast.error("Invalid credentials. Please use the authorized store account.");
                 }
@@ -66,13 +87,6 @@ const Login = () => {
                     <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-orange-600 mb-6 shadow-2xl shadow-primary/40 ring-4 ring-white/10 group hover:scale-110 transition-transform duration-500">
                         <ShieldCheck className="w-10 h-10 text-white" />
                     </div>
-                    <h1 className="text-4xl font-extrabold tracking-tight text-white mb-2 drop-shadow-md">
-                        Dev Koncepts
-                    </h1>
-                    <div className="h-1 w-20 bg-primary mx-auto rounded-full mb-4 shadow-glow-primary" />
-                    <p className="text-slate-300 text-lg font-medium opacity-90">
-                        Inventory Management Evolution
-                    </p>
                 </div>
 
                 <Card className="border-white/10 shadow-3xl bg-slate-900/40 backdrop-blur-2xl backdrop-saturate-150 animate-slide-up overflow-hidden">
@@ -140,15 +154,6 @@ const Login = () => {
                                             />
                                         </div>
                                     </div>
-                                    <div className="flex items-center space-x-3 pt-1 ml-1">
-                                        <Checkbox id="admin-remember" className="border-white/20 data-[state=checked]:bg-primary" />
-                                        <label
-                                            htmlFor="admin-remember"
-                                            className="text-sm font-medium leading-none text-slate-400 cursor-pointer hover:text-slate-300 transition-colors"
-                                        >
-                                            Remember me for 30 days
-                                        </label>
-                                    </div>
                                 </CardContent>
                                 <CardFooter className="flex flex-col pt-4 pb-10">
                                     <Button
@@ -191,12 +196,7 @@ const Login = () => {
                                         </div>
                                     </div>
                                     <div className="space-y-2.5">
-                                        <div className="flex items-center justify-between ml-1">
-                                            <Label htmlFor="store-password" title="Access PIN" className="text-slate-200">Access PIN</Label>
-                                            <button type="button" className="text-xs text-primary hover:text-primary/80 transition-colors font-semibold">
-                                                Get PIN Support
-                                            </button>
-                                        </div>
+                                        <Label htmlFor="store-password" title="Access PIN" className="text-slate-200 ml-1">Access PIN</Label>
                                         <div className="relative group">
                                             <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-primary" />
                                             <Input
@@ -210,15 +210,6 @@ const Login = () => {
                                                 disabled={isLoading}
                                             />
                                         </div>
-                                    </div>
-                                    <div className="flex items-center space-x-3 pt-1 ml-1">
-                                        <Checkbox id="store-remember" className="border-white/20 data-[state=checked]:bg-primary" />
-                                        <label
-                                            htmlFor="store-remember"
-                                            className="text-sm font-medium leading-none text-slate-400 cursor-pointer hover:text-slate-300 transition-colors"
-                                        >
-                                            Remember this terminal
-                                        </label>
                                     </div>
                                 </CardContent>
                                 <CardFooter className="flex flex-col pt-4 pb-10">
@@ -243,19 +234,6 @@ const Login = () => {
                         </TabsContent>
                     </Tabs>
                 </Card>
-
-                <div className="text-center mt-10 animate-fade-in delay-500">
-                    <p className="text-sm text-slate-400 mb-2">
-                        Professional Inventory Solutions
-                    </p>
-                    <div className="flex items-center justify-center gap-4 text-slate-500 text-xs">
-                        <a href="#" className="hover:text-slate-300 transition-colors">Privacy Policy</a>
-                        <div className="w-1 h-1 bg-slate-700 rounded-full" />
-                        <a href="#" className="hover:text-slate-300 transition-colors">Terms of Service</a>
-                        <div className="w-1 h-1 bg-slate-700 rounded-full" />
-                        <a href="#" className="hover:text-slate-300 transition-colors">Support</a>
-                    </div>
-                </div>
             </div>
 
             <style dangerouslySetInnerHTML={{

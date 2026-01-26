@@ -109,7 +109,6 @@ export const HistoryPopup: React.FC<HistoryPopupProps> = ({ open, onOpenChange, 
         }));
       }
     } catch (error) {
-      console.error('Error fetching history:', error);
     } finally {
       setLoading(false);
     }

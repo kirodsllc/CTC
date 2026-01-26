@@ -108,7 +108,6 @@ export const StockVerification = () => {
         setItems([]);
       }
     } catch (error) {
-      console.error('Error loading active session:', error);
       toast({
         title: "Error",
         description: "Failed to load active verification session",
@@ -189,7 +188,6 @@ export const StockVerification = () => {
         throw new Error('Failed to update item');
       }
     } catch (error) {
-      console.error('Error updating item:', error);
       toast({
         title: "Error",
         description: "Failed to update item count",
@@ -228,7 +226,6 @@ export const StockVerification = () => {
         throw new Error('Failed to update remarks');
       }
     } catch (error) {
-      console.error('Error updating remarks:', error);
       toast({
         title: "Error",
         description: "Failed to update remarks",
@@ -271,7 +268,6 @@ export const StockVerification = () => {
         description: "Verification session started successfully",
       });
     } catch (error: any) {
-      console.error('Error starting session:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to start verification session",
@@ -314,7 +310,6 @@ export const StockVerification = () => {
         description: "Verification session completed successfully",
       });
     } catch (error: any) {
-      console.error('Error completing session:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to complete verification session",
@@ -352,7 +347,6 @@ export const StockVerification = () => {
         description: "Verification session cancelled",
       });
     } catch (error: any) {
-      console.error('Error cancelling session:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to cancel verification session",

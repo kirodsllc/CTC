@@ -87,7 +87,6 @@ export const OperationalExpensesTab = ({ onUpdate }: OperationalExpensesTabProps
         })));
       }
     } catch (error) {
-      console.error('Error fetching operational expenses:', error);
       toast.error("Failed to fetch operational expenses");
     } finally {
       setLoading(false);
@@ -125,7 +124,6 @@ export const OperationalExpensesTab = ({ onUpdate }: OperationalExpensesTabProps
       await fetchExpenses();
       onUpdate?.();
     } catch (error: any) {
-      console.error('Error creating operational expense:', error);
       toast.error(error.error || "Failed to create operational expense");
     } finally {
       setLoading(false);
@@ -149,7 +147,6 @@ export const OperationalExpensesTab = ({ onUpdate }: OperationalExpensesTabProps
         });
       }
     } catch (error) {
-      console.error('Error fetching expense details:', error);
       toast.error("Failed to fetch expense details");
     }
   };

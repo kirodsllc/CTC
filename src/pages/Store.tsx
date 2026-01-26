@@ -6,6 +6,7 @@ import { StorePanel } from "@/components/store/StorePanel";
 import { RackAndShelf } from "@/components/inventory/RackAndShelf";
 import { cn } from "@/lib/utils";
 import { Package, Archive } from "lucide-react";
+import { getUserRole } from "@/utils/auth";
 
 type StoreTab = "orders" | "rack-shelf";
 
@@ -25,11 +26,11 @@ const Store = () => {
   const navigate = useNavigate();
   const { tab } = useParams<{ tab?: string }>();
   const [storeName, setStoreName] = useState<string>("");
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<'admin' | 'store' | null>(null);
 
-  // Get user role from localStorage
+  // Get user role from auth utility
   useEffect(() => {
-    const role = localStorage.getItem("userRole");
+    const role = getUserRole();
     setUserRole(role);
   }, []);
 

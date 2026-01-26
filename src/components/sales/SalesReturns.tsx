@@ -82,7 +82,6 @@ interface SalesReturn {
   originalInvoiceNo?: string;
 }
 
-
 export const SalesReturns = () => {
   const [returns, setReturns] = useState<SalesReturn[]>([]);
   const [selectedReturns, setSelectedReturns] = useState<string[]>([]);
@@ -124,7 +123,6 @@ export const SalesReturns = () => {
           setReturns(JSON.parse(storedReturns));
         }
       } catch (error: any) {
-        console.error('Error fetching returns:', error);
         toast({
           title: "Error",
           description: "Failed to load sales returns",
@@ -149,7 +147,6 @@ export const SalesReturns = () => {
         });
 
         if (response.error) {
-          console.error('Error fetching parts:', response.error);
           return;
         }
 
@@ -173,7 +170,6 @@ export const SalesReturns = () => {
 
         setAvailableItems(transformedItems);
       } catch (error: any) {
-        console.error('Error fetching items:', error);
       }
     };
 

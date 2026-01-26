@@ -59,7 +59,6 @@ router.get('/', async (req, res) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching company profile:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -103,7 +102,6 @@ router.put('/', async (req, res) => {
       },
     });
   } catch (error: any) {
-    console.error('Error updating company profile:', error);
     res.status(500).json({ error: error.message });
   }
 });

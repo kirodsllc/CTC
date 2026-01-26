@@ -106,7 +106,6 @@ export const SubgroupsTab = () => {
         setMainGroups(data);
       }
     } catch (error) {
-      console.error("Error fetching main groups:", error);
     }
   };
 
@@ -142,7 +141,6 @@ export const SubgroupsTab = () => {
         toast.error("Failed to load subgroups");
       }
     } catch (error) {
-      console.error("Error fetching subgroups:", error);
       toast.error("Error loading subgroups");
     } finally {
       setLoading(false);
@@ -235,7 +233,6 @@ export const SubgroupsTab = () => {
         toast.error(error.error || "Failed to add subgroup");
       }
     } catch (error: any) {
-      console.error("Error adding subgroup:", error);
       toast.error(error.message || "Error adding subgroup");
     }
   };
@@ -286,7 +283,6 @@ export const SubgroupsTab = () => {
         toast.error(error.error || "Failed to update subgroup");
       }
     } catch (error: any) {
-      console.error("Error updating subgroup:", error);
       toast.error(error.message || "Error updating subgroup");
     }
   };
@@ -314,7 +310,6 @@ export const SubgroupsTab = () => {
         toast.error(error.error || "Failed to delete subgroup");
       }
     } catch (error: any) {
-      console.error("Error deleting subgroup:", error);
       toast.error(error.message || "Error deleting subgroup");
     }
   };

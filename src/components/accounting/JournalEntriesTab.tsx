@@ -114,7 +114,6 @@ export const JournalEntriesTab = () => {
         })));
       }
     } catch (error) {
-      console.error("Error fetching accounts:", error);
     }
   };
 
@@ -157,7 +156,6 @@ export const JournalEntriesTab = () => {
         });
       }
     } catch (error) {
-      console.error("Error fetching journal entries:", error);
       toast({
         title: "Error",
         description: "Error loading journal entries",
@@ -283,7 +281,6 @@ export const JournalEntriesTab = () => {
         });
       }
     } catch (error) {
-      console.error("Error creating journal entry:", error);
       toast({
         title: "Error",
         description: "Error creating journal entry",
@@ -315,7 +312,6 @@ export const JournalEntriesTab = () => {
         });
       }
     } catch (error) {
-      console.error("Error posting entry:", error);
       toast({
         title: "Error",
         description: "Error posting journal entry",

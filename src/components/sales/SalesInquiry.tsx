@@ -110,7 +110,6 @@ interface PartDetail {
   quantity?: number; // Available stock quantity
 }
 
-
 export const SalesInquiry = () => {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -177,14 +176,12 @@ export const SalesInquiry = () => {
             limit: 10000,
             page: 1
           }).catch((err: any) => {
-            console.error('Error in getParts API call:', err);
             return { error: err.message || 'Failed to fetch parts', data: [] };
           }),
           apiClient.getStockBalances({ limit: 10000 }).catch(() => ({ data: [], error: null }))
         ]);
 
         if ((partsResponse as any).error) {
-          console.error('Error fetching parts:', (partsResponse as any).error);
           setPartsData([]);
           setPartIdMap({});
           toast({
@@ -276,9 +273,7 @@ export const SalesInquiry = () => {
 
         setPartIdMap(idMap);
         setPartsData(transformedParts);
-        console.log('Loaded parts from database:', transformedParts.length);
       } catch (error: any) {
-        console.error('Error fetching parts:', error);
         setPartsData([]);
         setPartIdMap({});
         const errorMessage = error?.message || error?.toString() || "Failed to fetch parts from database";
@@ -304,7 +299,6 @@ export const SalesInquiry = () => {
       try {
         const response = await apiClient.getSalesInquiries();
         if ((response as any).error) {
-          console.error('Error fetching inquiries:', (response as any).error);
           toast({
             title: "Error",
             description: "Failed to load inquiries",
@@ -315,7 +309,6 @@ export const SalesInquiry = () => {
         const inquiriesData = Array.isArray(response) ? response : ((response as any).data || []);
         setInquiries(inquiriesData as any);
       } catch (error: any) {
-        console.error('Error fetching inquiries:', error);
         toast({
           title: "Error",
           description: error.message || "Failed to fetch inquiries",
@@ -346,7 +339,6 @@ export const SalesInquiry = () => {
         });
 
         if ((response as any).error) {
-          console.error('Error fetching purchase order history:', (response as any).error);
           setPurchaseOrderHistory([]);
           return;
         }
@@ -355,7 +347,6 @@ export const SalesInquiry = () => {
         // Backend already returns data in the correct format, just ensure it's properly set
         setPurchaseOrderHistory(poData as any);
       } catch (error: any) {
-        console.error('Error fetching purchase order history:', error);
         setPurchaseOrderHistory([]);
       } finally {
         setLoadingPOHistory(false);
@@ -382,7 +373,6 @@ export const SalesInquiry = () => {
         });
 
         if ((response as any).error) {
-          console.error('Error fetching sales invoice history:', (response as any).error);
           setSalesInvoiceHistory([]);
           return;
         }
@@ -390,7 +380,6 @@ export const SalesInquiry = () => {
         const invoiceData = Array.isArray(response) ? response : ((response as any).data || []);
         setSalesInvoiceHistory(invoiceData as any);
       } catch (error: any) {
-        console.error('Error fetching sales invoice history:', error);
         setSalesInvoiceHistory([]);
       } finally {
         setLoadingSalesInvoiceHistory(false);
@@ -417,7 +406,6 @@ export const SalesInquiry = () => {
         });
 
         if ((response as any).error) {
-          console.error('Error fetching direct purchase order history:', (response as any).error);
           setDpoHistory([]);
           return;
         }
@@ -508,7 +496,6 @@ export const SalesInquiry = () => {
 
         setDpoHistory(finalData as any);
       } catch (error: any) {
-        console.error('Error fetching direct purchase order history:', error);
         setDpoHistory([]);
       } finally {
         setLoadingDpoHistory(false);
@@ -552,7 +539,6 @@ export const SalesInquiry = () => {
         
         setPartModels(transformedModels);
       } catch (error: any) {
-        console.error("Error fetching models:", error);
         toast({
           title: "Error",
           description: error.message || "Failed to fetch models",
@@ -640,7 +626,6 @@ export const SalesInquiry = () => {
         ]);
 
         if ((partResponse as any).error) {
-          console.error('Error fetching part details:', (partResponse as any).error);
           // Keep the selected part from list if API fails
           return;
         }
@@ -691,7 +676,6 @@ export const SalesInquiry = () => {
 
         setSelectedPart(fullPartDetails);
       } catch (error: any) {
-        console.error('Error fetching part details:', error);
         // Keep the selected part from list if API fails
       } finally {
         setLoadingPartDetails(false);
@@ -803,7 +787,6 @@ export const SalesInquiry = () => {
         description: `Loaded ${transformedParts.length} parts from database.`,
       });
     } catch (error: any) {
-      console.error('Error refreshing parts:', error);
       toast({
         title: "Error",
         description: "Failed to refresh parts",
@@ -823,7 +806,6 @@ export const SalesInquiry = () => {
       // Fetch full inquiry details with items
       const response = await apiClient.getSalesInquiry(inquiry.id);
       if ((response as any).error) {
-        console.error('Error fetching inquiry details:', (response as any).error);
         toast({
           title: "Error",
           description: "Failed to load inquiry details",
@@ -835,7 +817,6 @@ export const SalesInquiry = () => {
         setFullInquiryData(inquiryData);
       }
     } catch (error: any) {
-      console.error('Error fetching inquiry details:', error);
       setFullInquiryData(inquiry);
     } finally {
       setLoadingInquiryDetails(false);
@@ -874,7 +855,6 @@ export const SalesInquiry = () => {
       setDeleteDialogOpen(false);
       setInquiryToDelete(null);
     } catch (error: any) {
-      console.error('Error deleting inquiry:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete inquiry",
@@ -924,7 +904,6 @@ export const SalesInquiry = () => {
       setDeletePODialogOpen(false);
       setPoToDelete(null);
     } catch (error: any) {
-      console.error('Error deleting purchase order:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete purchase order",
@@ -958,7 +937,6 @@ export const SalesInquiry = () => {
       const inquiriesData = Array.isArray(inquiriesResponse) ? inquiriesResponse : ((inquiriesResponse as any).data || []);
       setInquiries(inquiriesData as any);
     } catch (error: any) {
-      console.error('Error converting inquiry:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to convert inquiry",
@@ -990,7 +968,6 @@ export const SalesInquiry = () => {
         });
       }, 100);
     } catch (error: any) {
-      console.error('Error fetching inquiry for print:', error);
       toast({
         title: "Error",
         description: "Failed to load inquiry details",
@@ -1043,7 +1020,6 @@ export const SalesInquiry = () => {
         reservedQty = (stockResponse as any).data.reserved || 0;
       }
     } catch (error) {
-      console.error('Error fetching stock:', error);
       // Use quantity from selectedPart if available
       stock = selectedPart.quantity || 0;
     }
@@ -1146,7 +1122,6 @@ export const SalesInquiry = () => {
       const inquiriesData = Array.isArray(inquiriesResponse) ? inquiriesResponse : ((inquiriesResponse as any).data || []);
       setInquiries(inquiriesData as any);
     } catch (error: any) {
-      console.error('Error creating inquiry:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to create inquiry",
@@ -1825,8 +1800,6 @@ export const SalesInquiry = () => {
                 </TabsTrigger>
               </TabsList>
 
-
-
               {/* Last Sales Invoice Tab */}
               <TabsContent value="last-sales-invoice" className="mt-4">
                 <div className="rounded-md border">
@@ -1884,8 +1857,6 @@ export const SalesInquiry = () => {
                   </Table>
                 </div>
               </TabsContent>
-
-
 
               {/* Last Direct Purchase Order Tab */}
               <TabsContent value="last-dpo" className="mt-4">

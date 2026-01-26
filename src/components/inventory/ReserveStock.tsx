@@ -90,7 +90,6 @@ export const ReserveStock = () => {
         
         // Safety limit to prevent infinite loops
         if (page > 100) {
-          console.warn('Reached maximum pages limit (100) while fetching reserved stock');
           break;
         }
       }
@@ -121,7 +120,6 @@ export const ReserveStock = () => {
 
       setItems(Array.from(reservedMap.values()));
     } catch (error: any) {
-      console.error('Error fetching reserved stock:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to fetch reserved stock",
@@ -149,7 +147,6 @@ export const ReserveStock = () => {
         description: part.description || '',
       })));
     } catch (error) {
-      console.error('Error fetching parts:', error);
     }
   };
 
@@ -214,7 +211,6 @@ export const ReserveStock = () => {
       // Refresh the list
       await fetchReservedStock();
     } catch (error: any) {
-      console.error("Error reserving stock:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to reserve stock. Please try again.",
@@ -245,7 +241,6 @@ export const ReserveStock = () => {
 
       await fetchReservedStock();
     } catch (error: any) {
-      console.error("Error removing reservation:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to remove reservation",

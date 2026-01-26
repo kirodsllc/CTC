@@ -207,7 +207,6 @@ export const InventoryDashboard = () => {
         setTopItemsByQty(sortedByQty);
       }
     } catch (error: any) {
-      console.error('Error fetching dashboard data:', error);
       toast({
         title: "Error",
         description: error.error || "Failed to fetch dashboard data",

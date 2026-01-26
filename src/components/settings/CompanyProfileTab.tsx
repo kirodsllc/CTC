@@ -127,7 +127,6 @@ export const CompanyProfileTab = () => {
       try {
         const response = await apiClient.getCompanyProfile() as any;
         if (response.error) {
-          console.error(response.error);
         } else if (response.data) {
           const data = response.data;
 
@@ -187,7 +186,6 @@ export const CompanyProfileTab = () => {
           }
         }
       } catch (error: any) {
-        console.error("Failed to fetch company profile:", error);
       }
     };
     fetchCompanyProfile();

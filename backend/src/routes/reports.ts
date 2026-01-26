@@ -273,7 +273,6 @@ router.get('/dashboard/recent-activity', async (req: Request, res: Response) => 
         expenses = operationalExpenses;
       } catch (opError) {
         // If neither table exists, just use empty array
-        console.warn('Expense tables not available:', opError);
       }
     }
 
@@ -888,7 +887,6 @@ router.get('/financial/expenses', async (req: Request, res: Response) => {
         }));
       } catch (opError) {
         // If neither table exists, return empty array
-        console.warn('Expense tables not available:', opError);
         return res.json({ data: [] });
       }
     }
@@ -1176,7 +1174,6 @@ router.get('/trial-balance', async (req: Request, res: Response) => {
       totalCredit,
     });
   } catch (error: any) {
-    console.error('Error fetching trial balance:', error);
     res.status(500).json({ 
       error: 'Failed to fetch trial balance',
       message: error.message 
@@ -1389,7 +1386,6 @@ router.get('/income-statement', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching income statement:', error);
     res.status(500).json({ 
       error: 'Failed to fetch income statement',
       message: error.message 

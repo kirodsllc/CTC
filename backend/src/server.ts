@@ -87,7 +87,6 @@ app.use(cors({
       }
       
       // Log CORS rejection for debugging
-      console.warn('CORS blocked request from origin:', origin);
       return callback(new Error('Not allowed by CORS'));
     }
     
@@ -311,15 +310,10 @@ app.use('/api/sales-returns', salesReturnsRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err);
   res.status(500).json({ error: 'Internal server error', message: err.message });
 });
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Using PORT env: ${process.env.PORT}`);
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`📊 API health check: http://localhost:${PORT}/api/health`);
 });
 

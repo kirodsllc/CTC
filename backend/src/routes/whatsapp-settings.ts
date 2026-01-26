@@ -28,7 +28,6 @@ router.get('/', async (req, res) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching WhatsApp settings:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -68,7 +67,6 @@ router.put('/', async (req, res) => {
       },
     });
   } catch (error: any) {
-    console.error('Error updating WhatsApp settings:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -136,7 +134,6 @@ router.post('/send-message', async (req, res) => {
       responseData = await response.json();
     } catch (e) {
       const text = await response.text();
-      console.error('WhatsApp API response (not JSON):', text);
       return res.status(500).json({ 
         error: 'Invalid response from WhatsApp API',
         details: text 
@@ -155,7 +152,6 @@ router.post('/send-message', async (req, res) => {
       data: responseData,
     });
   } catch (error: any) {
-    console.error('Error sending WhatsApp message:', error);
     res.status(500).json({ error: error.message || 'Failed to send WhatsApp message' });
   }
 });

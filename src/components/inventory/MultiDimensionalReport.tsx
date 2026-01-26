@@ -80,7 +80,6 @@ export const MultiDimensionalReport = () => {
           setBrands(brandNames);
         }
       } catch (error) {
-        console.error("Error fetching dropdowns:", error);
       }
     };
 
@@ -164,7 +163,6 @@ export const MultiDimensionalReport = () => {
         });
       }
     } catch (error: any) {
-      console.error("Error generating report:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to generate report",

@@ -33,8 +33,12 @@ router.get('/', async (req: Request, res: Response) => {
     } = req.query;
 
     const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
-    const skip = (pageNum - 1) * limitNum;
+    let limitNum = parseInt(limit as string);
+    // For very large limits (fetching all items), remove limit to fetch everything
+    if (limitNum > 100000) {
+      limitNum = undefined as any; // Remove limit to fetch all items
+    }
+    const skip = limitNum ? (pageNum - 1) * limitNum : 0;
 
     // Build where clause
     const where: any = {};
@@ -47,7 +51,6 @@ router.get('/', async (req: Request, res: Response) => {
       if (exactPartNo) {
         // Get canonical part ID for this partNo
         const canonicalPartId = await getCanonicalPartId(prisma, exactPartNo);
-        console.log(`🔍 [PARTS API] Exact partNo match: "${exactPartNo}", canonical Part ID: ${canonicalPartId}`);
         
         // For exact partNo match, return only the canonical part
         if (canonicalPartId) {
@@ -76,7 +79,6 @@ router.get('/', async (req: Request, res: Response) => {
     if (master_part_no) {
       // Use partial match (contains) for master part number to show related keywords
       const masterPartNoValue = (master_part_no as string).trim();
-      console.log(`🔍 Filtering parts by master part number (partial match): "${masterPartNoValue}"`);
       specificFilters.push({
         masterPart: {
           masterPartNo: { contains: masterPartNoValue },
@@ -88,7 +90,6 @@ router.get('/', async (req: Request, res: Response) => {
       // Filter by part_no to get all family parts (parts with same part_no value)
       // For family parts, we want ALL parts with the same part_no, not just canonical
       const partNoValue = (part_no as string).trim();
-      console.log(`🔍 Filtering parts by part number (exact match for family): "${partNoValue}"`);
       // Use exact match (case-sensitive) to get all parts in the family
       // This will return all parts that have the exact same partNo value
       specificFilters.push({
@@ -231,7 +232,6 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     // Get parts with relations
-    console.log("🔍 Prisma query where clause:", JSON.stringify(where, null, 2));
     const [parts, total] = await Promise.all([
       prisma.part.findMany({
         where,
@@ -247,43 +247,20 @@ router.get('/', async (req: Request, res: Response) => {
           { updatedAt: 'desc' }, // Then by most recently updated
           { createdAt: 'desc' },
         ],
-        skip,
-        take: limitNum,
+        ...(skip > 0 && { skip }),
+        ...(limitNum && { take: limitNum }),
       }),
       prisma.part.count({ where }),
     ]);
-    console.log(`📊 Found ${parts.length} parts (total: ${total}) with the filter`);
     if (master_part_no) {
-      console.log(`📋 Parts with master part "${master_part_no}":`, parts.map(p => ({
-        id: p.id,
-        partNo: p.partNo,
-        masterPartNo: p.masterPart?.masterPartNo
-      })));
     }
     if (part_no) {
-      console.log(`📋 Parts with part number "${part_no}":`, parts.map(p => ({
-        id: p.id,
-        partNo: p.partNo,
-        masterPartNo: p.masterPart?.masterPartNo,
-        description: p.description
-      })));
-      console.log(`🔍 Part number filter details:`, {
-        filterValue: part_no,
-        filterType: 'exact match',
-        totalFound: parts.length,
-        expectedCount: total
-      });
     }
 
     // Transform data for response
     const transformedParts = parts.map((part) => {
       // 🔍 LOG: Log cost source for debugging (one-time per request for specific parts)
       if (part.partNo === '6C0570' || (search && (search as string).includes('6C0570'))) {
-        console.log(`💰 [PARTS API] Part ${part.partNo} (ID: ${part.id}):`);
-        console.log(`   Cost from DB (part.cost): ${part.cost}`);
-        console.log(`   Cost Source: ${(part as any).costSource || 'null'}`);
-        console.log(`   Cost Source Ref: ${(part as any).costSourceRef || 'null'}`);
-        console.log(`   Cost Updated At: ${(part as any).costUpdatedAt || 'null'}`);
       }
       
       return {
@@ -329,7 +306,6 @@ router.get('/', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching parts:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -358,7 +334,6 @@ router.get('/price-management', async (req: Request, res: Response) => {
       if (exactPartNo) {
         // For exact partNo match, return only the canonical part
         const canonicalPartId = await getCanonicalPartId(prisma, exactPartNo);
-        console.log(`🔍 [PRICE-MANAGEMENT API] Exact partNo match: "${exactPartNo}", canonical Part ID: ${canonicalPartId}`);
         if (canonicalPartId) {
           where.id = canonicalPartId;
         } else {
@@ -431,11 +406,6 @@ router.get('/price-management', async (req: Request, res: Response) => {
 
       // 🔍 LOG: Log cost source for debugging (one-time per request for specific parts)
       if (part.partNo === '6C0570' || (search && (search as string).includes('6C0570'))) {
-        console.log(`💰 [PRICE-MANAGEMENT API] Part ${part.partNo} (ID: ${part.id}):`);
-        console.log(`   Cost from DB (part.cost): ${part.cost}`);
-        console.log(`   Effective Cost returned: ${effectiveCost}`);
-        console.log(`   Cost Source: ${(part as any).costSource || 'null'}`);
-        console.log(`   Cost Source Ref: ${(part as any).costSourceRef || 'null'}`);
       }
 
       return {
@@ -479,7 +449,6 @@ router.get('/price-management', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching parts for price management:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -599,7 +568,6 @@ router.post('/bulk-update-prices', async (req: Request, res: Response) => {
       updated_count: updatedParts.length,
     });
   } catch (error: any) {
-    console.error('Error bulk updating prices:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -651,7 +619,6 @@ router.get('/price-history', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching price history:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -715,7 +682,6 @@ router.get('/:id', async (req: Request, res: Response) => {
       updated_at: part.updatedAt,
     });
   } catch (error: any) {
-    console.error('Error fetching part:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -758,7 +724,6 @@ router.post('/', async (req: Request, res: Response) => {
     let masterPartId = null;
     if (master_part_no && String(master_part_no).trim()) {
       const masterPartNoValue = String(master_part_no).trim();
-      console.log(`🔍 [POST] Creating/updating master part: "${masterPartNoValue}"`);
       try {
         const masterPart = await prisma.masterPart.upsert({
           where: { masterPartNo: masterPartNoValue },
@@ -766,12 +731,9 @@ router.post('/', async (req: Request, res: Response) => {
           create: { masterPartNo: masterPartNoValue },
         });
         masterPartId = masterPart.id;
-        console.log(`✅ [POST] Master part created/found with ID: ${masterPartId}`);
       } catch (error: any) {
-        console.error(`❌ [POST] Error handling master part "${masterPartNoValue}":`, error);
       }
     } else {
-      console.log(`⚠️ [POST] No master part number provided or empty string. Received:`, master_part_no);
     }
 
     // Handle brand
@@ -802,19 +764,16 @@ router.post('/', async (req: Request, res: Response) => {
           category = await prisma.category.findUnique({
             where: { id: categoryIdStr },
           });
-          console.log(`[POST] Category lookup by ID: ${category ? 'found' : 'not found'}`);
         }
         
         if (!category) {
           category = await prisma.category.findUnique({
             where: { name: categoryIdStr },
           });
-          console.log(`[POST] Category lookup by name: ${category ? 'found' : 'not found'}`);
         }
         
         // If not found, auto-create it
         if (!category) {
-          console.log(`[POST] Attempting to auto-create category: "${categoryIdStr}"`);
           try {
             category = await prisma.category.create({
               data: {
@@ -822,25 +781,20 @@ router.post('/', async (req: Request, res: Response) => {
                 status: 'active',
               },
             });
-            console.log(`[POST] Category auto-created: ${category.name} (ID: ${category.id})`);
           } catch (createError: any) {
-            console.error(`[POST] Error auto-creating category: ${createError.message}`);
             // If creation fails (e.g., unique constraint), try to find it again
             category = await prisma.category.findUnique({
               where: { name: categoryIdStr },
             });
             if (category) {
-              console.log(`[POST] Category found after creation attempt: ${category.name}`);
             }
           }
         }
         
         if (category) {
           validatedCategoryId = category.id;
-          console.log(`[POST] Category validated: ${category.name} (ID: ${validatedCategoryId})`);
         }
       } catch (error: any) {
-        console.error('Error validating category:', error);
         validatedCategoryId = null;
       }
     }
@@ -877,7 +831,6 @@ router.post('/', async (req: Request, res: Response) => {
               },
               include: { category: true },
             });
-            console.log(`Subcategory auto-created: ${subcategory.name} (ID: ${subcategory.id})`);
           } catch (createError: any) {
             // If creation fails (e.g., unique constraint), try to find it again
             subcategory = await prisma.subcategory.findFirst({
@@ -888,9 +841,7 @@ router.post('/', async (req: Request, res: Response) => {
               include: { category: true },
             });
             if (subcategory) {
-              console.log(`Subcategory found after creation attempt: ${subcategory.name}`);
             } else {
-              console.error('Error auto-creating subcategory:', createError);
             }
           }
         }
@@ -901,12 +852,9 @@ router.post('/', async (req: Request, res: Response) => {
           if (!validatedCategoryId) {
             validatedCategoryId = subcategory.categoryId;
           }
-          console.log(`Subcategory validated: ${subcategory.name} (ID: ${validatedSubcategoryId})`);
         } else {
-          console.log(`Subcategory not found and cannot be created (no category): ${subcategoryIdStr}`);
         }
       } catch (error: any) {
-        console.error('Error validating subcategory:', error);
         validatedSubcategoryId = null;
       }
     }
@@ -959,7 +907,6 @@ router.post('/', async (req: Request, res: Response) => {
               },
               include: { subcategory: { include: { category: true } } },
             });
-            console.log(`Application auto-created: ${application.name} (ID: ${application.id})`);
           } catch (createError: any) {
             // If creation fails (e.g., unique constraint), try to find it again
             application = await prisma.application.findFirst({
@@ -970,9 +917,7 @@ router.post('/', async (req: Request, res: Response) => {
               include: { subcategory: { include: { category: true } } },
             });
             if (application) {
-              console.log(`Application found after creation attempt: ${application.name}`);
             } else {
-              console.error('Error auto-creating application:', createError);
             }
           }
         }
@@ -986,12 +931,9 @@ router.post('/', async (req: Request, res: Response) => {
               validatedCategoryId = application.subcategory.categoryId;
             }
           }
-          console.log(`Application validated: ${application.name} (ID: ${validatedApplicationId})`);
         } else {
-          console.log(`Application not found and cannot be created (no subcategory): ${applicationIdStr}`);
         }
       } catch (error: any) {
-        console.error('Error validating application:', error);
         validatedApplicationId = null;
       }
     }
@@ -1081,13 +1023,6 @@ router.post('/', async (req: Request, res: Response) => {
       updated_at: part.updatedAt,
     });
   } catch (error: any) {
-    console.error('Error creating part:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      meta: error.meta,
-      stack: error.stack,
-    });
     
     // Handle specific Prisma errors
     if (error.code === 'P2002') {
@@ -1097,8 +1032,6 @@ router.post('/', async (req: Request, res: Response) => {
       if (field === 'partNo' || field === 'part_no') {
         // If we get here, the database constraint still exists
         // The schema has been updated to allow duplicates, but migration needs to be run
-        console.log('⚠️ Duplicate partNo detected - database constraint may still exist');
-        console.log('💡 Run migration: backend/src/db/migrations/002_remove_part_no_unique.sql');
         // Return error with instructions
         return res.status(400).json({ 
           error: 'Part number already exists. Please run the database migration to remove the unique constraint on part_no.',
@@ -1160,7 +1093,6 @@ router.put('/:id', async (req: Request, res: Response) => {
     let masterPartId = null;
     if (master_part_no && String(master_part_no).trim()) {
       const masterPartNoValue = String(master_part_no).trim();
-      console.log(`🔍 [PUT] Creating/updating master part: "${masterPartNoValue}"`);
       try {
         const masterPart = await prisma.masterPart.upsert({
           where: { masterPartNo: masterPartNoValue },
@@ -1168,12 +1100,9 @@ router.put('/:id', async (req: Request, res: Response) => {
           create: { masterPartNo: masterPartNoValue },
         });
         masterPartId = masterPart.id;
-        console.log(`✅ [PUT] Master part created/found with ID: ${masterPartId}`);
       } catch (error: any) {
-        console.error(`❌ [PUT] Error handling master part "${masterPartNoValue}":`, error);
       }
     } else {
-      console.log(`⚠️ [PUT] No master part number provided or empty string. Received:`, master_part_no);
     }
 
     // Handle brand
@@ -1205,18 +1134,15 @@ router.put('/:id', async (req: Request, res: Response) => {
           category = await prisma.category.findUnique({
             where: { id: categoryIdStr },
           });
-          console.log(`[PUT] Category lookup by ID: ${category ? 'found' : 'not found'}`);
         } else {
           // Try to find by name
           category = await prisma.category.findUnique({
             where: { name: categoryIdStr },
           });
-          console.log(`[PUT] Category lookup by name: ${category ? 'found' : 'not found'}`);
         }
         
         // If not found, auto-create it
         if (!category) {
-          console.log(`[PUT] Attempting to auto-create category: "${categoryIdStr}"`);
           try {
             category = await prisma.category.create({
               data: {
@@ -1224,25 +1150,20 @@ router.put('/:id', async (req: Request, res: Response) => {
                 status: 'active',
               },
             });
-            console.log(`[PUT] Category auto-created: ${category.name} (ID: ${category.id})`);
           } catch (createError: any) {
-            console.error(`[PUT] Error auto-creating category: ${createError.message}`);
             // If creation fails (e.g., unique constraint), try to find it again
             category = await prisma.category.findUnique({
               where: { name: categoryIdStr },
             });
             if (category) {
-              console.log(`[PUT] Category found after creation attempt: ${category.name}`);
             }
           }
         }
         
         if (category) {
           validatedCategoryId = category.id;
-          console.log(`[PUT] Category validated: ${category.name} (ID: ${validatedCategoryId})`);
         }
       } catch (error: any) {
-        console.error('Error validating category:', error);
         validatedCategoryId = null;
       }
     }
@@ -1252,7 +1173,6 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (subcategory_id && String(subcategory_id).trim() !== '') {
       try {
         const subcategoryIdStr = String(subcategory_id).trim();
-        console.log(`[PUT] Validating subcategory: "${subcategoryIdStr}" (isUUID: ${isUUID(subcategoryIdStr)}, validatedCategoryId: ${validatedCategoryId})`);
         let subcategory = null;
         
         if (isUUID(subcategoryIdStr)) {
@@ -1261,7 +1181,6 @@ router.put('/:id', async (req: Request, res: Response) => {
             where: { id: subcategoryIdStr },
             include: { category: true },
           });
-          console.log(`[PUT] Subcategory lookup by ID: ${subcategory ? 'found' : 'not found'}`);
         }
         
         // If not found by ID, try to find by name
@@ -1275,7 +1194,6 @@ router.put('/:id', async (req: Request, res: Response) => {
               },
               include: { category: true },
             });
-            console.log(`[PUT] Subcategory lookup by name in category: ${subcategory ? 'found' : 'not found'}`);
           }
           
           // If still not found, try any category
@@ -1284,13 +1202,11 @@ router.put('/:id', async (req: Request, res: Response) => {
               where: { name: subcategoryIdStr },
               include: { category: true },
             });
-            console.log(`[PUT] Subcategory lookup by name (any category): ${subcategory ? 'found' : 'not found'}`);
           }
         }
         
         // If still not found and we have a category, auto-create it
         if (!subcategory && validatedCategoryId) {
-          console.log(`[PUT] Attempting to auto-create subcategory: "${subcategoryIdStr}" in category: ${validatedCategoryId}`);
           try {
             subcategory = await prisma.subcategory.create({
               data: {
@@ -1300,9 +1216,7 @@ router.put('/:id', async (req: Request, res: Response) => {
               },
               include: { category: true },
             });
-            console.log(`[PUT] Subcategory auto-created: ${subcategory.name} (ID: ${subcategory.id})`);
           } catch (createError: any) {
-            console.error(`[PUT] Error auto-creating subcategory: ${createError.message}`);
             // If creation fails (e.g., unique constraint), try to find it again
             subcategory = await prisma.subcategory.findFirst({
               where: { 
@@ -1312,13 +1226,10 @@ router.put('/:id', async (req: Request, res: Response) => {
               include: { category: true },
             });
             if (subcategory) {
-              console.log(`[PUT] Subcategory found after creation attempt: ${subcategory.name}`);
             } else {
-              console.error(`[PUT] Subcategory still not found after creation attempt`);
             }
           }
         } else if (!subcategory) {
-          console.log(`[PUT] Subcategory not found and cannot be created (no category): ${subcategoryIdStr}`);
         }
         
         if (subcategory) {
@@ -1327,10 +1238,8 @@ router.put('/:id', async (req: Request, res: Response) => {
           if (!validatedCategoryId) {
             validatedCategoryId = subcategory.categoryId;
           }
-          console.log(`[PUT] Subcategory validated: ${subcategory.name} (ID: ${validatedSubcategoryId})`);
         }
       } catch (error: any) {
-        console.error('Error validating subcategory:', error);
         validatedSubcategoryId = null;
       }
     }
@@ -1340,7 +1249,6 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (application_id && String(application_id).trim() !== '') {
       try {
         const applicationIdStr = String(application_id).trim();
-        console.log(`[PUT] Validating application: "${applicationIdStr}" (isUUID: ${isUUID(applicationIdStr)}, validatedSubcategoryId: ${validatedSubcategoryId})`);
         let application = null;
         
         if (isUUID(applicationIdStr)) {
@@ -1349,7 +1257,6 @@ router.put('/:id', async (req: Request, res: Response) => {
             where: { id: applicationIdStr },
             include: { subcategory: { include: { category: true } } },
           });
-          console.log(`[PUT] Application lookup by ID: ${application ? 'found' : 'not found'}`);
         }
         
         // If not found by ID, try to find by name
@@ -1363,7 +1270,6 @@ router.put('/:id', async (req: Request, res: Response) => {
               },
               include: { subcategory: { include: { category: true } } },
             });
-            console.log(`[PUT] Application lookup by name in subcategory: ${application ? 'found' : 'not found'}`);
           }
           
           // If still not found, try any subcategory
@@ -1372,13 +1278,11 @@ router.put('/:id', async (req: Request, res: Response) => {
               where: { name: applicationIdStr },
               include: { subcategory: { include: { category: true } } },
             });
-            console.log(`[PUT] Application lookup by name (any subcategory): ${application ? 'found' : 'not found'}`);
           }
         }
         
         // If still not found and we have a subcategory, auto-create it
         if (!application && validatedSubcategoryId) {
-          console.log(`[PUT] Attempting to auto-create application: "${applicationIdStr}" in subcategory: ${validatedSubcategoryId}`);
           try {
             application = await prisma.application.create({
               data: {
@@ -1388,9 +1292,7 @@ router.put('/:id', async (req: Request, res: Response) => {
               },
               include: { subcategory: { include: { category: true } } },
             });
-            console.log(`[PUT] Application auto-created: ${application.name} (ID: ${application.id})`);
           } catch (createError: any) {
-            console.error(`[PUT] Error auto-creating application: ${createError.message}`);
             // If creation fails (e.g., unique constraint), try to find it again
             application = await prisma.application.findFirst({
               where: { 
@@ -1400,13 +1302,10 @@ router.put('/:id', async (req: Request, res: Response) => {
               include: { subcategory: { include: { category: true } } },
             });
             if (application) {
-              console.log(`[PUT] Application found after creation attempt: ${application.name}`);
             } else {
-              console.error(`[PUT] Application still not found after creation attempt`);
             }
           }
         } else if (!application) {
-          console.log(`[PUT] Application not found and cannot be created (no subcategory): ${applicationIdStr}`);
         }
         
         if (application) {
@@ -1418,10 +1317,8 @@ router.put('/:id', async (req: Request, res: Response) => {
               validatedCategoryId = application.subcategory.categoryId;
             }
           }
-          console.log(`[PUT] Application validated: ${application.name} (ID: ${validatedApplicationId})`);
         }
       } catch (error: any) {
-        console.error('Error validating application:', error);
         validatedApplicationId = null;
       }
     }
@@ -1545,7 +1442,6 @@ router.put('/:id', async (req: Request, res: Response) => {
     });
 
     // Debug log to verify application is included
-    console.log(`Part updated - Application: ${part.application?.name || 'null'}, Application ID: ${part.applicationId || 'null'}`);
 
     res.json({
       id: part.id,
@@ -1593,7 +1489,6 @@ router.put('/:id', async (req: Request, res: Response) => {
       updated_at: part.updatedAt,
     });
   } catch (error: any) {
-    console.error('Error updating part:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1690,7 +1585,6 @@ router.delete('/:id', async (req: Request, res: Response) => {
       } : null,
     });
   } catch (error: any) {
-    console.error('Error deleting part:', error);
     
     // Handle foreign key constraint errors more gracefully
     if (error.code === 'P2003') {
@@ -1807,7 +1701,6 @@ router.put('/:id/prices', async (req: Request, res: Response) => {
       price_b: updatedPart.priceB,
     });
   } catch (error: any) {
-    console.error('Error updating part prices:', error);
     res.status(500).json({ error: error.message });
   }
 });

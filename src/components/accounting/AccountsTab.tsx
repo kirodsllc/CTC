@@ -154,7 +154,6 @@ export const AccountsTab = () => {
           setMainGroups(data);
         }
       } catch (error) {
-        console.error("Error fetching main groups:", error);
       }
     };
 
@@ -166,7 +165,6 @@ export const AccountsTab = () => {
           setSubGroups(data);
         }
       } catch (error) {
-        console.error("Error fetching subgroups:", error);
       }
     };
 
@@ -225,10 +223,7 @@ export const AccountsTab = () => {
         );
         if (subGroup) {
           params.append("subgroupId", subGroup.id);
-          console.log(`[AccountsTab] Filtering by subgroup: ${subGroup.name} (${subGroup.id}, code: ${subGroup.code})`);
         } else {
-          console.warn(`[AccountsTab] Subgroup not found: "${subGroupFilter}". Available subgroups:`, 
-            subGroups.map(sg => `${sg.name} (${sg.code})`));
           // Don't fetch if subgroup filter is set but not found - might cause wrong results
           setLoading(false);
           return;
@@ -238,7 +233,6 @@ export const AccountsTab = () => {
         const mainGroup = mainGroups.find(mg => mg.name === mainGroupFilter);
         if (mainGroup) {
           params.append("mainGroupId", mainGroup.id);
-          console.log(`[AccountsTab] Filtering by mainGroup: ${mainGroup.name} (${mainGroup.id})`);
         }
       }
       if (statusFilter !== "all") {
@@ -250,18 +244,11 @@ export const AccountsTab = () => {
       const response = await fetch(`${API_URL}/api/accounting/accounts?${params}`);
       if (response.ok) {
         const data = await response.json();
-        console.log(`[AccountsTab] Fetched ${data.length} accounts with filters:`, {
-          mainGroup: mainGroupFilter,
-          subGroup: subGroupFilter,
-          status: statusFilter,
-          params: params.toString()
-        });
         
         // Log all subgroups in the response for debugging
         const allSubgroupsInResponse = [...new Set(data.map((acc: any) => 
           `${acc.subgroup?.code || 'N/A'}-${acc.subgroup?.name || 'N/A'}`
         ))];
-        console.log(`[AccountsTab] Subgroups in API response:`, allSubgroupsInResponse);
         
         const transformed = data.map((acc: any) => ({
           id: acc.id,
@@ -275,7 +262,6 @@ export const AccountsTab = () => {
         
         // Log unique subgroups after transformation
         const uniqueSubgroups = [...new Set(transformed.map(acc => acc.subGroup).filter(Boolean))];
-        console.log(`[AccountsTab] Transformed ${transformed.length} accounts. Unique subgroups:`, uniqueSubgroups);
         
         // Check specifically for bank subgroups
         const bankAccounts = transformed.filter(acc => 
@@ -284,18 +270,14 @@ export const AccountsTab = () => {
           acc.code?.startsWith('108')
         );
         if (bankAccounts.length > 0) {
-          console.log(`[AccountsTab] Found ${bankAccounts.length} bank-related accounts:`, 
-            bankAccounts.map(acc => `${acc.code} - ${acc.name} (${acc.subGroup})`));
         }
         
         setAccounts(transformed);
       } else {
         const errorText = await response.text();
-        console.error("Failed to load accounts:", response.status, errorText);
         toast.error("Failed to load accounts");
       }
     } catch (error) {
-      console.error("Error fetching accounts:", error);
       toast.error("Error loading accounts");
     } finally {
       setLoading(false);
@@ -319,7 +301,6 @@ export const AccountsTab = () => {
   };
 
   const handleAddAccount = async () => {
-    console.log("handleAddAccount called with formData:", formData);
     if (!formData.mainGroup || !formData.subGroup || !formData.name) {
       toast.error("Please fill all required fields (Main Group, Sub Group, and Account Name)");
       return;
@@ -337,7 +318,6 @@ export const AccountsTab = () => {
             subgroup = subgroups.find((sg: any) => sg.name === formData.subGroup || sg.id === formData.subGroup);
           }
         } catch (fetchError) {
-          console.error("Error fetching subgroups:", fetchError);
         }
       }
       
@@ -351,7 +331,6 @@ export const AccountsTab = () => {
       
       if (!subgroupCode || String(subgroupCode).trim() === '') {
         toast.error(`Subgroup "${formData.subGroup}" does not have a code. Please add a code to this subgroup first.`);
-        console.error("Subgroup found but has no code:", subgroup);
         return;
       }
 
@@ -413,7 +392,6 @@ export const AccountsTab = () => {
 
       if (response.ok) {
         const newAccount = await response.json();
-        console.log("New account created:", newAccount);
         toast.success(`Account "${newAccount.name}" added successfully!`);
         setIsAddAccountDialogOpen(false);
         resetForm();
@@ -430,7 +408,6 @@ export const AccountsTab = () => {
         toast.error(error.error || "Failed to add account");
       }
     } catch (error: any) {
-      console.error("Error adding account:", error);
       toast.error(error.message || "Error adding account");
     }
   };
@@ -453,7 +430,6 @@ export const AccountsTab = () => {
             subgroup = subgroups.find((sg: any) => sg.name === formData.subGroup || sg.id === formData.subGroup);
           }
         } catch (fetchError) {
-          console.error("Error fetching subgroups:", fetchError);
         }
       }
       
@@ -467,7 +443,6 @@ export const AccountsTab = () => {
       
       if (!subgroupCode || String(subgroupCode).trim() === '') {
         toast.error(`Subgroup "${formData.subGroup}" does not have a code. Please add a code to this subgroup first.`);
-        console.error("Subgroup found but has no code:", subgroup);
         return;
       }
 
@@ -529,7 +504,6 @@ export const AccountsTab = () => {
 
       if (response.ok) {
         const newAccount = await response.json();
-        console.log("New person account created:", newAccount);
         toast.success(`Person's account "${newAccount.name}" added successfully!`);
         setIsAddPersonDialogOpen(false);
         resetForm();
@@ -546,7 +520,6 @@ export const AccountsTab = () => {
         toast.error(error.error || "Failed to add person's account");
       }
     } catch (error: any) {
-      console.error("Error adding person's account:", error);
       toast.error(error.message || "Error adding person's account");
     }
   };
@@ -608,7 +581,6 @@ export const AccountsTab = () => {
         toast.error(error.error || "Failed to update account");
       }
     } catch (error: any) {
-      console.error("Error updating account:", error);
       toast.error(error.message || "Error updating account");
     }
   };
@@ -627,7 +599,6 @@ export const AccountsTab = () => {
         toast.error(error.error || "Failed to delete account");
       }
     } catch (error) {
-      console.error("Error deleting account:", error);
       toast.error("Error deleting account");
     }
   };

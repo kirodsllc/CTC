@@ -155,7 +155,6 @@ export const RackAndShelf = () => {
         setStores(storesData.map((s: any) => ({ id: s.id, name: s.name })));
       }
     } catch (error: any) {
-      console.error('Error loading stores:', error);
     }
   };
 
@@ -176,7 +175,6 @@ export const RackAndShelf = () => {
         })));
       }
     } catch (error: any) {
-      console.error('Error loading racks:', error);
       toast.error(error.error || 'Failed to load racks');
     } finally {
       setLoading(false);
@@ -199,7 +197,6 @@ export const RackAndShelf = () => {
         })));
       }
     } catch (error: any) {
-      console.error('Error loading shelves:', error);
       toast.error(error.error || 'Failed to load shelves');
     }
   };
@@ -235,11 +232,9 @@ export const RackAndShelf = () => {
         // Fetch all DPOs regardless of status to get all items with locations
         dpoResponse = await apiClient.getDirectPurchaseOrders({ limit: 1000 }) as any;
       } catch (error: any) {
-        console.error('[RackShelf Debug] Error fetching DPOs with limit 1000:', error);
         try {
           dpoResponse = await apiClient.getDirectPurchaseOrders({ limit: 100 }) as any;
         } catch (retryError: any) {
-          console.error('[RackShelf Debug] Error fetching DPOs with limit 100:', retryError);
           dpoResponse = { data: [] };
         }
       }
@@ -255,14 +250,6 @@ export const RackAndShelf = () => {
         dpoData = Object.values(dpoResponse).find(v => Array.isArray(v)) as any[] || [];
       }
       
-      console.log('[RackShelf Debug] DPO Data extracted:', dpoData.length, 'orders');
-      console.log('[RackShelf Debug] First DPO sample:', dpoData.length > 0 ? {
-        dpo_no: dpoData[0]?.dpo_no || dpoData[0]?.dpoNumber,
-        hasItems: !!dpoData[0]?.items,
-        itemsLength: dpoData[0]?.items?.length,
-        itemsCount: dpoData[0]?.items_count,
-        status: dpoData[0]?.status,
-      } : 'No DPOs');
 
       // Calculate stock by rack and shelf from DPO items
       const stockByLocation: Record<string, { 
@@ -286,29 +273,22 @@ export const RackAndShelf = () => {
         return !hasItems;
       });
       
-      console.log('[RackShelf Debug] DPOs with items_count > 0:', dposWithItems.length);
-      console.log('[RackShelf Debug] DPOs needing details fetch:', dposNeedingDetails.length);
       
       // Fetch details for DPOs missing items (limit to first 20 to avoid too many requests)
       if (dposNeedingDetails.length > 0) {
-        console.log('[RackShelf Debug] Fetching individual DPO details...');
         const detailPromises = dposNeedingDetails.slice(0, 20).map(async (dpo) => {
           try {
             const detailResponse = await apiClient.getDirectPurchaseOrder(dpo.id);
             const detailData = detailResponse.data || detailResponse;
             if (detailData && detailData.items && Array.isArray(detailData.items)) {
               dpo.items = detailData.items;
-              console.log('[RackShelf Debug] ✅ Fetched details for DPO:', dpo.dpo_no, 'got', detailData.items.length, 'items');
             } else {
-              console.log('[RackShelf Debug] ⚠️ DPO details fetched but no items:', dpo.dpo_no);
             }
           } catch (error: any) {
-            console.error('[RackShelf Debug] ❌ Error fetching DPO details:', dpo.dpo_no, error.message || error);
           }
         });
         
         await Promise.all(detailPromises);
-        console.log('[RackShelf Debug] Finished fetching DPO details');
       }
       
       for (const dpo of dpoData) {
@@ -323,13 +303,11 @@ export const RackAndShelf = () => {
         // Skip if no items array or empty
         if (!itemsArray || !Array.isArray(itemsArray) || itemsArray.length === 0) {
           if (dpo.items_count > 0) {
-            console.log('[RackShelf Debug] DPO has items_count but no items array:', dpo.dpo_no || dpo.dpoNumber);
           }
           continue;
         }
         
         totalItemsProcessed += itemsArray.length;
-        console.log('[RackShelf Debug] Processing DPO:', dpo.dpo_no || dpo.dpoNumber, 'with', itemsArray.length, 'items');
         
         for (const item of itemsArray) {
           // Get rack ID from various possible fields (handle all API response formats)
@@ -348,15 +326,6 @@ export const RackAndShelf = () => {
           const normalizedShelfId = shelfId ? String(shelfId).trim() : null;
           const normalizedPartId = partId ? String(partId).trim() : null;
           
-          console.log('[RackShelf Debug] Item:', {
-            partNo: item.part_no || item.partNo,
-            rackId: normalizedRackId,
-            shelfId: normalizedShelfId,
-            rackCode,
-            shelfNo,
-            partId: normalizedPartId,
-            quantity
-          });
           
           // Skip if no location or part assigned
           if ((!normalizedRackId && !normalizedShelfId) || !normalizedPartId || quantity <= 0) {
@@ -367,12 +336,6 @@ export const RackAndShelf = () => {
           itemsWithLocations++;
           
           if (itemsWithLocations <= 5) { // Log first 5 items with locations for debugging
-            console.log('[RackShelf Debug] Item with location:', {
-              partNo: item.part_no || item.partNo,
-              rackId: normalizedRackId,
-              shelfId: normalizedShelfId,
-              quantity
-            });
           }
           
           // Get part information from various possible fields
@@ -461,23 +424,13 @@ export const RackAndShelf = () => {
         stockByLocation[key].items = items;
       });
 
-      console.log('[RackShelf Debug] Processing complete:');
-      console.log('  - Total items processed:', totalItemsProcessed);
-      console.log('  - Items with location assignments:', itemsWithLocations);
-      console.log('  - Stock locations created:', Object.keys(stockByLocation).length);
-      console.log('  - Final stockByLocation:', stockByLocation);
-      console.log('[RackShelf Debug] Current racks:', racks.map(r => ({ id: r.id, codeNo: r.codeNo })));
-      console.log('[RackShelf Debug] Current shelves:', shelves.map(s => ({ id: s.id, shelfNo: s.shelfNo, rackId: s.rackId })));
-
       // Ensure stock data is set even if empty, and reload if racks/shelves have changed
       setStockData(stockByLocation);
       
       // Trigger a re-render to ensure items are displayed
       if (racks.length > 0 || shelves.length > 0) {
-        console.log('[RackShelf Debug] Stock data updated, racks and shelves available');
       }
     } catch (error: any) {
-      console.error('Error loading stock data:', error);
     }
   };
 
@@ -771,7 +724,6 @@ export const RackAndShelf = () => {
       resetCombinedForm();
       setCombinedDialogOpen(false);
     } catch (error: any) {
-      console.error('Error creating rack and shelves:', error);
       toast.error(error.error || 'Failed to create rack and shelves');
     }
   };
@@ -804,7 +756,6 @@ export const RackAndShelf = () => {
       await loadStockData();
       toast.success(`Rack "${rack.codeNo}" deleted`);
     } catch (error: any) {
-      console.error('Error deleting rack:', error);
       toast.error(error.error || 'Failed to delete rack');
     }
     setDeleteDialogOpen(false);
@@ -850,7 +801,6 @@ export const RackAndShelf = () => {
         setRackDialogOpen(false);
       }
     } catch (error: any) {
-      console.error('Error saving rack:', error);
       toast.error(error.error || 'Failed to save rack');
     }
   };
@@ -884,7 +834,6 @@ export const RackAndShelf = () => {
       await loadStockData();
       toast.success(`Shelf "${shelf.shelfNo}" deleted`);
     } catch (error: any) {
-      console.error('Error deleting shelf:', error);
       toast.error(error.error || 'Failed to delete shelf');
     }
     setDeleteDialogOpen(false);
@@ -946,7 +895,6 @@ export const RackAndShelf = () => {
         setShelfDialogOpen(false);
       }
     } catch (error: any) {
-      console.error('Error saving shelf:', error);
       toast.error(error.error || 'Failed to save shelf');
     }
   };

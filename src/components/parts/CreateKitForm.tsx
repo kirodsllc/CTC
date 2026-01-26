@@ -72,7 +72,6 @@ export const CreateKitForm = ({ onSave }: CreateKitFormProps) => {
         setAvailableParts(parts);
       }
     } catch (error) {
-      console.error('Error fetching parts:', error);
       toast({
         title: "Error",
         description: "Failed to fetch parts",
@@ -183,7 +182,6 @@ export const CreateKitForm = ({ onSave }: CreateKitFormProps) => {
         description: "Kit created successfully",
       });
     } catch (error: any) {
-      console.error('Error creating kit:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to create kit",

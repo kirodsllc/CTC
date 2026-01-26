@@ -109,7 +109,6 @@ export const StoreEditPO = ({ order, open, onOpenChange, onSuccess }: StoreEditP
         })));
       }
     } catch (error: any) {
-      console.error("Error loading order items:", error);
     }
   };
 
@@ -138,7 +137,6 @@ export const StoreEditPO = ({ order, open, onOpenChange, onSuccess }: StoreEditP
         })));
       }
     } catch (error: any) {
-      console.error("Error fetching dropdown data:", error);
     }
   };
 
@@ -220,7 +218,6 @@ export const StoreEditPO = ({ order, open, onOpenChange, onSuccess }: StoreEditP
         onSuccess();
       }
     } catch (error: any) {
-      console.error("Error updating PO:", error);
       toast.error(error.error || "Failed to update order");
     } finally {
       setLoading(false);

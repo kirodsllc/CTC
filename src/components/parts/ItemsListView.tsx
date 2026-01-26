@@ -228,7 +228,6 @@ export const ItemsListView = ({
             });
           }
         } catch (error) {
-          console.error('Error fetching current prices:', error);
         } finally {
           setLoadingPriceData(false);
         }
@@ -262,13 +261,6 @@ export const ItemsListView = ({
       subCategories = Array.from(new Set(matchingSubs.map(opt => opt.value)));
 
       // Debug logging
-      console.log(`[Subcategory Filter] Category selected: "${selectedCategory}"`);
-      console.log(`[Subcategory Filter] Total subcategoryOptions: ${subcategoryOptions.length}`);
-      console.log(`[Subcategory Filter] Matching subcategories for "${selectedCategory}": ${matchingSubs.length}`);
-      console.log(`[Subcategory Filter] Unique subcategory names: ${subCategories.length}`);
-      console.log(`[Subcategory Filter] Sample categoryNames in all options:`,
-        [...new Set(subcategoryOptions.map(opt => opt.categoryName).filter(Boolean))].slice(0, 10)
-      );
     } else {
       // Show all subcategories when no category is selected, ensure uniqueness
       subCategories = Array.from(new Set(subcategoryOptions.map(opt => opt.value)));
@@ -749,10 +741,8 @@ export const ItemsListView = ({
         });
 
         // You can add an onImport callback here to handle the imported data
-        console.log('Imported items:', transformedItems);
 
       } catch (error: any) {
-        console.error('Import error:', error);
         toast({
           title: "Import Failed",
           description: error.message || "Failed to import file",
@@ -809,7 +799,6 @@ export const ItemsListView = ({
             await onDelete(item);
             return { success: true, partNo: item.partNo };
           } catch (error) {
-            console.error(`Error deleting item ${item.partNo}:`, error);
             failedDeletes.push(item.partNo);
             return { success: false, partNo: item.partNo };
           }
@@ -842,7 +831,6 @@ export const ItemsListView = ({
         });
       }
     } catch (error) {
-      console.error("Error in bulk delete:", error);
       // If error occurs, restore items
       if (onItemsUpdate) {
         onItemsUpdate(items); // Restore original items
@@ -1387,7 +1375,6 @@ export const ItemsListView = ({
                                       const reservedQty = (response as any).reservedQty || (response as any).reserved || 0;
                                       setReserveQuantity(reservedQty > 0 ? reservedQty.toString() : "");
                                     } catch (error) {
-                                      console.error('Error fetching reserved quantity:', error);
                                       setReserveQuantity(item.reservedQuantity?.toString() || "");
                                     }
                                     setReserveStockDialogOpen(true);
@@ -1706,7 +1693,6 @@ export const ItemsListView = ({
                 priceUpdateInfo = priceUpdatedItems[selectedPriceUpdateItem.id];
               }
             } catch (error) {
-              console.error('Error reading price update info:', error);
             }
 
             if (!priceUpdateInfo) {
@@ -1737,10 +1723,6 @@ export const ItemsListView = ({
             // So we'll just show what we have
 
             // Debug logging
-            console.log('Price update info:', priceUpdateInfo);
-            console.log('Amount:', amount);
-            console.log('Previous Price:', previousPrice);
-            console.log('Current Item Prices:', currentItemPrices);
 
             const hasPreviousPrice = previousPrice && Object.keys(previousPrice).length > 0;
             const hasNewPrice = amount && Object.keys(amount).length > 0 && Object.values(amount).some((v: any) => v !== undefined && v !== null);

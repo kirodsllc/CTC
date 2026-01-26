@@ -141,7 +141,6 @@ export const StockTransfer = () => {
       setTransfers(formattedTransfers);
       setTotalTransfers(pagination?.total || 0);
     } catch (error: any) {
-      console.error('Error fetching transfers:', error);
       toast.error(error.message || 'Failed to fetch transfers');
     } finally {
       setLoading(false);
@@ -211,7 +210,6 @@ export const StockTransfer = () => {
         })));
       }
     } catch (error: any) {
-      console.error('Error fetching dropdown data:', error);
       toast.error('Failed to load dropdown data: ' + (error.message || 'Unknown error'));
     }
   };
@@ -287,7 +285,6 @@ export const StockTransfer = () => {
       setEditingTransfer(transfer);
       setShowForm(true);
     } catch (error: any) {
-      console.error('Error fetching transfer details:', error);
       toast.error(error.message || 'Failed to load transfer details');
     } finally {
       setLoading(false);
@@ -411,7 +408,6 @@ export const StockTransfer = () => {
       setEditingTransfer(null);
       fetchTransfers();
     } catch (error: any) {
-      console.error('Error saving transfer:', error);
       toast.error(error.message || 'Failed to save transfer');
     } finally {
       setLoading(false);
@@ -445,7 +441,6 @@ export const StockTransfer = () => {
       setSelectedIds(selectedIds.filter((i) => i !== transferToDelete));
       fetchTransfers();
     } catch (error: any) {
-      console.error('Error deleting transfer:', error);
       toast.error(error.message || 'Failed to delete transfer');
     } finally {
       setLoading(false);
@@ -792,7 +787,6 @@ export const StockTransfer = () => {
                               };
                               setViewingTransfer(fullTransfer);
                             } catch (error: any) {
-                              console.error('Error fetching transfer details:', error);
                               const errorMsg = error.message || 'Failed to load transfer details';
                               if (errorMsg.includes('404') || errorMsg.includes('Not Found')) {
                                 toast.error('Backend route not loaded. Please restart the backend server (Ctrl+C then npm run dev)');
@@ -821,7 +815,6 @@ export const StockTransfer = () => {
                                   setViewDialogOpen(true);
                                 }
                               } catch (error: any) {
-                                console.error('Error fetching transfer details:', error);
                                 const errorMsg = error.message || 'Failed to load transfer details';
                                 if (errorMsg.includes('404') || errorMsg.includes('Not Found')) {
                                   toast.error('Backend route not loaded. Please restart the backend server (Ctrl+C then npm run dev)');

@@ -124,7 +124,6 @@ export const StockPriceManagement = () => {
         setItems([]);
       }
     } catch (error) {
-      console.error('Error fetching parts for price management:', error);
       toast.error('Failed to fetch parts');
       setItems([]);
     } finally {
@@ -154,7 +153,6 @@ export const StockPriceManagement = () => {
         setHistory([]);
       }
     } catch (error) {
-      console.error('Error fetching price history:', error);
       toast.error('Failed to fetch price history');
       setHistory([]);
     } finally {
@@ -345,7 +343,6 @@ export const StockPriceManagement = () => {
       await fetchParts();
       toast.success(`Applied changes to ${modifiedItems.length} items`);
     } catch (error) {
-      console.error('Error applying changes:', error);
       toast.error('Failed to apply changes');
     } finally {
       setLoading(false);

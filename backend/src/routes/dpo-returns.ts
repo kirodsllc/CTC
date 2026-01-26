@@ -86,7 +86,6 @@ router.get('/', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching DPO returns:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -122,7 +121,6 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     res.json(dpoReturn);
   } catch (error: any) {
-    console.error('Error fetching DPO return:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -243,11 +241,8 @@ router.post('/', async (req: Request, res: Response) => {
       },
     });
 
-    console.log(`✅ Created DPO Return ${returnNumber} for DPO ${dpo.dpoNumber}`);
-
     res.status(201).json(dpoReturn);
   } catch (error: any) {
-    console.error('Error creating DPO return:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -303,8 +298,6 @@ router.post('/:id/approve', async (req: Request, res: Response) => {
       });
     }
 
-    console.log(`✅ Created stock movements for DPO Return ${dpoReturn.returnNumber}`);
-
     // Create accounting voucher (JV) - REVERSE of original DPO JV
     // Original DPO JV: DR Inventory, CR Supplier Payable
     // Return JV: DR Supplier Payable, CR Inventory
@@ -336,7 +329,6 @@ router.post('/:id/approve', async (req: Request, res: Response) => {
       });
 
       if (!inventoryAccount) {
-        console.error('❌ Inventory Account not found! Cannot create return voucher.');
         return res.status(400).json({ error: 'Inventory Account not found' });
       }
 
@@ -374,7 +366,6 @@ router.post('/:id/approve', async (req: Request, res: Response) => {
       }
 
       if (!supplierAccount) {
-        console.error('❌ Supplier Account not found! Cannot create return voucher.');
         return res.status(400).json({ error: 'Supplier Account not found' });
       }
 
@@ -457,9 +448,7 @@ router.post('/:id/approve', async (req: Request, res: Response) => {
         },
       });
 
-      console.log(`✅ Created JV voucher ${jvVoucherNumber} for DPO Return ${dpoReturn.returnNumber}`);
     } catch (voucherError: any) {
-      console.error('❌ Error creating voucher for DPO return:', voucherError);
       // Don't fail the approval if voucher creation fails
     }
 
@@ -479,7 +468,6 @@ router.post('/:id/approve', async (req: Request, res: Response) => {
 
     res.json(updatedReturn);
   } catch (error: any) {
-    console.error('Error approving DPO return:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -518,11 +506,8 @@ router.post('/:id/reject', async (req: Request, res: Response) => {
       },
     });
 
-    console.log(`✅ Rejected DPO Return ${dpoReturn.returnNumber}`);
-
     res.json(updatedReturn);
   } catch (error: any) {
-    console.error('Error rejecting DPO return:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -550,11 +535,8 @@ router.delete('/:id', async (req: Request, res: Response) => {
       where: { id },
     });
 
-    console.log(`✅ Deleted DPO Return ${dpoReturn.returnNumber}`);
-
     res.json({ message: 'DPO Return deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting DPO return:', error);
     res.status(500).json({ error: error.message });
   }
 });

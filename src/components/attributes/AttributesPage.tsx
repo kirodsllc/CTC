@@ -131,7 +131,6 @@ export const AttributesPage = () => {
       // API client returns data directly (not wrapped in data property)
       // Handle categories
       if (categoriesRes.error) {
-        console.error("Categories error:", categoriesRes.error);
       } else if (Array.isArray(categoriesRes)) {
         setCategories(categoriesRes);
       } else if (categoriesRes.data && Array.isArray(categoriesRes.data)) {
@@ -140,7 +139,6 @@ export const AttributesPage = () => {
 
       // Handle subcategories
       if (subcategoriesRes.error) {
-        console.error("Subcategories error:", subcategoriesRes.error);
       } else if (Array.isArray(subcategoriesRes)) {
         setSubcategories(subcategoriesRes);
       } else if (subcategoriesRes.data && Array.isArray(subcategoriesRes.data)) {
@@ -149,7 +147,6 @@ export const AttributesPage = () => {
 
       // Handle brands
       if (brandsRes.error) {
-        console.error("Brands error:", brandsRes.error);
       } else {
         const brandsArray = Array.isArray(brandsRes) ? brandsRes : (brandsRes.data && Array.isArray(brandsRes.data) ? brandsRes.data : []);
         setBrands(brandsArray.map((b: any) => ({
@@ -158,7 +155,6 @@ export const AttributesPage = () => {
         })));
       }
     } catch (error: any) {
-      console.error("Error fetching attributes:", error);
       toast({
         title: "Error",
         description: "Failed to load attributes data",
@@ -211,7 +207,6 @@ export const AttributesPage = () => {
       resetCategoryForm();
       await fetchAllData();
     } catch (error: any) {
-      console.error("Error saving category:", error);
       toast({ title: "Error", description: error.message || "Failed to save category", variant: "destructive" });
     }
   };
@@ -258,7 +253,6 @@ export const AttributesPage = () => {
       resetSubcategoryForm();
       await fetchAllData();
     } catch (error: any) {
-      console.error("Error saving subcategory:", error);
       toast({ title: "Error", description: error.message || "Failed to save subcategory", variant: "destructive" });
     }
   };
@@ -309,7 +303,6 @@ export const AttributesPage = () => {
       resetBrandForm();
       await fetchAllData();
     } catch (error: any) {
-      console.error("Error saving brand:", error);
       toast({ title: "Error", description: error.message || "Failed to save brand", variant: "destructive" });
     }
   };
@@ -349,7 +342,6 @@ export const AttributesPage = () => {
       setDeleteDialogOpen(false);
       await fetchAllData();
     } catch (error: any) {
-      console.error("Error deleting:", error);
       toast({ 
         title: "Error", 
         description: error.message || "Failed to delete", 
@@ -445,7 +437,6 @@ export const AttributesPage = () => {
         toast({ title: "Status Updated", description: `Category "${category.name}" is now ${newStatus}` });
       }
     } catch (error: any) {
-      console.error("Error updating category status:", error);
       toast({ title: "Error", description: error.message || "Failed to update status", variant: "destructive" });
     }
   };
@@ -475,7 +466,6 @@ export const AttributesPage = () => {
         toast({ title: "Status Updated", description: `Subcategory "${subcategory.name}" is now ${newStatus}` });
       }
     } catch (error: any) {
-      console.error("Error updating subcategory status:", error);
       toast({ title: "Error", description: error.message || "Failed to update status", variant: "destructive" });
     }
   };
@@ -502,7 +492,6 @@ export const AttributesPage = () => {
         toast({ title: "Status Updated", description: `Brand "${brand.name}" is now ${newStatus}` });
       }
     } catch (error: any) {
-      console.error("Error updating brand status:", error);
       toast({ title: "Error", description: error.message || "Failed to update status", variant: "destructive" });
     }
   };

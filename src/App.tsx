@@ -24,6 +24,7 @@ import Store from "./pages/Store";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import AIChatBot from "./components/chatbot/AIChatBot";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -35,31 +36,34 @@ const App = () => (
         <Sonner />
         <BrowserRouter basename="/dev-koncepts">
           <Routes>
+            {/* Login route - accessible without authentication */}
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<Index />} />
-            <Route path="/partentry" element={<Parts />} />
-            <Route path="/partentry/itemslist" element={<ItemsList />} />
-            <Route path="/partentry/attributes" element={<Attributes />} />
-            <Route path="/partentry/models" element={<Models />} />
-            <Route path="/inventory" element={<Inventory />} />
-            <Route path="/inventory/:tab" element={<Inventory />} />
-            <Route path="/pricing-costing" element={<PricingCostingPage />} />
-            <Route path="/sales" element={<Sales />} />
-            <Route path="/sales/:tab" element={<Sales />} />
-            <Route path="/manage" element={<Manage />} />
-            <Route path="/manage/:tab" element={<Manage />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/expenses" element={<Expenses />} />
-            <Route path="/accounting" element={<Accounting />} />
-            <Route path="/financial-statements" element={<FinancialStatements />} />
-            <Route path="/balance-sheet" element={<BalanceSheet />} />
-            <Route path="/vouchers" element={<Vouchers />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/settings/:tab" element={<Settings />} />
-            <Route path="/store" element={<Store />} />
-            <Route path="/store/:tab" element={<Store />} />
+            
+            {/* All other routes are protected */}
+            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/partentry" element={<ProtectedRoute><Parts /></ProtectedRoute>} />
+            <Route path="/partentry/itemslist" element={<ProtectedRoute><ItemsList /></ProtectedRoute>} />
+            <Route path="/partentry/attributes" element={<ProtectedRoute><Attributes /></ProtectedRoute>} />
+            <Route path="/partentry/models" element={<ProtectedRoute><Models /></ProtectedRoute>} />
+            <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+            <Route path="/inventory/:tab" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+            <Route path="/pricing-costing" element={<ProtectedRoute><PricingCostingPage /></ProtectedRoute>} />
+            <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
+            <Route path="/sales/:tab" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
+            <Route path="/manage" element={<ProtectedRoute><Manage /></ProtectedRoute>} />
+            <Route path="/manage/:tab" element={<ProtectedRoute><Manage /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+            <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
+            <Route path="/accounting" element={<ProtectedRoute><Accounting /></ProtectedRoute>} />
+            <Route path="/financial-statements" element={<ProtectedRoute><FinancialStatements /></ProtectedRoute>} />
+            <Route path="/balance-sheet" element={<ProtectedRoute><BalanceSheet /></ProtectedRoute>} />
+            <Route path="/vouchers" element={<ProtectedRoute><Vouchers /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/settings/:tab" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/store" element={<ProtectedRoute><Store /></ProtectedRoute>} />
+            <Route path="/store/:tab" element={<ProtectedRoute><Store /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={<ProtectedRoute><NotFound /></ProtectedRoute>} />
           </Routes>
           <AIChatBot />
         </BrowserRouter>

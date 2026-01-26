@@ -2,7 +2,6 @@ import prisma from '../config/database';
 
 async function seed() {
   try {
-    console.log('🌱 Starting database seeding...');
     const now = new Date();
 
     // Seed Categories
@@ -21,7 +20,6 @@ async function seed() {
         create: { name: cat.name },
       });
     }
-    console.log('✅ Categories seeded');
 
     // Seed Brands
     const brands = [
@@ -40,7 +38,6 @@ async function seed() {
         create: { name: brand.name },
       });
     }
-    console.log('✅ Brands seeded');
 
     // Get seeded categories and brands for reference
     const seededCategories = await prisma.category.findMany();
@@ -428,7 +425,6 @@ async function seed() {
       },
     ];
 
-    console.log('📦 Seeding parts...');
     const createdParts = [];
     for (const partData of partsData) {
       const category = seededCategories.find(c => c.name === partData.category);
@@ -478,10 +474,8 @@ async function seed() {
         createdParts.push(part);
       }
     }
-    console.log(`✅ ${createdParts.length} parts seeded`);
 
     // Seed Stores FIRST (before stock movements)
-    console.log('🏪 Seeding stores...');
     const storesData = [
       { name: 'Main Store', code: 'MAIN-STORE', address: '123 Main Street, City Center' },
       { name: 'Warehouse A', code: 'WAREHOUSE-A', address: '456 Industrial Road, Industrial Area' },
@@ -503,10 +497,8 @@ async function seed() {
       });
       createdStores.push(store);
     }
-    console.log(`✅ ${createdStores.length} stores seeded`);
 
     // Seed Racks for each store
-    console.log('📦 Seeding racks...');
     const racksData = [
       { codeNo: 'RACK-001', storeCode: 'MAIN-STORE', description: 'Main Rack A' },
       { codeNo: 'RACK-002', storeCode: 'MAIN-STORE', description: 'Main Rack B' },
@@ -533,10 +525,8 @@ async function seed() {
         createdRacks.push(rack);
       }
     }
-    console.log(`✅ ${createdRacks.length} racks seeded`);
 
     // Seed Shelves for each rack
-    console.log('📚 Seeding shelves...');
     const shelvesData = [
       { shelfNo: 'SHELF-A1', rackCode: 'RACK-001', description: 'Top Shelf' },
       { shelfNo: 'SHELF-A2', rackCode: 'RACK-001', description: 'Middle Shelf' },
@@ -570,10 +560,8 @@ async function seed() {
         createdShelves.push(shelf);
       }
     }
-    console.log(`✅ ${createdShelves.length} shelves seeded`);
 
     // Seed Stock Movements (Stock In/Out) to create stock levels
-    console.log('📊 Seeding stock movements...');
     
     // Use the created stores, racks, and shelves
     const allStores = createdStores;
@@ -766,10 +754,8 @@ async function seed() {
       });
     }
 
-    console.log(`✅ Stock movements seeded with store, rack, and shelf locations`);
 
     // Seed Sample Transfers
-    console.log('📦 Seeding sample transfers...');
     const allStoresForTransfer = await prisma.store.findMany();
     const allRacksForTransfer = await prisma.rack.findMany();
     const allShelvesForTransfer = await prisma.shelf.findMany();
@@ -868,16 +854,12 @@ async function seed() {
         },
       });
       
-        console.log('✅ 2 sample transfers seeded');
       } else {
-        console.log('⚠️  Transfers already exist, skipping...');
       }
     } else {
-      console.log('⚠️  Skipping transfer seeding - need at least 2 stores and parts');
     }
 
     // Seed Sample Adjustments
-    console.log('📊 Seeding sample adjustments...');
     const allStoresForAdjustment = await prisma.store.findMany();
     
     if (allStoresForAdjustment.length > 0 && createdParts.length > 0) {
@@ -1017,15 +999,12 @@ async function seed() {
         },
       });
 
-      console.log('✅ 3 sample adjustments seeded');
     } else {
-      console.log('⚠️  Skipping adjustment seeding - need at least 1 store and parts');
     }
 
     // Note: Summary will be printed at the end after all seeding is complete
 
     // Seed Sample Direct Purchase Orders
-    console.log('🛒 Seeding sample direct purchase orders...');
     const allStoresForDPO = await prisma.store.findMany();
     
     if (allStoresForDPO.length > 0 && createdParts.length > 0) {
@@ -1159,18 +1138,13 @@ async function seed() {
 
       const dpoCount = (existingDPO1 ? 0 : 1) + (existingDPO2 ? 0 : 1);
       if (dpoCount > 0) {
-        console.log(`✅ ${dpoCount} sample direct purchase orders seeded`);
       } else {
-        console.log('⚠️  Direct purchase orders already exist, skipping...');
       }
     } else {
-      console.log('⚠️  Skipping DPO seeding - need at least 1 store and parts');
     }
 
-    console.log(`   - Direct Purchase Orders: 2`);
 
     // Seed Accounting Data
-    console.log('💰 Seeding accounting data...');
     
     // Seed Main Groups
     const mainGroupsData = [
@@ -1194,7 +1168,6 @@ async function seed() {
       });
       createdMainGroups.push(mg);
     }
-    console.log(`✅ ${createdMainGroups.length} main groups seeded`);
 
     // Seed Subgroups
     const subgroupsData = [
@@ -1233,7 +1206,6 @@ async function seed() {
         createdSubgroups.push(sg);
       }
     }
-    console.log(`✅ ${createdSubgroups.length} subgroups seeded`);
 
     // Seed Sample Accounts
     const accountsData = [
@@ -1271,14 +1243,9 @@ async function seed() {
         createdAccounts.push(acc);
       }
     }
-    console.log(`✅ ${createdAccounts.length} accounts seeded`);
 
-    console.log(`   - Main Groups: ${createdMainGroups.length}`);
-    console.log(`   - Subgroups: ${createdSubgroups.length}`);
-    console.log(`   - Accounts: ${createdAccounts.length}`);
 
     // Seed Customers
-    console.log('👥 Seeding customers...');
     const customersData = [
       {
         name: 'Ahmed Auto Parts',
@@ -1343,10 +1310,8 @@ async function seed() {
         createdCustomers.push(existing);
       }
     }
-    console.log(`✅ ${createdCustomers.length} customers seeded`);
 
     // Seed Suppliers
-    console.log('🏭 Seeding suppliers...');
     const suppliersData = [
       {
         code: 'SUP-001',
@@ -1427,10 +1392,8 @@ async function seed() {
       });
       createdSuppliers.push(supplier);
     }
-    console.log(`✅ ${createdSuppliers.length} suppliers seeded`);
 
     // Seed Expense Types
-    console.log('💰 Seeding expense types...');
     const expenseTypesData = [
       {
         code: 'EXP-001',
@@ -1491,10 +1454,8 @@ async function seed() {
       });
       createdExpenseTypes.push(expenseType);
     }
-    console.log(`✅ ${createdExpenseTypes.length} expense types seeded`);
 
     // Seed Posted Expenses
-    console.log('📝 Seeding posted expenses...');
     const postedExpensesData = [
       {
         date: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
@@ -1548,10 +1509,8 @@ async function seed() {
         data: expenseData,
       });
     }
-    console.log(`✅ ${postedExpensesData.length} posted expenses seeded`);
 
     // Seed Purchase Orders
-    console.log('🛒 Seeding purchase orders...');
     if (createdSuppliers.length > 0 && createdParts.length > 0) {
       const poDate1 = new Date(now);
       poDate1.setDate(poDate1.getDate() - 7);
@@ -1639,16 +1598,12 @@ async function seed() {
 
       const poCount = (existingPO1 ? 0 : 1) + (existingPO2 ? 0 : 1);
       if (poCount > 0) {
-        console.log(`✅ ${poCount} purchase orders seeded`);
       } else {
-        console.log('⚠️  Purchase orders already exist, skipping...');
       }
     } else {
-      console.log('⚠️  Skipping purchase order seeding - need suppliers and parts');
     }
 
     // Seed Journal Entries
-    console.log('📖 Seeding journal entries...');
     if (createdAccounts.length >= 4) {
       const journalDate1 = new Date(now);
       journalDate1.setDate(journalDate1.getDate() - 3);
@@ -1741,16 +1696,12 @@ async function seed() {
 
       const jeCount = (existingJE1 ? 0 : 1) + (existingJE2 ? 0 : 1);
       if (jeCount > 0) {
-        console.log(`✅ ${jeCount} journal entries seeded`);
       } else {
-        console.log('⚠️  Journal entries already exist, skipping...');
       }
     } else {
-      console.log('⚠️  Skipping journal entry seeding - need at least 4 accounts');
     }
 
     // Seed Kits
-    console.log('📦 Seeding kits...');
     if (createdParts.length >= 5) {
       const kitsData = [
         {
@@ -1855,17 +1806,13 @@ async function seed() {
         } catch (error: any) {
           // If kit already exists, skip it
           if (error.code !== 'P2002') {
-            console.error(`Error creating kit ${kitData.badge}:`, error);
           }
         }
       }
-      console.log(`✅ ${createdKits.length} kits seeded`);
     } else {
-      console.log('⚠️  Skipping kit seeding - need at least 5 parts');
     }
 
     // Add More Customers
-    console.log('👥 Seeding additional customers...');
     const additionalCustomersData = [
       {
         name: 'Mehran Auto Works',
@@ -1907,10 +1854,8 @@ async function seed() {
         });
       }
     }
-    console.log(`✅ ${additionalCustomersData.length} additional customers seeded`);
 
     // Add More Suppliers
-    console.log('🏭 Seeding additional suppliers...');
     const additionalSuppliersData = [
       {
         code: 'SUP-005',
@@ -1955,10 +1900,8 @@ async function seed() {
         create: supplierData,
       });
     }
-    console.log(`✅ ${additionalSuppliersData.length} additional suppliers seeded`);
 
     // Seed Vouchers
-    console.log('🧾 Seeding vouchers...');
     if (createdAccounts.length >= 4) {
       const voucherDate1 = new Date(now);
       voucherDate1.setDate(voucherDate1.getDate() - 10);
@@ -2006,10 +1949,8 @@ async function seed() {
             },
           },
         });
-        console.log('✅ Receipt voucher seeded');
       } catch (error: any) {
         if (error.code !== 'P2002') {
-          console.error('Error creating receipt voucher:', error);
         }
       }
 
@@ -2050,10 +1991,8 @@ async function seed() {
             },
           },
         });
-        console.log('✅ Payment voucher seeded');
       } catch (error: any) {
         if (error.code !== 'P2002') {
-          console.error('Error creating payment voucher:', error);
         }
       }
 
@@ -2093,10 +2032,8 @@ async function seed() {
             },
           },
         });
-        console.log('✅ Journal voucher seeded');
       } catch (error: any) {
         if (error.code !== 'P2002') {
-          console.error('Error creating journal voucher:', error);
         }
       }
 
@@ -2137,19 +2074,14 @@ async function seed() {
             },
           },
         });
-        console.log('✅ Contra voucher seeded');
       } catch (error: any) {
         if (error.code !== 'P2002') {
-          console.error('Error creating contra voucher:', error);
         }
       }
     } else {
-      console.log('⚠️  Skipping voucher seeding - need at least 4 accounts');
     }
 
     // Final Summary
-    console.log('✅ Seeding completed successfully!');
-    console.log(`📊 Final Summary:`);
     const allCategories = await prisma.category.findMany();
     const allBrands = await prisma.brand.findMany();
     const allParts = await prisma.part.findMany();
@@ -2163,21 +2095,8 @@ async function seed() {
     const allPurchaseOrders = await prisma.purchaseOrder.findMany();
     const allJournalEntries = await prisma.journalEntry.findMany();
     
-    console.log(`   - Categories: ${allCategories.length}`);
-    console.log(`   - Brands: ${allBrands.length}`);
-    console.log(`   - Parts: ${allParts.length}`);
-    console.log(`   - Stores: ${allStores.length}`);
-    console.log(`   - Customers: ${allCustomers.length}`);
-    console.log(`   - Suppliers: ${allSuppliers.length}`);
-    console.log(`   - Kits: ${allKits.length}`);
-    console.log(`   - Vouchers: ${allVouchers.length}`);
-    console.log(`   - Expense Types: ${allExpenseTypes.length}`);
-    console.log(`   - Posted Expenses: ${allPostedExpenses.length}`);
-    console.log(`   - Purchase Orders: ${allPurchaseOrders.length}`);
-    console.log(`   - Journal Entries: ${allJournalEntries.length}`);
     // End of try block
   } catch (error) {
-    console.error('❌ Seeding failed:', error);
     throw error;
   } finally {
     await prisma.$disconnect();
@@ -2191,11 +2110,9 @@ async function seed() {
 if (require.main === module) {
   seed()
     .then(() => {
-      console.log('✅ Seed process completed');
       process.exit(0);
     })
     .catch((error) => {
-      console.error('❌ Seed process failed:', error);
       process.exit(1);
     });
 }

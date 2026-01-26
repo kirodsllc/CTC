@@ -72,7 +72,6 @@ export const EditKitForm = ({ kit, onSave, onDelete, onCancel }: EditKitFormProp
         setAvailableParts(parts);
       }
     } catch (error) {
-      console.error('Error fetching parts:', error);
       toast({
         title: "Error",
         description: "Failed to fetch parts",
@@ -110,7 +109,6 @@ export const EditKitForm = ({ kit, onSave, onDelete, onCancel }: EditKitFormProp
         }
       }
     } catch (error) {
-      console.error('Error fetching kit details:', error);
       toast({
         title: "Error",
         description: "Failed to fetch kit details",
@@ -235,7 +233,6 @@ export const EditKitForm = ({ kit, onSave, onDelete, onCancel }: EditKitFormProp
         description: "Kit updated successfully",
       });
     } catch (error: any) {
-      console.error('Error updating kit:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update kit",

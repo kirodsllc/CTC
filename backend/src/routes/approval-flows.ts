@@ -27,7 +27,6 @@ router.get('/', async (req, res) => {
 
     res.json({ data: formattedFlows });
   } catch (error: any) {
-    console.error('Error fetching approval flows:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -52,7 +51,6 @@ router.get('/:id', async (req, res) => {
 
     res.json({ data: { ...flow, steps } });
   } catch (error: any) {
-    console.error('Error fetching approval flow:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -95,7 +93,6 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({ data: { ...flow, steps: parsedSteps } });
   } catch (error: any) {
-    console.error('Error creating approval flow:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -137,7 +134,6 @@ router.put('/:id', async (req, res) => {
 
     res.json({ data: { ...flow, steps: parsedSteps } });
   } catch (error: any) {
-    console.error('Error updating approval flow:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Approval flow not found' });
     }
@@ -154,7 +150,6 @@ router.delete('/:id', async (req, res) => {
 
     res.json({ message: 'Approval flow deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting approval flow:', error);
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Approval flow not found' });
     }
@@ -168,7 +163,6 @@ router.get('/pending', async (req, res) => {
     // This is a placeholder - implement based on your business logic
     res.json({ data: [] });
   } catch (error: any) {
-    console.error('Error fetching pending approvals:', error);
     res.status(500).json({ error: error.message });
   }
 });

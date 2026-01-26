@@ -219,7 +219,6 @@ export const StoreSalesInvoiceReceipt = ({
       
       onOpenChange(false);
     } catch (error: any) {
-      console.error("Error confirming delivery:", error);
       toast.error(error.message || "Failed to confirm delivery");
     } finally {
       setIsConfirming(false);

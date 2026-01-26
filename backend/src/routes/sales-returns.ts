@@ -88,7 +88,6 @@ router.get('/', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching sales returns:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -124,7 +123,6 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     res.json(salesReturn);
   } catch (error: any) {
-    console.error('Error fetching sales return:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -247,7 +245,6 @@ router.post('/', async (req: Request, res: Response) => {
       salesReturn,
     });
   } catch (error: any) {
-    console.error('Error creating sales return:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -513,7 +510,6 @@ router.post('/:id/approve', async (req: Request, res: Response) => {
       vouchers: [jv1, jv2],
     });
   } catch (error: any) {
-    console.error('Error approving sales return:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -551,7 +547,6 @@ router.post('/:id/reject', async (req: Request, res: Response) => {
       salesReturn: updatedReturn,
     });
   } catch (error: any) {
-    console.error('Error rejecting sales return:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -581,7 +576,6 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     res.json({ message: 'Sales return deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting sales return:', error);
     res.status(500).json({ error: error.message });
   }
 });

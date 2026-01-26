@@ -27,7 +27,6 @@ export const LongCatSettingsTab = () => {
       try {
         const response = await apiClient.getLongCatSettings();
         if (response.error) {
-          console.error(response.error);
         } else if (response.data) {
           // Pre-fill with provided API key if not already set
           setApiKey(response.data.apiKey || "ak_2No6Dx1vk4Di5so3aB53O3gd0B61t");
@@ -38,7 +37,6 @@ export const LongCatSettingsTab = () => {
           setApiKey("ak_2No6Dx1vk4Di5so3aB53O3gd0B61t");
         }
       } catch (error: any) {
-        console.error("Failed to fetch LongCat settings:", error);
         // Pre-fill with default API key on error
         setApiKey("ak_2No6Dx1vk4Di5so3aB53O3gd0B61t");
       }

@@ -157,7 +157,6 @@ export const StoreManagementTab = () => {
         })));
       }
     } catch (error: any) {
-      console.error('Error fetching stores:', error);
       toast.error(error.error || 'Failed to fetch stores');
     } finally {
       setLoading(false);
@@ -179,7 +178,6 @@ export const StoreManagementTab = () => {
         })));
       }
     } catch (error: any) {
-      console.error('Error fetching racks:', error);
     }
   };
 
@@ -197,7 +195,6 @@ export const StoreManagementTab = () => {
         })));
       }
     } catch (error: any) {
-      console.error('Error fetching shelves:', error);
     }
   };
 

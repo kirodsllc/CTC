@@ -123,7 +123,6 @@ export const VoucherManagement = () => {
           setVoucherCounters(counters);
         }
       } catch (error: any) {
-        console.error('Error fetching vouchers:', error);
         toast({
           title: "Error",
           description: error.error || "Failed to fetch vouchers",
@@ -378,7 +377,6 @@ export const VoucherManagement = () => {
         toast({ title: "Success", description: `Voucher ${newVoucher.voucherNumber} created successfully` });
       }
     } catch (error: any) {
-      console.error('Error creating voucher:', error);
       toast({
         title: "Error",
         description: error.error || "Failed to create voucher",
@@ -411,7 +409,6 @@ export const VoucherManagement = () => {
         toast({ title: "Success", description: "Voucher updated successfully" });
       }
     } catch (error: any) {
-      console.error('Error updating voucher:', error);
       toast({
         title: "Error",
         description: error.error || "Failed to update voucher",
@@ -426,7 +423,6 @@ export const VoucherManagement = () => {
       setVouchers(vouchers.filter(v => v.id !== id));
       toast({ title: "Success", description: "Voucher deleted successfully" });
     } catch (error: any) {
-      console.error('Error deleting voucher:', error);
       toast({
         title: "Error",
         description: error.error || "Failed to delete voucher",

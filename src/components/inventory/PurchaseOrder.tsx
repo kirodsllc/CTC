@@ -713,7 +713,6 @@ export const PurchaseOrder = () => {
               receiveDate = receiveData.receiveDate || null;
               receiveStore = receiveData.receiveStore || receiveStore;
             } catch (e) {
-              console.error('Error parsing saved receive data:', e);
             }
           }
         }
@@ -741,7 +740,6 @@ export const PurchaseOrder = () => {
       
       setOrders(sortedOrders);
     } catch (error: any) {
-      console.error('Error fetching purchase orders:', error);
       toast.error('Failed to fetch purchase orders');
       setOrders([]);
     } finally {
@@ -785,7 +783,6 @@ export const PurchaseOrder = () => {
         setAvailableParts(partsWithStock);
       }
     } catch (error: any) {
-      console.error('Error fetching parts:', error);
       toast.error('Failed to fetch parts');
     }
   };
@@ -802,7 +799,6 @@ export const PurchaseOrder = () => {
         })));
       }
     } catch (error: any) {
-      console.error('Error fetching stores:', error);
     }
   };
 
@@ -858,7 +854,6 @@ export const PurchaseOrder = () => {
       // Store supplier names for display
       setAvailableSuppliers(filteredSuppliers.map((s: any) => s.companyName));
     } catch (error) {
-      console.error('Error fetching suppliers:', error);
       // Fallback to empty array if API fails
       setAvailableSuppliers([]);
     }
@@ -896,7 +891,6 @@ export const PurchaseOrder = () => {
       // Combine API expense types with unique defaults
       setExpenseTypes([...activeExpenseTypes, ...uniqueDefaults]);
     } catch (error: any) {
-      console.error('Error fetching expense types:', error);
       // Don't show error toast as this is not critical
     }
   };
@@ -932,7 +926,6 @@ export const PurchaseOrder = () => {
       
       setPayableAccounts(payableAccountsList);
     } catch (error: any) {
-      console.error('Error fetching payable accounts:', error);
       // Don't show error toast as this is not critical
     }
   };
@@ -944,7 +937,6 @@ export const PurchaseOrder = () => {
       const data = response.data || response;
       const ordersData = data.data || (Array.isArray(data) ? data : []);
       
-      console.log('Fetched received orders:', ordersData.length);
       
       const ordersWithItems: PurchaseOrder[] = ordersData.map((po: any) => {
         // Load receive items data from localStorage for this order
@@ -969,7 +961,6 @@ export const PurchaseOrder = () => {
               });
             }
           } catch (e) {
-            console.error('Error parsing saved receive items:', e);
           }
         }
         
@@ -1011,7 +1002,6 @@ export const PurchaseOrder = () => {
               const receiveData = JSON.parse(savedReceiveData);
               receiveDate = receiveData.receiveDate || null;
             } catch (e) {
-              console.error('Error parsing saved receive data:', e);
             }
           }
           // If no saved date, use request date
@@ -1035,10 +1025,8 @@ export const PurchaseOrder = () => {
         };
       });
       
-      console.log('Processed received orders with items:', ordersWithItems.length);
       setAllReceivedOrders(ordersWithItems);
     } catch (error: any) {
-      console.error('Error fetching received orders:', error);
     }
   };
 
@@ -1088,7 +1076,6 @@ export const PurchaseOrder = () => {
           setReservedQuantity(0);
         }
       } catch (error) {
-        console.error('Error fetching reserved quantity:', error);
         setReservedQuantity(0);
       }
     };
@@ -1149,7 +1136,6 @@ export const PurchaseOrder = () => {
       
       return `${prefix}${String(nextNum).padStart(3, "0")}`;
     } catch (error) {
-      console.error('Error generating PO number:', error);
       // Fallback: use timestamp-based number
       const year = String(new Date().getFullYear()).slice(-2);
       const month = String(new Date().getMonth() + 1).padStart(2, '0');
@@ -1208,7 +1194,6 @@ export const PurchaseOrder = () => {
         try {
           orderExpenses = JSON.parse(savedExpenses);
         } catch (e) {
-          console.error('Error parsing saved expenses:', e);
         }
       }
     }
@@ -1277,7 +1262,6 @@ export const PurchaseOrder = () => {
           setReceiveStore(receiveData.receiveStore || "");
           setReceiveRemarks(receiveData.receiveRemarks || "");
         } catch (e) {
-          console.error('Error parsing saved receive data:', e);
           setReceiveDate(new Date());
           setReceiveStore("");
           setReceiveRemarks("");
@@ -1300,7 +1284,6 @@ export const PurchaseOrder = () => {
           const parsedExpenses = JSON.parse(savedExpenses);
           setExpenses(parsedExpenses);
         } catch (e) {
-          console.error('Error parsing saved expenses:', e);
           setExpenses([]);
         }
       } else {
@@ -1349,7 +1332,6 @@ export const PurchaseOrder = () => {
       // Refresh received orders when entering receive mode to get latest history
       await fetchAllReceivedOrders();
     } catch (error: any) {
-      console.error('Error loading order for receive:', error);
       const errorMessage = error?.response?.data?.error || error?.message || 'Failed to load order details';
       toast.error(errorMessage);
     } finally {
@@ -1382,7 +1364,6 @@ export const PurchaseOrder = () => {
       await fetchPurchaseOrders();
       toast.success(`Purchase Order ${order.poNo} deleted`);
     } catch (error: any) {
-      console.error('Error deleting purchase order:', error);
       toast.error('Failed to delete purchase order');
     } finally {
       setLoading(false);
@@ -1588,7 +1569,6 @@ export const PurchaseOrder = () => {
         handleBackToList();
       }
     } catch (error: any) {
-      console.error('Error saving purchase order:', error);
       toast.error('Failed to save purchase order');
     } finally {
       setLoading(false);
@@ -1688,7 +1668,6 @@ export const PurchaseOrder = () => {
       await fetchPurchaseOrders();
       handleBackToList();
     } catch (error: any) {
-      console.error('Error receiving purchase order:', error);
       toast.error('Failed to receive purchase order');
     } finally {
       setLoading(false);
@@ -2529,7 +2508,6 @@ export const PurchaseOrder = () => {
               </Table>
             </div>
           </div>
-
 
           {/* Totals */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">

@@ -98,46 +98,32 @@ export const BalanceSheetTab = () => {
       
       params.append("as_of_date", asOfDate);
       
-      console.log('[Balance Sheet] Fetching with date:', asOfDate);
       
       const response = await fetch(`${API_URL}/api/accounting/balance-sheet?${params}`);
+      
       if (response.ok) {
         const data = await response.json();
-        console.log('[Balance Sheet] ========== RECEIVED DATA ==========');
-        console.log('[Balance Sheet] Full response:', data);
-        console.log('[Balance Sheet] Assets array length:', data.assets?.length || 0);
-        console.log('[Balance Sheet] Raw Assets data:', JSON.stringify(data.assets, null, 2));
         
         // Verify data structure and count all accounts
         let totalAssetAccounts = 0;
         if (data.assets && data.assets.length > 0) {
-          console.log(`[Balance Sheet] Processing ${data.assets.length} main groups for assets`);
           data.assets.forEach((mg: any, mgIdx: number) => {
-            console.log(`[Balance Sheet] Main group ${mgIdx + 1}: ${mg.name}, has items: ${!!mg.items}, items length: ${mg.items?.length || 0}`);
             if (mg.items && mg.items.length > 0) {
               mg.items.forEach((sg: any, sgIdx: number) => {
                 const accountCount = sg.items?.length || 0;
                 totalAssetAccounts += accountCount;
-                console.log(`  [Balance Sheet] Subgroup ${sgIdx + 1}: ${sg.name}, has items: ${!!sg.items}, accounts: ${accountCount}`);
                 if (sg.items && sg.items.length > 0) {
-                  console.log(`    [Balance Sheet] Account names:`, sg.items.map((acc: any) => acc.name).join(', '));
                 } else {
-                  console.log(`    [Balance Sheet] WARNING: Subgroup ${sg.name} has no items array or empty items`);
                 }
               });
             } else {
-              console.log(`  [Balance Sheet] WARNING: Main group ${mg.name} has no items array or empty items`);
             }
           });
         } else {
-          console.log('[Balance Sheet] WARNING: No assets data or empty array!');
         }
-        console.log(`[Balance Sheet] Total asset accounts found: ${totalAssetAccounts}`);
-        console.log('[Balance Sheet] ====================================');
         
         // Set the data - ensure we're setting the correct structure
         const assets = data.assets || [];
-        console.log('[Balance Sheet] Setting assetsData with', assets.length, 'main groups');
         setAssetsData(assets);
         setLiabilitiesData(data.liabilities || []);
         setEquityData(data.equity || []);
@@ -147,9 +133,6 @@ export const BalanceSheetTab = () => {
         const allLiabilitiesMainGroups = (data.liabilities || []).map(mg => mg.name);
         const allEquityMainGroups = (data.equity || []).map(mg => mg.name);
         
-        console.log('[Balance Sheet] Main groups - Assets:', allAssetsMainGroups);
-        console.log('[Balance Sheet] Main groups - Liabilities:', allLiabilitiesMainGroups);
-        console.log('[Balance Sheet] Main groups - Equity:', allEquityMainGroups);
         
         setExpandedAssets(allAssetsMainGroups);
         setExpandedLiabilities(allLiabilitiesMainGroups);
@@ -161,13 +144,9 @@ export const BalanceSheetTab = () => {
         (data.assets || []).forEach(mainGroup => {
           const subgroupNames = (mainGroup.items || []).map(sg => sg.name);
           allSubgroups[mainGroup.name] = subgroupNames;
-          console.log(`[Balance Sheet Frontend] Main group ${mainGroup.name} has ${subgroupNames.length} subgroups:`, subgroupNames);
           (mainGroup.items || []).forEach(sg => {
-            console.log(`  [Balance Sheet Frontend] Subgroup: ${sg.name}, accounts: ${sg.items?.length || 0}, total: ${sg.total || 0}`);
             // Specifically log Sales Customer Receivables
             if (sg.name && sg.name.includes('104') || sg.name && sg.name.includes('Sales Customer Receivables')) {
-              console.log(`  [Balance Sheet Frontend] *** SALES CUSTOMER RECEIVABLES FOUND: ${sg.name}`);
-              console.log(`  [Balance Sheet Frontend] *** Accounts in this subgroup:`, sg.items?.map((acc: any) => `${acc.name}: ${acc.amount || 0}`).join(', ') || 'None');
             }
           });
         });
@@ -175,29 +154,34 @@ export const BalanceSheetTab = () => {
         (data.liabilities || []).forEach(mainGroup => {
           const subgroupNames = (mainGroup.items || []).map(sg => sg.name);
           allSubgroups[mainGroup.name] = subgroupNames;
-          console.log(`[Balance Sheet Frontend] Main group ${mainGroup.name} has ${subgroupNames.length} subgroups:`, subgroupNames);
           (mainGroup.items || []).forEach(sg => {
-            console.log(`  [Balance Sheet Frontend] Subgroup: ${sg.name}, accounts: ${sg.items?.length || 0}, total: ${sg.total || 0}`);
           });
         });
         
         (data.equity || []).forEach(mainGroup => {
           const subgroupNames = (mainGroup.items || []).map(sg => sg.name);
           allSubgroups[mainGroup.name] = subgroupNames;
-          console.log(`[Balance Sheet Frontend] Main group ${mainGroup.name} has ${subgroupNames.length} subgroups:`, subgroupNames);
           (mainGroup.items || []).forEach(sg => {
-            console.log(`  [Balance Sheet Frontend] Subgroup: ${sg.name}, accounts: ${sg.items?.length || 0}, total: ${sg.total || 0}`);
           });
         });
         
         setExpandedSubgroups(allSubgroups);
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("Error fetching balance sheet:", errorData.error || response.statusText);
-        console.error("Response status:", response.status);
+        const errorText = await response.text();
+        try {
+          const errorData = JSON.parse(errorText);
+        } catch (e) {
+        }
+        // Set empty arrays to show "No data" message
+        setAssetsData([]);
+        setLiabilitiesData([]);
+        setEquityData([]);
       }
-    } catch (error) {
-      console.error("Error fetching balance sheet:", error);
+    } catch (error: any) {
+      // Set empty arrays on error to show "No data" message
+      setAssetsData([]);
+      setLiabilitiesData([]);
+      setEquityData([]);
     } finally {
       setLoading(false);
     }
@@ -377,23 +361,65 @@ export const BalanceSheetTab = () => {
     });
   };
 
-  const totalAssets = assetsData.reduce((sum, mainGroup) => 
-    sum + (mainGroup.total || mainGroup.items.reduce((s, subgroup) => 
-      s + (subgroup.total || subgroup.items.reduce((acc, item) => acc + item.amount, 0)), 0
-    )), 0
-  );
+  const totalAssets = assetsData.reduce((sum, mainGroup) => {
+    if (!mainGroup) return sum;
+    const mainTotal = mainGroup.total;
+    if (mainTotal !== undefined && mainTotal !== null) {
+      return sum + mainTotal;
+    }
+    if (!mainGroup.items || mainGroup.items.length === 0) return sum;
+    return sum + mainGroup.items.reduce((s, subgroup) => {
+      if (!subgroup) return s;
+      const subTotal = subgroup.total;
+      if (subTotal !== undefined && subTotal !== null) {
+        return s + subTotal;
+      }
+      if (!subgroup.items || subgroup.items.length === 0) return s;
+      return s + subgroup.items.reduce((acc, item) => {
+        return acc + (item?.amount || 0);
+      }, 0);
+    }, 0);
+  }, 0);
 
-  const totalLiabilities = liabilitiesData.reduce((sum, mainGroup) => 
-    sum + (mainGroup.total || mainGroup.items.reduce((s, subgroup) => 
-      s + (subgroup.total || subgroup.items.reduce((acc, item) => acc + item.amount, 0)), 0
-    )), 0
-  );
+  const totalLiabilities = liabilitiesData.reduce((sum, mainGroup) => {
+    if (!mainGroup) return sum;
+    const mainTotal = mainGroup.total;
+    if (mainTotal !== undefined && mainTotal !== null) {
+      return sum + mainTotal;
+    }
+    if (!mainGroup.items || mainGroup.items.length === 0) return sum;
+    return sum + mainGroup.items.reduce((s, subgroup) => {
+      if (!subgroup) return s;
+      const subTotal = subgroup.total;
+      if (subTotal !== undefined && subTotal !== null) {
+        return s + subTotal;
+      }
+      if (!subgroup.items || subgroup.items.length === 0) return s;
+      return s + subgroup.items.reduce((acc, item) => {
+        return acc + (item?.amount || 0);
+      }, 0);
+    }, 0);
+  }, 0);
 
-  const totalEquity = equityData.reduce((sum, mainGroup) => 
-    sum + (mainGroup.total || mainGroup.items.reduce((s, subgroup) => 
-      s + (subgroup.total || subgroup.items.reduce((acc, item) => acc + item.amount, 0)), 0
-    )), 0
-  );
+  const totalEquity = equityData.reduce((sum, mainGroup) => {
+    if (!mainGroup) return sum;
+    const mainTotal = mainGroup.total;
+    if (mainTotal !== undefined && mainTotal !== null) {
+      return sum + mainTotal;
+    }
+    if (!mainGroup.items || mainGroup.items.length === 0) return sum;
+    return sum + mainGroup.items.reduce((s, subgroup) => {
+      if (!subgroup) return s;
+      const subTotal = subgroup.total;
+      if (subTotal !== undefined && subTotal !== null) {
+        return s + subTotal;
+      }
+      if (!subgroup.items || subgroup.items.length === 0) return s;
+      return s + subgroup.items.reduce((acc, item) => {
+        return acc + (item?.amount || 0);
+      }, 0);
+    }, 0);
+  }, 0);
 
   // Calculate proper totals for balance check
   const calculateCapitalTotals = () => {
@@ -433,7 +459,7 @@ export const BalanceSheetTab = () => {
 
   // Format balance - show 0 if balance is 0, otherwise show the balance
   const formatBalance = (amount: number) => {
-    if (amount === 0) return 0;
+    if (amount === 0 || amount === null || amount === undefined) return "0";
     return amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   };
 
@@ -466,15 +492,10 @@ export const BalanceSheetTab = () => {
       );
     }
     
-    console.log(`[Balance Sheet Render] ========== RENDERING ${type.toUpperCase()} ==========`);
-    console.log(`[Balance Sheet Render] Main groups count: ${mainGroups.length}`);
-    console.log(`[Balance Sheet Render] Main groups data:`, JSON.stringify(mainGroups, null, 2));
     
     return (
       <div className="space-y-1">
         {mainGroups.map((mainGroup, mgIdx) => {
-        console.log(`[Balance Sheet Render] Processing main group ${mgIdx + 1}: ${mainGroup.name}`);
-        console.log(`[Balance Sheet Render] Main group has items: ${!!mainGroup.items}, items type: ${typeof mainGroup.items}, items length: ${mainGroup.items?.length || 0}`);
         
         const mainGroupTotal = mainGroup.total || (mainGroup.items ? mainGroup.items.reduce((s, subgroup) => 
           s + (subgroup.total || (subgroup.items ? subgroup.items.reduce((acc, item) => acc + (item.amount || 0), 0) : 0)), 0
@@ -482,7 +503,6 @@ export const BalanceSheetTab = () => {
         const isMainGroupExpanded = expanded.includes(mainGroup.name);
         const expandedSubgroupsForMain = expandedSubgroups[mainGroup.name] || [];
         
-        console.log(`[Balance Sheet Render] Main group: ${mainGroup.name}, expanded: ${isMainGroupExpanded}, subgroups: ${mainGroup.items?.length || 0}, expandedSubgroups:`, expandedSubgroupsForMain);
         
         return (
           <div key={mainGroup.name} className="space-y-1">
@@ -503,15 +523,9 @@ export const BalanceSheetTab = () => {
                 {mainGroup.items.map((subgroup, sgIdx) => {
                   const subgroupTotal = subgroup.total || (subgroup.items ? subgroup.items.reduce((acc: number, item: any) => acc + (item.amount || 0), 0) : 0);
                   
-                  console.log(`[Balance Sheet Render] ===== RENDERING SUBGROUP ${sgIdx + 1} =====`);
-                  console.log(`[Balance Sheet Render] Subgroup name: ${subgroup.name}`);
-                  console.log(`[Balance Sheet Render] Subgroup has items: ${!!subgroup.items}, items length: ${subgroup.items?.length || 0}`);
-                  console.log(`[Balance Sheet Render] Subgroup total: ${subgroupTotal}`);
                   
                   if (subgroup.items && subgroup.items.length > 0) {
-                    console.log(`  [Balance Sheet Render] Accounts in ${subgroup.name}:`, subgroup.items.map((item: any) => `${item.name}: ${item.amount || 0}`).join(', '));
                   } else {
-                    console.log(`  [Balance Sheet Render] Subgroup ${subgroup.name} has no accounts - showing empty`);
                   }
                   
                   // CRITICAL: Always render the subgroup header - this is what the user wants to see
@@ -531,7 +545,6 @@ export const BalanceSheetTab = () => {
                           <>
                             {/* Render ALL accounts under this subgroup - THESE ARE THE INDIVIDUAL ACCOUNTS */}
                             {subgroup.items.map((item: any, accountIdx: number) => {
-                              console.log(`  [Balance Sheet Render] >>> Rendering account ${accountIdx + 1} in ${subgroup.name}: ${item.name}, amount: ${item.amount || 0}`);
                               return (
                                 <div key={item.name || `account-${accountIdx}`} className="flex justify-between py-2 px-4 border-b border-border/10 hover:bg-muted/5 bg-background rounded-sm">
                                   <span className="text-sm font-medium">{removeCodeFromName(item.name)}</span>
