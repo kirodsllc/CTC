@@ -52,11 +52,22 @@ interface Brand {
   createdAt: string;
 }
 
+interface Application {
+  id: string;
+  name: string;
+  subcategoryId: string;
+  subcategoryName: string;
+  categoryName: string;
+  status: "Active" | "Inactive";
+  createdAt: string;
+}
+
 export const AttributesPage = () => {
   // State
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Search and filter states
@@ -66,19 +77,24 @@ export const AttributesPage = () => {
   const [subcategoryCategoryFilter, setSubcategoryCategoryFilter] = useState("all");
   const [brandSearch, setBrandSearch] = useState("");
   const [brandFilter, setBrandFilter] = useState("all");
+  const [applicationSearch, setApplicationSearch] = useState("");
+  const [applicationFilter, setApplicationFilter] = useState("all");
+  const [applicationSubcategoryFilter, setApplicationSubcategoryFilter] = useState("all");
 
   // Dialog states
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [subcategoryDialogOpen, setSubcategoryDialogOpen] = useState(false);
   const [brandDialogOpen, setBrandDialogOpen] = useState(false);
+  const [applicationDialogOpen, setApplicationDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteType, setDeleteType] = useState<"category" | "subcategory" | "brand">("category");
+  const [deleteType, setDeleteType] = useState<"category" | "subcategory" | "brand" | "application">("category");
   const [deleteId, setDeleteId] = useState<string>("");
 
   // Edit states
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editingSubcategory, setEditingSubcategory] = useState<Subcategory | null>(null);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
+  const [editingApplication, setEditingApplication] = useState<Application | null>(null);
 
   // Form states
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -88,6 +104,9 @@ export const AttributesPage = () => {
   const [newSubcategoryStatus, setNewSubcategoryStatus] = useState<"Active" | "Inactive">("Active");
   const [newBrandName, setNewBrandName] = useState("");
   const [newBrandStatus, setNewBrandStatus] = useState<"Active" | "Inactive">("Active");
+  const [newApplicationName, setNewApplicationName] = useState("");
+  const [newApplicationSubcategoryId, setNewApplicationSubcategoryId] = useState("");
+  const [newApplicationStatus, setNewApplicationStatus] = useState<"Active" | "Inactive">("Active");
 
   // Filtered data
   const filteredCategories = useMemo(() => {
@@ -114,6 +133,15 @@ export const AttributesPage = () => {
     });
   }, [brands, brandSearch, brandFilter]);
 
+  const filteredApplications = useMemo(() => {
+    return applications.filter((app) => {
+      const matchesSearch = app.name.toLowerCase().includes(applicationSearch.toLowerCase());
+      const matchesFilter = applicationFilter === "all" || app.id === applicationFilter;
+      const matchesSubcategory = applicationSubcategoryFilter === "all" || app.subcategoryId === applicationSubcategoryFilter;
+      return matchesSearch && matchesFilter && matchesSubcategory;
+    });
+  }, [applications, applicationSearch, applicationFilter, applicationSubcategoryFilter]);
+
   // Fetch data on mount
   useEffect(() => {
     fetchAllData();
@@ -122,10 +150,11 @@ export const AttributesPage = () => {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [categoriesRes, subcategoriesRes, brandsRes] = await Promise.all([
+      const [categoriesRes, subcategoriesRes, brandsRes, applicationsRes] = await Promise.all([
         apiClient.getAllCategories(),
         apiClient.getAllSubcategories(),
         apiClient.getAllBrands(),
+        apiClient.getAllApplications(),
       ]);
 
       // API client returns data directly (not wrapped in data property)
@@ -152,6 +181,16 @@ export const AttributesPage = () => {
         setBrands(brandsArray.map((b: any) => ({
           ...b,
           createdAt: b.createdAt ? new Date(b.createdAt).toLocaleDateString("en-GB") : new Date().toLocaleDateString("en-GB"),
+        })));
+      }
+
+      // Handle applications
+      if (applicationsRes.error) {
+      } else {
+        const applicationsArray = Array.isArray(applicationsRes) ? applicationsRes : (applicationsRes.data && Array.isArray(applicationsRes.data) ? applicationsRes.data : []);
+        setApplications(applicationsArray.map((a: any) => ({
+          ...a,
+          createdAt: a.createdAt ? new Date(a.createdAt).toLocaleDateString("en-GB") : new Date().toLocaleDateString("en-GB"),
         })));
       }
     } catch (error: any) {
@@ -307,6 +346,58 @@ export const AttributesPage = () => {
     }
   };
 
+  const handleAddApplication = async () => {
+    if (!newApplicationName.trim() || !newApplicationSubcategoryId) {
+      toast({ title: "Error", description: "Application name and subcategory are required", variant: "destructive" });
+      return;
+    }
+    try {
+      if (editingApplication) {
+        const response = await apiClient.updateApplication(editingApplication.id, {
+          name: newApplicationName,
+          subcategory_id: newApplicationSubcategoryId,
+          status: newApplicationStatus,
+        });
+        if (response.error) {
+          toast({ title: "Error", description: response.error, variant: "destructive" });
+          return;
+        }
+        if (!response.error) {
+          const applicationData = response.data || response;
+          setApplications((prev) =>
+            prev.map((a) => (a.id === editingApplication.id ? {
+              ...applicationData,
+              createdAt: applicationData.createdAt ? new Date(applicationData.createdAt).toLocaleDateString("en-GB") : a.createdAt,
+            } : a))
+          );
+          toast({ title: "Success", description: "Application updated successfully" });
+        }
+      } else {
+        const response = await apiClient.createApplication({
+          name: newApplicationName,
+          subcategory_id: newApplicationSubcategoryId,
+          status: newApplicationStatus,
+        });
+        if (response.error) {
+          toast({ title: "Error", description: response.error, variant: "destructive" });
+          return;
+        }
+        const applicationData = response.data || response;
+        if (!response.error) {
+          setApplications((prev) => [{
+            ...applicationData,
+            createdAt: applicationData.createdAt ? new Date(applicationData.createdAt).toLocaleDateString("en-GB") : new Date().toLocaleDateString("en-GB"),
+          }, ...prev]);
+          toast({ title: "Success", description: "Application added successfully" });
+        }
+      }
+      resetApplicationForm();
+      await fetchAllData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to save application", variant: "destructive" });
+    }
+  };
+
   const handleDelete = async () => {
     try {
       let response;
@@ -314,8 +405,10 @@ export const AttributesPage = () => {
         response = await apiClient.deleteCategory(deleteId);
       } else if (deleteType === "subcategory") {
         response = await apiClient.deleteSubcategory(deleteId);
-      } else {
+      } else if (deleteType === "brand") {
         response = await apiClient.deleteBrand(deleteId);
+      } else {
+        response = await apiClient.deleteApplication(deleteId);
       }
 
       if (response.error) {
@@ -335,9 +428,12 @@ export const AttributesPage = () => {
       } else if (deleteType === "subcategory") {
         setSubcategories((prev) => prev.filter((s) => s.id !== deleteId));
         toast({ title: "Success", description: "Subcategory deleted successfully" });
-      } else {
+      } else if (deleteType === "brand") {
         setBrands((prev) => prev.filter((b) => b.id !== deleteId));
         toast({ title: "Success", description: "Brand deleted successfully" });
+      } else {
+        setApplications((prev) => prev.filter((a) => a.id !== deleteId));
+        toast({ title: "Success", description: "Application deleted successfully" });
       }
       setDeleteDialogOpen(false);
       await fetchAllData();
@@ -373,6 +469,14 @@ export const AttributesPage = () => {
     setBrandDialogOpen(false);
   };
 
+  const resetApplicationForm = () => {
+    setNewApplicationName("");
+    setNewApplicationSubcategoryId("");
+    setNewApplicationStatus("Active");
+    setEditingApplication(null);
+    setApplicationDialogOpen(false);
+  };
+
   const openEditCategory = (category: Category) => {
     setEditingCategory(category);
     setNewCategoryName(category.name);
@@ -395,7 +499,15 @@ export const AttributesPage = () => {
     setBrandDialogOpen(true);
   };
 
-  const openDeleteDialog = (type: "category" | "subcategory" | "brand", id: string) => {
+  const openEditApplication = (application: Application) => {
+    setEditingApplication(application);
+    setNewApplicationName(application.name);
+    setNewApplicationSubcategoryId(application.subcategoryId);
+    setNewApplicationStatus(application.status);
+    setApplicationDialogOpen(true);
+  };
+
+  const openDeleteDialog = (type: "category" | "subcategory" | "brand" | "application", id: string) => {
     setDeleteType(type);
     setDeleteId(id);
     setDeleteDialogOpen(true);
@@ -496,6 +608,33 @@ export const AttributesPage = () => {
     }
   };
 
+  const toggleApplicationStatus = async (application: Application) => {
+    const newStatus = application.status === "Active" ? "Inactive" : "Active";
+    try {
+      const response = await apiClient.updateApplication(application.id, {
+        name: application.name,
+        subcategory_id: application.subcategoryId,
+        status: newStatus,
+      });
+      if (response.error) {
+        toast({ title: "Error", description: response.error, variant: "destructive" });
+        return;
+      }
+      if (!response.error) {
+        const applicationData = response.data || response;
+        setApplications((prev) =>
+          prev.map((a) => (a.id === application.id ? {
+            ...applicationData,
+            createdAt: applicationData.createdAt ? new Date(applicationData.createdAt).toLocaleDateString("en-GB") : a.createdAt,
+          } : a))
+        );
+        toast({ title: "Status Updated", description: `Application "${application.name}" is now ${newStatus}` });
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to update status", variant: "destructive" });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
@@ -510,18 +649,16 @@ export const AttributesPage = () => {
       {/* Header */}
       <div className="mb-4">
         <h1 className="text-xl font-bold text-foreground">Attributes</h1>
-        <p className="text-sm text-muted-foreground">Manage categories, subcategories, and brands for inventory organization</p>
       </div>
 
-      {/* Three Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Four Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         {/* Categories List */}
         <div className="bg-card rounded-xl border border-border flex flex-col">
           <div className="p-4 border-b border-border">
             <div className="flex items-start justify-between mb-3 min-h-[40px]">
               <div>
                 <h3 className="text-base font-semibold text-foreground">Categories List</h3>
-                <p className="text-xs text-muted-foreground">Manage main categories</p>
               </div>
               <Button size="sm" className="gap-1 h-8 text-xs shrink-0" onClick={() => setCategoryDialogOpen(true)}>
                 <Plus className="w-3.5 h-3.5" />
@@ -557,22 +694,6 @@ export const AttributesPage = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium text-foreground text-sm">{category.name}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button className={`px-1.5 py-0.5 text-xs rounded flex items-center gap-0.5 cursor-pointer hover:opacity-80 transition-opacity ${category.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                            {category.status}
-                            <ChevronDown className="w-3 h-3" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                          <DropdownMenuItem onClick={() => toggleCategoryStatus(category)}>
-                            {category.status === "Active" ? "Set Inactive" : "Set Active"}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      <span className="text-xs text-muted-foreground">{category.subcategoryCount} subcategory</span>
-                    </div>
                   </div>
                   <div className="flex gap-1">
                     <Button variant="outline" size="sm" className="h-7 text-xs px-2" onClick={() => openEditCategory(category)}>
@@ -594,7 +715,6 @@ export const AttributesPage = () => {
             <div className="flex items-start justify-between mb-3 min-h-[40px]">
               <div>
                 <h3 className="text-base font-semibold text-foreground">Sub Category List</h3>
-                <p className="text-xs text-muted-foreground">Manage sub categories</p>
               </div>
               <Button size="sm" className="gap-1 h-8 text-xs shrink-0" onClick={() => setSubcategoryDialogOpen(true)}>
                 <Plus className="w-3.5 h-3.5" />
@@ -632,19 +752,6 @@ export const AttributesPage = () => {
                     <p className="font-medium text-foreground text-sm">
                       {subcategory.name} <span className="text-muted-foreground font-normal">(under {subcategory.categoryName})</span>
                     </p>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className={`px-1.5 py-0.5 text-xs rounded mt-1 inline-flex items-center gap-0.5 cursor-pointer hover:opacity-80 transition-opacity ${subcategory.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                          {subcategory.status}
-                          <ChevronDown className="w-3 h-3" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        <DropdownMenuItem onClick={() => toggleSubcategoryStatus(subcategory)}>
-                          {subcategory.status === "Active" ? "Set Inactive" : "Set Active"}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
                   </div>
                   <div className="flex gap-1">
                     <Button variant="outline" size="sm" className="h-7 text-xs px-2" onClick={() => openEditSubcategory(subcategory)}>
@@ -666,7 +773,6 @@ export const AttributesPage = () => {
             <div className="flex items-start justify-between mb-3 min-h-[40px]">
               <div>
                 <h3 className="text-base font-semibold text-foreground">Brands List</h3>
-                <p className="text-xs text-muted-foreground">Manage product brands</p>
               </div>
               <Button size="sm" className="gap-1 h-8 text-xs shrink-0" onClick={() => setBrandDialogOpen(true)}>
                 <Plus className="w-3.5 h-3.5" />
@@ -702,28 +808,70 @@ export const AttributesPage = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium text-foreground text-sm">{brand.name}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button className={`px-1.5 py-0.5 text-xs rounded flex items-center gap-0.5 cursor-pointer hover:opacity-80 transition-opacity ${brand.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                            {brand.status}
-                            <ChevronDown className="w-3 h-3" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                          <DropdownMenuItem onClick={() => toggleBrandStatus(brand)}>
-                            {brand.status === "Active" ? "Set Inactive" : "Set Active"}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      <span className="text-xs text-muted-foreground">{brand.createdAt}</span>
-                    </div>
                   </div>
                   <div className="flex gap-1">
                     <Button variant="outline" size="sm" className="h-7 text-xs px-2" onClick={() => openEditBrand(brand)}>
                       Edit
                     </Button>
                     <Button variant="outline" size="sm" className="h-7 text-xs px-2 text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => openDeleteDialog("brand", brand.id)}>
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Applications List */}
+        <div className="bg-card rounded-xl border border-border flex flex-col">
+          <div className="p-4 border-b border-border">
+            <div className="flex items-start justify-between mb-3 min-h-[40px]">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Applications List</h3>
+              </div>
+              <Button size="sm" className="gap-1 h-8 text-xs shrink-0" onClick={() => setApplicationDialogOpen(true)}>
+                <Plus className="w-3.5 h-3.5" />
+                Add New
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Select value={applicationSubcategoryFilter} onValueChange={setApplicationSubcategoryFilter}>
+                <SelectTrigger className="w-32 h-8 text-xs border-border">
+                  <SelectValue placeholder="All Subcategories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Subcategories</SelectItem>
+                  {subcategories.map((sub) => (
+                    <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                placeholder="Search applications..."
+                value={applicationSearch}
+                onChange={(e) => setApplicationSearch(e.target.value)}
+                className="h-8 text-xs flex-1"
+              />
+            </div>
+          </div>
+          <div className="px-4 py-2 border-b border-border">
+            <p className="text-sm text-muted-foreground">All Applications ({filteredApplications.length})</p>
+          </div>
+          <div className="p-3 space-y-2">
+            {filteredApplications.map((application) => (
+              <div key={application.id} className="border border-border rounded-lg p-3 bg-background">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-foreground text-sm">
+                      {application.name} <span className="text-muted-foreground font-normal">(under {application.subcategoryName})</span>
+                    </p>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button variant="outline" size="sm" className="h-7 text-xs px-2" onClick={() => openEditApplication(application)}>
+                      Edit
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-7 text-xs px-2 text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => openDeleteDialog("application", application.id)}>
                       Delete
                     </Button>
                   </div>
@@ -840,6 +988,7 @@ export const AttributesPage = () => {
             <AlertDialogDescription>
               Are you sure you want to delete this {deleteType}? This action cannot be undone.
               {deleteType === "category" && " All subcategories under this category will also be deleted."}
+              {deleteType === "application" && " This application will be removed from all parts using it."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
