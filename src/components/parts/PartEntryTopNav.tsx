@@ -49,7 +49,10 @@ export const PartEntryTopNav = () => {
         <button
           onClick={() => navigate("/partentry/models")}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all text-xs font-medium hidden"
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all text-xs font-medium",
+            currentPath === "/partentry/models"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
           )}
         >
           <Layers className="w-3.5 h-3.5" />

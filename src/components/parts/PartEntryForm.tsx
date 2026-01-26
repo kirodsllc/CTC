@@ -88,6 +88,11 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
   // Validation errors for prices
   const [priceAError, setPriceAError] = useState<string>("");
   const [priceBError, setPriceBError] = useState<string>("");
+  const [costError, setCostError] = useState<string>("");
+  const [priceMError, setPriceMError] = useState<string>("");
+
+  // Maximum limit: 10 lakhs (10,00,000 = 1,000,000)
+  const MAX_PRICE_LIMIT = 1000000;
 
   // Dropdown data
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
@@ -655,8 +660,17 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
             });
             
             // Validate prices after loading
-            setPriceAError(validatePrice(priceAValue, costValue, "A"));
-            setPriceBError(validatePrice(priceBValue, costValue, "B"));
+            const costLimitErr = validateMaxLimit(costValue, "Cost");
+            const priceALimitErr = validateMaxLimit(priceAValue, "Price A");
+            const priceBLimitErr = validateMaxLimit(priceBValue, "Price B");
+            const priceMLimitErr = validateMaxLimit(part.price_m && part.price_m !== 0 ? part.price_m.toString() : "", "Price M");
+            const priceAErr = validatePrice(priceAValue, costValue, "A");
+            const priceBErr = validatePrice(priceBValue, costValue, "B");
+            
+            setCostError(costLimitErr);
+            setPriceAError(priceALimitErr || priceAErr);
+            setPriceBError(priceBLimitErr || priceBErr);
+            setPriceMError(priceMLimitErr);
             // Update search inputs to match form data (swapped)
             setMasterPartSearch(part.part_no || "");
             setPartSearch(part.master_part_no || "");
@@ -715,6 +729,25 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
     }
   }, [selectedPart]);
 
+  // Validate maximum limit (10 lakhs)
+  const validateMaxLimit = (value: string, fieldName: string): string => {
+    if (!value || value.trim() === "") {
+      return ""; // No error if empty
+    }
+    
+    const num = parseFloat(value);
+    
+    if (isNaN(num)) {
+      return ""; // No error if invalid number
+    }
+    
+    if (num > MAX_PRICE_LIMIT) {
+      return `${fieldName} cannot exceed 10,00,000 (10 Lakhs)`;
+    }
+    
+    return "";
+  };
+
   // Validate price against cost
   const validatePrice = (price: string, cost: string, priceType: "A" | "B"): string => {
     if (!price || price.trim() === "" || !cost || cost.trim() === "") {
@@ -735,18 +768,82 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
     return "";
   };
 
+  // Format and limit numeric value to max 10 lakhs
+  const formatPriceValue = (value: string, fieldName: string): { value: string; error: string } => {
+    if (!value || value.trim() === "") {
+      return { value: "", error: "" };
+    }
+    
+    // Remove any non-numeric characters except decimal point
+    let cleaned = value.replace(/[^\d.]/g, "");
+    
+    // Handle multiple decimal points - keep only the first one
+    const parts = cleaned.split(".");
+    if (parts.length > 2) {
+      cleaned = parts[0] + "." + parts.slice(1).join("");
+    }
+    
+    // Limit to 2 decimal places for prices
+    if (parts.length === 2 && parts[1].length > 2) {
+      cleaned = parts[0] + "." + parts[1].substring(0, 2);
+    }
+    
+    // Check if value exceeds maximum limit
+    const num = parseFloat(cleaned);
+    if (!isNaN(num) && num > MAX_PRICE_LIMIT) {
+      // Limit to maximum value
+      cleaned = MAX_PRICE_LIMIT.toString();
+      return { value: cleaned, error: `${fieldName} cannot exceed 10,00,000 (10 Lakhs)` };
+    }
+    
+    const error = validateMaxLimit(cleaned, fieldName);
+    return { value: cleaned, error };
+  };
+
   const handleInputChange = (field: keyof PartFormData, value: string) => {
     setFormData((prev) => {
-      const updated = { ...prev, [field]: value };
+      let finalValue = value;
       
-      // Validate prices when cost, priceA, or priceB changes
-      if (field === "cost" || field === "priceA" || field === "priceB") {
-        const cost = field === "cost" ? value : updated.cost;
-        const priceA = field === "priceA" ? value : updated.priceA;
-        const priceB = field === "priceB" ? value : updated.priceB;
-        
-        setPriceAError(validatePrice(priceA, cost, "A"));
-        setPriceBError(validatePrice(priceB, cost, "B"));
+      // Apply limit and formatting for cost and price fields
+      if (field === "cost") {
+        const formatted = formatPriceValue(value, "Cost");
+        finalValue = formatted.value;
+        setCostError(formatted.error);
+      } else if (field === "priceA") {
+        const formatted = formatPriceValue(value, "Price A");
+        finalValue = formatted.value;
+        const limitError = formatted.error;
+        const updated = { ...prev, [field]: finalValue };
+        const cost = updated.cost;
+        const priceError = validatePrice(finalValue, cost, "A");
+        setPriceAError(limitError || priceError);
+      } else if (field === "priceB") {
+        const formatted = formatPriceValue(value, "Price B");
+        finalValue = formatted.value;
+        const limitError = formatted.error;
+        const updated = { ...prev, [field]: finalValue };
+        const cost = updated.cost;
+        const priceError = validatePrice(finalValue, cost, "B");
+        setPriceBError(limitError || priceError);
+      } else if (field === "priceM") {
+        const formatted = formatPriceValue(value, "Price M");
+        finalValue = formatted.value;
+        setPriceMError(formatted.error);
+      }
+      
+      const updated = { ...prev, [field]: finalValue };
+      
+      // Re-validate prices against cost when cost changes
+      if (field === "cost") {
+        const cost = finalValue;
+        const priceA = updated.priceA;
+        const priceB = updated.priceB;
+        const priceAErr = validatePrice(priceA, cost, "A");
+        const priceBErr = validatePrice(priceB, cost, "B");
+        const priceALimitErr = validateMaxLimit(priceA, "Price A");
+        const priceBLimitErr = validateMaxLimit(priceB, "Price B");
+        setPriceAError(priceALimitErr || priceAErr);
+        setPriceBError(priceBLimitErr || priceBErr);
       }
       
       return updated;
@@ -826,8 +923,19 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
         const costVal = fullPart.cost && fullPart.cost !== 0 ? fullPart.cost.toString() : "";
         const priceAVal = fullPart.price_a && fullPart.price_a !== 0 ? fullPart.price_a.toString() : "";
         const priceBVal = fullPart.price_b && fullPart.price_b !== 0 ? fullPart.price_b.toString() : "";
-        setPriceAError(validatePrice(priceAVal, costVal, "A"));
-        setPriceBError(validatePrice(priceBVal, costVal, "B"));
+        const priceMVal = fullPart.price_m && fullPart.price_m !== 0 ? fullPart.price_m.toString() : "";
+        
+        const costLimitErr = validateMaxLimit(costVal, "Cost");
+        const priceALimitErr = validateMaxLimit(priceAVal, "Price A");
+        const priceBLimitErr = validateMaxLimit(priceBVal, "Price B");
+        const priceMLimitErr = validateMaxLimit(priceMVal, "Price M");
+        const priceAErr = validatePrice(priceAVal, costVal, "A");
+        const priceBErr = validatePrice(priceBVal, costVal, "B");
+        
+        setCostError(costLimitErr);
+        setPriceAError(priceALimitErr || priceAErr);
+        setPriceBError(priceBLimitErr || priceBErr);
+        setPriceMError(priceMLimitErr);
 
         setImageP1(fullPart.image_p1 || null);
         setImageP2(fullPart.image_p2 || null);
@@ -897,21 +1005,35 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
     const cost = formData.cost.trim();
     const priceA = formData.priceA.trim();
     const priceB = formData.priceB.trim();
+    const priceM = formData.priceM.trim();
     
+    // Check maximum limits
+    const costLimitErr = validateMaxLimit(cost, "Cost");
+    const priceALimitErr = validateMaxLimit(priceA, "Price A");
+    const priceBLimitErr = validateMaxLimit(priceB, "Price B");
+    const priceMLimitErr = validateMaxLimit(priceM, "Price M");
+    
+    // Check price comparison
     const priceAErr = validatePrice(priceA, cost, "A");
     const priceBErr = validatePrice(priceB, cost, "B");
     
-    setPriceAError(priceAErr);
-    setPriceBError(priceBErr);
+    setCostError(costLimitErr);
+    setPriceAError(priceALimitErr || priceAErr);
+    setPriceBError(priceBLimitErr || priceBErr);
+    setPriceMError(priceMLimitErr);
     
-    if (priceAErr || priceBErr) {
+    if (costLimitErr || priceALimitErr || priceBLimitErr || priceMLimitErr || priceAErr || priceBErr) {
+      const errors = [];
+      if (costLimitErr) errors.push("Cost exceeds 10 Lakhs");
+      if (priceALimitErr) errors.push("Price A exceeds 10 Lakhs");
+      if (priceBLimitErr) errors.push("Price B exceeds 10 Lakhs");
+      if (priceMLimitErr) errors.push("Price M exceeds 10 Lakhs");
+      if (priceAErr) errors.push("Price A cannot be less than Cost");
+      if (priceBErr) errors.push("Price B cannot be less than Cost");
+      
       toast({
         title: "Validation Error",
-        description: priceAErr && priceBErr 
-          ? "Price A and Price B cannot be less than Cost Price"
-          : priceAErr 
-          ? "Price A cannot be less than Cost Price"
-          : "Price B cannot be less than Cost Price",
+        description: errors.join(", "),
         variant: "destructive",
       });
       return;
@@ -937,6 +1059,8 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
     // Clear validation errors
     setPriceAError("");
     setPriceBError("");
+    setCostError("");
+    setPriceMError("");
 
     toast({
       title: "Success",
@@ -2666,16 +2790,21 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                 <Input
                   type="number"
                   step="0.01"
+                  max={MAX_PRICE_LIMIT}
                   value={formatNumericValue(formData.cost)}
                   onChange={(e) => handleInputChange("cost", e.target.value)}
-                  className="h-8 text-xs"
+                  className={cn("h-8 text-xs", costError && "border-destructive focus-visible:ring-destructive")}
                 />
+                {costError && (
+                  <p className="text-xs text-destructive mt-1">{costError}</p>
+                )}
               </div>
               <div>
                 <label className="block text-xs text-foreground mb-1 font-bold">Price-A</label>
                 <Input
                   type="number"
                   step="0.01"
+                  max={MAX_PRICE_LIMIT}
                   value={formatNumericValue(formData.priceA)}
                   onChange={(e) => handleInputChange("priceA", e.target.value)}
                   className={cn("h-8 text-xs", priceAError && "border-destructive focus-visible:ring-destructive")}
@@ -2689,6 +2818,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                 <Input
                   type="number"
                   step="0.01"
+                  max={MAX_PRICE_LIMIT}
                   value={formatNumericValue(formData.priceB)}
                   onChange={(e) => handleInputChange("priceB", e.target.value)}
                   className={cn("h-8 text-xs", priceBError && "border-destructive focus-visible:ring-destructive")}
@@ -2702,10 +2832,14 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                 <Input
                   type="number"
                   step="0.01"
+                  max={MAX_PRICE_LIMIT}
                   value={formatNumericValue(formData.priceM)}
                   onChange={(e) => handleInputChange("priceM", e.target.value)}
-                  className="h-8 text-xs"
+                  className={cn("h-8 text-xs", priceMError && "border-destructive focus-visible:ring-destructive")}
                 />
+                {priceMError && (
+                  <p className="text-xs text-destructive mt-1">{priceMError}</p>
+                )}
               </div>
             </div>
 

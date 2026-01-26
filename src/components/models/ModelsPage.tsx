@@ -45,12 +45,13 @@ interface Model {
 }
 
 export const ModelsPage = () => {
-  const [masterPartSearch, setMasterPartSearch] = useState("");
-  const [selectedMasterPart, setSelectedMasterPart] = useState<string | null>(null);
-  const [partNoSearch, setPartNoSearch] = useState("");
+  // Unified search state - single field for all search types
+  const [unifiedSearch, setUnifiedSearch] = useState("");
   const [selectedPart, setSelectedPart] = useState<Item | null>(null);
-  const [showMasterDropdown, setShowMasterDropdown] = useState(false);
-  const [showPartDropdown, setShowPartDropdown] = useState(false);
+  const [showUnifiedDropdown, setShowUnifiedDropdown] = useState(false);
+  const [unifiedSearchResults, setUnifiedSearchResults] = useState<Item[]>([]);
+  const [loadingUnifiedSearch, setLoadingUnifiedSearch] = useState(false);
+  const unifiedDropdownRef = useRef<HTMLDivElement>(null);
   
   // Models state
   const [models, setModels] = useState<Model[]>([]);
@@ -70,8 +71,6 @@ export const ModelsPage = () => {
   const [deleteModelOpen, setDeleteModelOpen] = useState(false);
   const [modelToDelete, setModelToDelete] = useState<Model | null>(null);
 
-  const masterDropdownRef = useRef<HTMLDivElement>(null);
-  const partDropdownRef = useRef<HTMLDivElement>(null);
 
   // State for parts fetched from API
   const [parts, setParts] = useState<Item[]>([]);
@@ -290,6 +289,96 @@ export const ModelsPage = () => {
     fetchModels();
   }, [selectedPart]);
 
+  // Search for parts by model name
+  useEffect(() => {
+    const searchPartsByModel = async () => {
+      if (!modelSearch || modelSearch.trim().length < 2) {
+        setModelSearchResults([]);
+        return;
+      }
+
+      setLoadingModelSearch(true);
+      try {
+        // Fetch parts (limit to first 500 for performance)
+        const response = await apiClient.getParts({
+          limit: 500,
+          page: 1,
+        });
+        
+        if (response.error) {
+          setModelSearchResults([]);
+        } else {
+          const responseData = response.data as any;
+          let partsData: any[] = [];
+          
+          if (Array.isArray(responseData)) {
+            partsData = responseData;
+          } else if (responseData && Array.isArray(responseData.data)) {
+            partsData = responseData.data;
+          }
+
+          // Filter parts that have the searched model name
+          const searchTerm = modelSearch.trim().toLowerCase();
+          const partsWithModel = [];
+          
+          // Check each part for matching models
+          for (const part of partsData) {
+            try {
+              // Fetch full part details to get models
+              const partResponse = await apiClient.getPart(part.id);
+              if (!partResponse.error) {
+                const partData = (partResponse as any).data || partResponse;
+                if (partData.models && Array.isArray(partData.models)) {
+                  const hasMatchingModel = partData.models.some((model: any) => 
+                    model.name && model.name.toLowerCase().includes(searchTerm)
+                  );
+                  
+                  if (hasMatchingModel) {
+                    partsWithModel.push(partData);
+                  }
+                }
+              }
+            } catch (err) {
+              // Skip parts that fail to fetch
+              continue;
+            }
+            
+            // Limit to first 20 results for performance
+            if (partsWithModel.length >= 20) {
+              break;
+            }
+          }
+
+          // Transform to Item format
+          const transformedParts: Item[] = partsWithModel.map((p: any) => ({
+            id: p.id,
+            masterPartNo: p.part_no || p.masterPartNo || "",
+            partNo: p.master_part_no || p.partNo || "",
+            brand: p.brand_name || p.brand || "",
+            description: p.description || "",
+            category: p.category_name || p.category || "",
+            subCategory: p.subcategory_name || p.subcategory || "",
+            application: p.application_name || p.application || "",
+            status: p.status || "active",
+            images: [],
+          }));
+
+          setModelSearchResults(transformedParts);
+        }
+      } catch (error: any) {
+        setModelSearchResults([]);
+      } finally {
+        setLoadingModelSearch(false);
+      }
+    };
+
+    const timeoutId = setTimeout(() => {
+      searchPartsByModel();
+    }, 500); // Slightly longer debounce for model search
+
+    return () => clearTimeout(timeoutId);
+  }, [modelSearch]);
+
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -298,6 +387,9 @@ export const ModelsPage = () => {
       }
       if (partDropdownRef.current && !partDropdownRef.current.contains(event.target as Node)) {
         setShowPartDropdown(false);
+      }
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(event.target as Node)) {
+        setShowModelDropdown(false);
       }
     };
 
@@ -583,9 +675,72 @@ export const ModelsPage = () => {
           <h2 className="text-lg font-semibold text-foreground">Model Selection</h2>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Master Part Number Field - Hidden but functionality preserved */}
-          <div ref={masterDropdownRef} className="relative hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Model Search Field */}
+          <div ref={modelDropdownRef} className="relative">
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Search by Model <span className="text-muted-foreground text-xs">(e.g., 140g, X770651)</span>
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by model name..."
+                value={modelSearch}
+                onChange={(e) => {
+                  setModelSearch(e.target.value);
+                  setShowModelDropdown(true);
+                }}
+                onFocus={() => setShowModelDropdown(true)}
+                className={cn(
+                  "pl-10 h-10",
+                  showModelDropdown && "ring-2 ring-primary border-primary"
+                )}
+              />
+            </div>
+
+            {/* Model Search Results Dropdown */}
+            {showModelDropdown && (
+              <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-80 overflow-auto">
+                {loadingModelSearch ? (
+                  <div className="px-4 py-3 text-sm text-muted-foreground text-center">
+                    Searching...
+                  </div>
+                ) : modelSearchResults.length > 0 ? (
+                  modelSearchResults.map((part) => (
+                    <button
+                      key={part.id}
+                      onClick={() => {
+                        handleSelectPart(part);
+                        setModelSearch("");
+                        setShowModelDropdown(false);
+                        setModelSearchResults([]);
+                      }}
+                      className={cn(
+                        "w-full text-left px-4 py-3 hover:bg-muted transition-colors border-b border-border last:border-b-0",
+                        selectedPart?.id === part.id && "bg-muted"
+                      )}
+                    >
+                      <p className="font-medium text-foreground text-sm">{part.partNo}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {part.description?.replace(/\s*\(Grade:\s*[A-Z0-9]+\)/gi, '').trim() || ''}
+                        {part.application && ` (${part.application})`}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Brand: {part.brand} &nbsp;&nbsp; Category: {part.category || "-"}
+                      </p>
+                    </button>
+                  ))
+                ) : modelSearch && modelSearch.length >= 2 ? (
+                  <div className="px-4 py-3 text-sm text-muted-foreground">
+                    No parts found with model "{modelSearch}". Try a different model name.
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+
+          {/* Master Part Number Field - Now visible */}
+          <div ref={masterDropdownRef} className="relative">
             <label className="block text-sm font-medium text-foreground mb-2">
               Master Part Number
             </label>
