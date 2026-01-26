@@ -125,113 +125,135 @@ export const ModelsPage = () => {
     fetchInitialParts();
   }, []);
 
-  // Get unique master part numbers
-  const masterPartNumbers = useMemo(() => {
-    const uniqueMasters = [...new Set(parts.map((item) => item.masterPartNo))].filter(Boolean);
-    if (masterPartSearch) {
-      return uniqueMasters.filter((master) =>
-        master.toLowerCase().includes(masterPartSearch.toLowerCase())
-      );
-    }
-    return uniqueMasters;
-  }, [parts, masterPartSearch]);
-
-  // State for API-fetched parts (when searching)
-  const [apiParts, setApiParts] = useState<Item[]>([]);
-
-  // Fetch parts from API when searching
+  // Unified search - searches by model, part number, master part number, description, brand
   useEffect(() => {
-    const fetchPartsFromAPI = async () => {
-      if (!partNoSearch || partNoSearch.length < 2) {
-        setApiParts([]);
+    const performUnifiedSearch = async () => {
+      if (!unifiedSearch || unifiedSearch.trim().length < 2) {
+        setUnifiedSearchResults([]);
         return;
       }
 
-      setLoadingParts(true);
+      setLoadingUnifiedSearch(true);
       try {
-        const params: any = {
-          limit: 100,
-          page: 1,
-        };
+        const searchTerm = unifiedSearch.trim().toLowerCase();
+        const allResults: Item[] = [];
+        const processedPartIds = new Set<string>();
 
-        // Use general search parameter for partial matching (works with 2+ characters)
-        // This will search across part_no, master_part_no, description, brand, etc.
-        if (partNoSearch && partNoSearch.trim().length >= 2) {
-          params.search = partNoSearch.trim();
-        }
+        // First, try searching by part number, master part number, description, brand via API
+        try {
+          const apiResponse = await apiClient.getParts({
+            search: unifiedSearch.trim(),
+            limit: 100,
+            page: 1,
+          });
 
-        const response = await apiClient.getParts(params);
-        if (response.error) {
-          setApiParts([]);
-        } else {
-          const responseData = response.data as any;
-          let partsData: any[] = [];
-          
-          if (Array.isArray(responseData)) {
-            partsData = responseData;
-          } else if (responseData && Array.isArray(responseData.data)) {
-            partsData = responseData.data;
+          if (!apiResponse.error) {
+            const responseData = apiResponse.data as any;
+            let partsData: any[] = [];
+            
+            if (Array.isArray(responseData)) {
+              partsData = responseData;
+            } else if (responseData && Array.isArray(responseData.data)) {
+              partsData = responseData.data;
+            }
+
+            // Transform and add API results
+            partsData.forEach((p: any) => {
+              if (!processedPartIds.has(p.id)) {
+                allResults.push({
+                  id: p.id,
+                  masterPartNo: p.part_no || p.masterPartNo || "",
+                  partNo: p.master_part_no || p.partNo || "",
+                  brand: p.brand_name || p.brand || "",
+                  description: p.description || "",
+                  category: p.category_name || p.category || "",
+                  subCategory: p.subcategory_name || p.subcategory || "",
+                  application: p.application_name || p.application || "",
+                  status: p.status || "active",
+                  images: [],
+                });
+                processedPartIds.add(p.id);
+              }
+            });
           }
-
-          // Transform API data to Item format
-          // SWAPPED: partNo shows master_part_no (actual Part No), masterPartNo shows part_no (Master Part No)
-          const transformedParts: Item[] = partsData.map((p: any) => ({
-            id: p.id,
-            masterPartNo: p.part_no || p.masterPartNo || "",
-            partNo: p.master_part_no || p.partNo || "",
-            brand: p.brand_name || p.brand || "",
-            description: p.description || "",
-            category: p.category_name || p.category || "",
-            subCategory: p.subcategory_name || p.subcategory || "",
-            application: p.application_name || p.application || "",
-            status: p.status || "active",
-            images: [],
-          }));
-
-          setApiParts(transformedParts);
+        } catch (err) {
+          // Continue with model search even if API search fails
         }
+
+        // Also search by model name - fetch parts and check their models
+        try {
+          const modelResponse = await apiClient.getParts({
+            limit: 200,
+            page: 1,
+          });
+
+          if (!modelResponse.error) {
+            const responseData = modelResponse.data as any;
+            let partsData: any[] = [];
+            
+            if (Array.isArray(responseData)) {
+              partsData = responseData;
+            } else if (responseData && Array.isArray(responseData.data)) {
+              partsData = responseData.data;
+            }
+
+            // Check each part for matching models (limit to first 30 for performance)
+            for (let i = 0; i < Math.min(partsData.length, 30); i++) {
+              const part = partsData[i];
+              if (processedPartIds.has(part.id)) continue;
+
+              try {
+                const partResponse = await apiClient.getPart(part.id);
+                if (!partResponse.error) {
+                  const partData = (partResponse as any).data || partResponse;
+                  if (partData.models && Array.isArray(partData.models)) {
+                    const hasMatchingModel = partData.models.some((model: any) => 
+                      model.name && model.name.toLowerCase().includes(searchTerm)
+                    );
+                    
+                    if (hasMatchingModel) {
+                      allResults.push({
+                        id: partData.id,
+                        masterPartNo: partData.part_no || partData.masterPartNo || "",
+                        partNo: partData.master_part_no || partData.partNo || "",
+                        brand: partData.brand_name || partData.brand || "",
+                        description: partData.description || "",
+                        category: partData.category_name || partData.category || "",
+                        subCategory: partData.subcategory_name || partData.subcategory || "",
+                        application: partData.application_name || partData.application || "",
+                        status: partData.status || "active",
+                        images: [],
+                      });
+                      processedPartIds.add(partData.id);
+                    }
+                  }
+                }
+              } catch (err) {
+                continue;
+              }
+
+              // Limit total results to 20 for performance
+              if (allResults.length >= 20) break;
+            }
+          }
+        } catch (err) {
+          // Continue even if model search fails
+        }
+
+        setUnifiedSearchResults(allResults);
       } catch (error: any) {
-        setApiParts([]);
+        setUnifiedSearchResults([]);
       } finally {
-        setLoadingParts(false);
+        setLoadingUnifiedSearch(false);
       }
     };
 
-    // Debounce API calls
     const timeoutId = setTimeout(() => {
-      fetchPartsFromAPI();
-    }, 300);
+      performUnifiedSearch();
+    }, 400);
 
     return () => clearTimeout(timeoutId);
-  }, [partNoSearch]);
-
-  // Filter parts based on search by part_no (not master_part_no)
-  const filteredParts = useMemo(() => {
-    // Use API-fetched parts if searching, otherwise use parts from state
-    const sourceParts = partNoSearch && partNoSearch.length >= 2 ? apiParts : parts;
-    
-    let filtered = sourceParts;
-    
-    // Apply client-side filtering for partial matching when searching
-    if (partNoSearch && partNoSearch.trim().length >= 2) {
-      const searchTerm = partNoSearch.trim().toLowerCase();
-      filtered = sourceParts.filter((item) =>
-        item.partNo.toLowerCase().includes(searchTerm) ||
-        item.masterPartNo.toLowerCase().includes(searchTerm) ||
-        item.description.toLowerCase().includes(searchTerm) ||
-        item.brand.toLowerCase().includes(searchTerm)
-      );
-    } else if (partNoSearch && partNoSearch.length < 2) {
-      // For very short searches (1 character), filter from parts array
-      filtered = parts.filter(
-        (item) =>
-          item.partNo.toLowerCase().includes(partNoSearch.toLowerCase()) ||
-          item.description.toLowerCase().includes(partNoSearch.toLowerCase()) ||
-          item.brand.toLowerCase().includes(partNoSearch.toLowerCase())
-      );
-    }
-    return filtered;
-  }, [parts, apiParts, partNoSearch]);
+  }, [unifiedSearch]);
 
   // Get models for selected part
   const partModels = useMemo(() => {
@@ -289,107 +311,12 @@ export const ModelsPage = () => {
     fetchModels();
   }, [selectedPart]);
 
-  // Search for parts by model name
-  useEffect(() => {
-    const searchPartsByModel = async () => {
-      if (!modelSearch || modelSearch.trim().length < 2) {
-        setModelSearchResults([]);
-        return;
-      }
-
-      setLoadingModelSearch(true);
-      try {
-        // Fetch parts (limit to first 500 for performance)
-        const response = await apiClient.getParts({
-          limit: 500,
-          page: 1,
-        });
-        
-        if (response.error) {
-          setModelSearchResults([]);
-        } else {
-          const responseData = response.data as any;
-          let partsData: any[] = [];
-          
-          if (Array.isArray(responseData)) {
-            partsData = responseData;
-          } else if (responseData && Array.isArray(responseData.data)) {
-            partsData = responseData.data;
-          }
-
-          // Filter parts that have the searched model name
-          const searchTerm = modelSearch.trim().toLowerCase();
-          const partsWithModel = [];
-          
-          // Check each part for matching models
-          for (const part of partsData) {
-            try {
-              // Fetch full part details to get models
-              const partResponse = await apiClient.getPart(part.id);
-              if (!partResponse.error) {
-                const partData = (partResponse as any).data || partResponse;
-                if (partData.models && Array.isArray(partData.models)) {
-                  const hasMatchingModel = partData.models.some((model: any) => 
-                    model.name && model.name.toLowerCase().includes(searchTerm)
-                  );
-                  
-                  if (hasMatchingModel) {
-                    partsWithModel.push(partData);
-                  }
-                }
-              }
-            } catch (err) {
-              // Skip parts that fail to fetch
-              continue;
-            }
-            
-            // Limit to first 20 results for performance
-            if (partsWithModel.length >= 20) {
-              break;
-            }
-          }
-
-          // Transform to Item format
-          const transformedParts: Item[] = partsWithModel.map((p: any) => ({
-            id: p.id,
-            masterPartNo: p.part_no || p.masterPartNo || "",
-            partNo: p.master_part_no || p.partNo || "",
-            brand: p.brand_name || p.brand || "",
-            description: p.description || "",
-            category: p.category_name || p.category || "",
-            subCategory: p.subcategory_name || p.subcategory || "",
-            application: p.application_name || p.application || "",
-            status: p.status || "active",
-            images: [],
-          }));
-
-          setModelSearchResults(transformedParts);
-        }
-      } catch (error: any) {
-        setModelSearchResults([]);
-      } finally {
-        setLoadingModelSearch(false);
-      }
-    };
-
-    const timeoutId = setTimeout(() => {
-      searchPartsByModel();
-    }, 500); // Slightly longer debounce for model search
-
-    return () => clearTimeout(timeoutId);
-  }, [modelSearch]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (masterDropdownRef.current && !masterDropdownRef.current.contains(event.target as Node)) {
-        setShowMasterDropdown(false);
-      }
-      if (partDropdownRef.current && !partDropdownRef.current.contains(event.target as Node)) {
-        setShowPartDropdown(false);
-      }
-      if (modelDropdownRef.current && !modelDropdownRef.current.contains(event.target as Node)) {
-        setShowModelDropdown(false);
+      if (unifiedDropdownRef.current && !unifiedDropdownRef.current.contains(event.target as Node)) {
+        setShowUnifiedDropdown(false);
       }
     };
 
@@ -397,64 +324,61 @@ export const ModelsPage = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSelectMasterPart = (master: string) => {
-    setSelectedMasterPart(master);
-    setMasterPartSearch(master);
-    setShowMasterDropdown(false);
-    // Reset part selection when master changes
-    setSelectedPart(null);
-    setPartNoSearch("");
-  };
-
   const handleSelectPart = (part: Item) => {
     setSelectedPart(part);
-    setPartNoSearch(part.partNo);
-    setShowPartDropdown(false);
-    // Clear API parts after selection
-    setApiParts([]);
+    setUnifiedSearch(part.partNo);
+    setShowUnifiedDropdown(false);
+    setUnifiedSearchResults([]);
     // Models will be fetched automatically via useEffect
   };
 
-  // Also allow direct part number search (if user types exact part number and presses Enter)
-  const handlePartNoKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && partNoSearch && partNoSearch.trim()) {
-      // Try to find the part directly by master_part_no (Part No, not part_no which is Master Part No)
-      try {
-        const params: any = {
-          master_part_no: partNoSearch.trim(),
-          limit: 1,
-        };
-        
-        const response = await apiClient.getParts(params);
-        if (!response.error && response.data) {
-          const responseData = response.data as any;
-          let partsData: any[] = [];
+  // Handle Enter key for unified search
+  const handleUnifiedSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && unifiedSearch && unifiedSearch.trim()) {
+      // If there's exactly one result, select it
+      if (unifiedSearchResults.length === 1) {
+        handleSelectPart(unifiedSearchResults[0]);
+      } else if (unifiedSearchResults.length > 0) {
+        // If multiple results, select the first one
+        handleSelectPart(unifiedSearchResults[0]);
+      } else {
+        // Try to find part by exact match
+        try {
+          const params: any = {
+            master_part_no: unifiedSearch.trim(),
+            limit: 1,
+          };
           
-          if (Array.isArray(responseData)) {
-            partsData = responseData;
-          } else if (responseData && Array.isArray(responseData.data)) {
-            partsData = responseData.data;
-          }
+          const response = await apiClient.getParts(params);
+          if (!response.error && response.data) {
+            const responseData = response.data as any;
+            let partsData: any[] = [];
+            
+            if (Array.isArray(responseData)) {
+              partsData = responseData;
+            } else if (responseData && Array.isArray(responseData.data)) {
+              partsData = responseData.data;
+            }
 
-          if (partsData.length > 0) {
-            const part = partsData[0];
-            // SWAPPED: partNo shows master_part_no (actual Part No), masterPartNo shows part_no (Master Part No)
-            const transformedPart: Item = {
-              id: part.id,
-              masterPartNo: part.part_no || part.masterPartNo || "",
-              partNo: part.master_part_no || part.partNo || "",
-              brand: part.brand_name || part.brand || "",
-              description: part.description || "",
-              category: part.category_name || part.category || "",
-              subCategory: part.subcategory_name || part.subcategory || "",
-              application: part.application_name || part.application || "",
-              status: part.status || "active",
-              images: [],
-            };
-            handleSelectPart(transformedPart);
+            if (partsData.length > 0) {
+              const part = partsData[0];
+              const transformedPart: Item = {
+                id: part.id,
+                masterPartNo: part.part_no || part.masterPartNo || "",
+                partNo: part.master_part_no || part.partNo || "",
+                brand: part.brand_name || part.brand || "",
+                description: part.description || "",
+                category: part.category_name || part.category || "",
+                subCategory: part.subcategory_name || part.subcategory || "",
+                application: part.application_name || part.application || "",
+                status: part.status || "active",
+                images: [],
+              };
+              handleSelectPart(transformedPart);
+            }
           }
+        } catch (error) {
         }
-      } catch (error) {
       }
     }
   };
@@ -675,188 +599,69 @@ export const ModelsPage = () => {
           <h2 className="text-lg font-semibold text-foreground">Model Selection</h2>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Model Search Field */}
-          <div ref={modelDropdownRef} className="relative">
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Search by Model <span className="text-muted-foreground text-xs">(e.g., 140g, X770651)</span>
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by model name..."
-                value={modelSearch}
-                onChange={(e) => {
-                  setModelSearch(e.target.value);
-                  setShowModelDropdown(true);
-                }}
-                onFocus={() => setShowModelDropdown(true)}
-                className={cn(
-                  "pl-10 h-10",
-                  showModelDropdown && "ring-2 ring-primary border-primary"
-                )}
-              />
-            </div>
-
-            {/* Model Search Results Dropdown */}
-            {showModelDropdown && (
-              <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-80 overflow-auto">
-                {loadingModelSearch ? (
-                  <div className="px-4 py-3 text-sm text-muted-foreground text-center">
-                    Searching...
-                  </div>
-                ) : modelSearchResults.length > 0 ? (
-                  modelSearchResults.map((part) => (
-                    <button
-                      key={part.id}
-                      onClick={() => {
-                        handleSelectPart(part);
-                        setModelSearch("");
-                        setShowModelDropdown(false);
-                        setModelSearchResults([]);
-                      }}
-                      className={cn(
-                        "w-full text-left px-4 py-3 hover:bg-muted transition-colors border-b border-border last:border-b-0",
-                        selectedPart?.id === part.id && "bg-muted"
-                      )}
-                    >
-                      <p className="font-medium text-foreground text-sm">{part.partNo}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {part.description?.replace(/\s*\(Grade:\s*[A-Z0-9]+\)/gi, '').trim() || ''}
-                        {part.application && ` (${part.application})`}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Brand: {part.brand} &nbsp;&nbsp; Category: {part.category || "-"}
-                      </p>
-                    </button>
-                  ))
-                ) : modelSearch && modelSearch.length >= 2 ? (
-                  <div className="px-4 py-3 text-sm text-muted-foreground">
-                    No parts found with model "{modelSearch}". Try a different model name.
-                  </div>
-                ) : null}
-              </div>
-            )}
+        {/* Unified Search Field - Single field for all search types */}
+        <div ref={unifiedDropdownRef} className="relative">
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Search <span className="text-destructive">*</span>
+            <span className="text-muted-foreground text-xs ml-2">
+              (Model, Part No, Master Part No, Description, Brand - e.g., 140g, X770651)
+            </span>
+          </label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by model name, part number, master part number, description, or brand..."
+              value={unifiedSearch}
+              onChange={(e) => {
+                setUnifiedSearch(e.target.value);
+                setShowUnifiedDropdown(true);
+                if (e.target.value !== selectedPart?.partNo) {
+                  setSelectedPart(null);
+                }
+              }}
+              onKeyDown={handleUnifiedSearchKeyDown}
+              onFocus={() => setShowUnifiedDropdown(true)}
+              className={cn(
+                "pl-10 h-10",
+                showUnifiedDropdown && "ring-2 ring-primary border-primary"
+              )}
+            />
           </div>
 
-          {/* Master Part Number Field - Now visible */}
-          <div ref={masterDropdownRef} className="relative">
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Master Part Number
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search master part number..."
-                value={masterPartSearch}
-                onChange={(e) => {
-                  setMasterPartSearch(e.target.value);
-                  setShowMasterDropdown(true);
-                  if (e.target.value !== selectedMasterPart) {
-                    setSelectedMasterPart(null);
-                  }
-                }}
-                onFocus={() => setShowMasterDropdown(true)}
-                className={cn(
-                  "pl-10 h-10",
-                  showMasterDropdown && "ring-2 ring-primary border-primary"
-                )}
-              />
+          {/* Unified Search Results Dropdown */}
+          {showUnifiedDropdown && (
+            <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-80 overflow-auto">
+              {loadingUnifiedSearch ? (
+                <div className="px-4 py-3 text-sm text-muted-foreground text-center">
+                  Searching...
+                </div>
+              ) : unifiedSearchResults.length > 0 ? (
+                unifiedSearchResults.map((part) => (
+                  <button
+                    key={part.id}
+                    onClick={() => handleSelectPart(part)}
+                    className={cn(
+                      "w-full text-left px-4 py-3 hover:bg-muted transition-colors border-b border-border last:border-b-0",
+                      selectedPart?.id === part.id && "bg-muted"
+                    )}
+                  >
+                    <p className="font-medium text-foreground text-sm">{part.partNo}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {part.description?.replace(/\s*\(Grade:\s*[A-Z0-9]+\)/gi, '').trim() || ''}
+                      {part.application && ` (${part.application})`}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Master Part: {part.masterPartNo} &nbsp;&nbsp; Brand: {part.brand} &nbsp;&nbsp; Category: {part.category || "-"}
+                    </p>
+                  </button>
+                ))
+              ) : unifiedSearch && unifiedSearch.length >= 2 ? (
+                <div className="px-4 py-3 text-sm text-muted-foreground">
+                  No parts found. Try a different search term (model name, part number, description, or brand).
+                </div>
+              ) : null}
             </div>
-            {selectedMasterPart && (
-              <p className="text-xs text-muted-foreground mt-2">
-                Only parts with this master part number will be shown
-              </p>
-            )}
-
-            {/* Master Part Dropdown */}
-            {showMasterDropdown && (
-              <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
-                {masterPartNumbers.length > 0 ? (
-                  masterPartNumbers.map((master) => (
-                    <button
-                      key={master}
-                      onClick={() => handleSelectMasterPart(master)}
-                      className={cn(
-                        "w-full text-left px-4 py-3 text-sm hover:bg-muted transition-colors border-b border-border last:border-b-0",
-                        selectedMasterPart === master && "bg-muted"
-                      )}
-                    >
-                      {master}
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-4 py-3 text-sm text-muted-foreground">
-                    No master part numbers found
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Part No Field */}
-          <div ref={partDropdownRef} className="relative">
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Part No <span className="text-destructive">*</span>
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by part number, description, or brand..."
-                value={partNoSearch}
-                onChange={(e) => {
-                  setPartNoSearch(e.target.value);
-                  setShowPartDropdown(true);
-                  if (e.target.value !== selectedPart?.partNo) {
-                    setSelectedPart(null);
-                  }
-                }}
-                onKeyDown={handlePartNoKeyDown}
-                onFocus={() => setShowPartDropdown(true)}
-                className={cn(
-                  "pl-10 h-10",
-                  showPartDropdown && "ring-2 ring-primary border-primary"
-                )}
-              />
-            </div>
-
-            {/* Part Dropdown */}
-            {showPartDropdown && (
-              <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-80 overflow-auto">
-                {loadingParts ? (
-                  <div className="px-4 py-3 text-sm text-muted-foreground text-center">
-                    Searching...
-                  </div>
-                ) : filteredParts.length > 0 ? (
-                  filteredParts.map((part) => (
-                    <button
-                      key={part.id}
-                      onClick={() => handleSelectPart(part)}
-                      className={cn(
-                        "w-full text-left px-4 py-3 hover:bg-muted transition-colors border-b border-border last:border-b-0",
-                        selectedPart?.id === part.id && "bg-muted"
-                      )}
-                    >
-                      <p className="font-medium text-foreground text-sm">{part.partNo}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {part.description?.replace(/\s*\(Grade:\s*[A-Z0-9]+\)/gi, '').trim() || ''}
-                        {part.application && ` (${part.application})`}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Brand: {part.brand} &nbsp;&nbsp; Category: {part.category || "-"}
-                      </p>
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-4 py-3 text-sm text-muted-foreground">
-                    {partNoSearch && partNoSearch.length >= 2 
-                      ? "No parts found. Try a different search term."
-                      : "No parts found"}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
