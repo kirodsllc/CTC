@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, startTransition, useDeferredValue } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 // Types
 interface Category {
@@ -55,11 +56,168 @@ interface Brand {
 interface Application {
   id: string;
   name: string;
-  subcategoryId: string;
-  subcategoryName: string;
-  categoryName: string;
+  subcategoryId: string | null;
+  subcategoryName: string | null;
+  categoryName: string | null;
+  masterPartId?: string | null;
+  masterPartNo?: string | null;
   status: "Active" | "Inactive";
   createdAt: string;
+}
+
+const MAX_MASTER_PART_OPTIONS_RENDERED = 100;
+
+// Isolated form so typing/selecting does not re-render the whole Attributes page
+function ApplicationDialogForm({
+  open,
+  onClose,
+  onSubmit,
+  editingApplication,
+  masterParts,
+  masterPartsLoading,
+  formName,
+  formMasterPartNo,
+  formStatus,
+  onNameChange,
+  onMasterPartNoChange,
+  onStatusChange,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: () => void;
+  editingApplication: Application | null;
+  masterParts: string[];
+  masterPartsLoading: boolean;
+  formName: string;
+  formMasterPartNo: string;
+  formStatus: "Active" | "Inactive";
+  onNameChange: (name: string) => void;
+  onMasterPartNoChange: (masterPartNo: string) => void;
+  onStatusChange: (status: "Active" | "Inactive") => void;
+}) {
+  const [masterPartFilter, setMasterPartFilter] = useState("");
+  const [masterPartOpen, setMasterPartOpen] = useState(false);
+  const masterPartContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!masterPartOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (masterPartContainerRef.current && !masterPartContainerRef.current.contains(e.target as Node)) {
+        setMasterPartOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [masterPartOpen]);
+
+  const filteredMasterParts = useMemo(() => {
+    const q = masterPartFilter.trim().toLowerCase();
+    if (!q) return masterParts;
+    return masterParts.filter((mp) => mp.toLowerCase().includes(q));
+  }, [masterParts, masterPartFilter]);
+
+  const visibleMasterParts = useMemo(
+    () => filteredMasterParts.slice(0, MAX_MASTER_PART_OPTIONS_RENDERED),
+    [filteredMasterParts]
+  );
+
+  if (!open) return null;
+
+  return (
+    <div className="space-y-4 py-4">
+      <div>
+        <label className="block text-sm text-muted-foreground mb-1.5">Application Name *</label>
+        <Input
+          value={formName}
+          onChange={(e) => onNameChange(e.target.value)}
+          placeholder="Enter application name"
+          className="h-9"
+          autoFocus
+        />
+      </div>
+      <div>
+        <label className="block text-sm text-muted-foreground mb-1.5">Master Part Number *</label>
+        {masterPartsLoading ? (
+          <div className="flex h-9 items-center rounded-md border border-input bg-muted/30 px-3 text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Loading master parts…
+          </div>
+        ) : (
+          <div ref={masterPartContainerRef} className="relative">
+            <div className="relative flex">
+              <Input
+                value={masterPartOpen ? masterPartFilter : formMasterPartNo}
+                onChange={(e) => {
+                  setMasterPartFilter(e.target.value);
+                  setMasterPartOpen(true);
+                }}
+                onFocus={() => {
+                  setMasterPartOpen(true);
+                  setMasterPartFilter(formMasterPartNo);
+                }}
+                placeholder="Type or select master part number"
+                className="h-9 pr-9"
+              />
+              <button
+                type="button"
+                onClick={() => setMasterPartOpen((o) => !o)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </div>
+            {masterPartOpen && (
+              <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover shadow-lg max-h-60 overflow-auto">
+                {visibleMasterParts.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    {masterPartFilter ? "No matches" : "Type to search"}
+                  </div>
+                ) : (
+                  visibleMasterParts.map((mp) => (
+                    <button
+                      key={mp}
+                      type="button"
+                      onClick={() => {
+                        onMasterPartNoChange(mp);
+                        setMasterPartFilter("");
+                        setMasterPartOpen(false);
+                      }}
+                      className={cn(
+                        "w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors",
+                        formMasterPartNo === mp && "bg-primary/10 text-primary"
+                      )}
+                    >
+                      {mp}
+                    </button>
+                  ))
+                )}
+                {filteredMasterParts.length > MAX_MASTER_PART_OPTIONS_RENDERED && (
+                  <div className="px-3 py-1.5 text-xs text-muted-foreground border-t border-border">
+                    Showing first {MAX_MASTER_PART_OPTIONS_RENDERED} of {filteredMasterParts.length}. Type to narrow.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground mt-1">Application is linked to this master part.</p>
+      </div>
+      <div>
+        <label className="block text-sm text-muted-foreground mb-1.5">Status</label>
+        <Select value={formStatus} onValueChange={(v) => onStatusChange(v as "Active" | "Inactive")}>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Active">Active</SelectItem>
+            <SelectItem value="Inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex justify-end gap-2 pt-2">
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button onClick={onSubmit}>{editingApplication ? "Update" : "Add"}</Button>
+      </div>
+    </div>
+  );
 }
 
 export const AttributesPage = () => {
@@ -79,7 +237,6 @@ export const AttributesPage = () => {
   const [brandFilter, setBrandFilter] = useState("all");
   const [applicationSearch, setApplicationSearch] = useState("");
   const [applicationFilter, setApplicationFilter] = useState("all");
-  const [applicationSubcategoryFilter, setApplicationSubcategoryFilter] = useState("all");
 
   // Dialog states
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
@@ -105,8 +262,10 @@ export const AttributesPage = () => {
   const [newBrandName, setNewBrandName] = useState("");
   const [newBrandStatus, setNewBrandStatus] = useState<"Active" | "Inactive">("Active");
   const [newApplicationName, setNewApplicationName] = useState("");
-  const [newApplicationSubcategoryId, setNewApplicationSubcategoryId] = useState("");
+  const [newApplicationMasterPartNo, setNewApplicationMasterPartNo] = useState("");
   const [newApplicationStatus, setNewApplicationStatus] = useState<"Active" | "Inactive">("Active");
+  const [masterParts, setMasterParts] = useState<string[]>([]);
+  const [masterPartsLoading, setMasterPartsLoading] = useState(false);
 
   // Filtered data
   const filteredCategories = useMemo(() => {
@@ -137,15 +296,43 @@ export const AttributesPage = () => {
     return applications.filter((app) => {
       const matchesSearch = app.name.toLowerCase().includes(applicationSearch.toLowerCase());
       const matchesFilter = applicationFilter === "all" || app.id === applicationFilter;
-      const matchesSubcategory = applicationSubcategoryFilter === "all" || app.subcategoryId === applicationSubcategoryFilter;
-      return matchesSearch && matchesFilter && matchesSubcategory;
+      return matchesSearch && matchesFilter;
     });
-  }, [applications, applicationSearch, applicationFilter, applicationSubcategoryFilter]);
+  }, [applications, applicationSearch, applicationFilter]);
 
   // Fetch data on mount
   useEffect(() => {
     fetchAllData();
   }, []);
+
+  // Lazy-load master parts only when Add New Application dialog is opened (avoids lag on click)
+  useEffect(() => {
+    if (!applicationDialogOpen) return;
+    
+    // Reset form state if creating new application
+    if (!editingApplication) {
+      setNewApplicationName("");
+      setNewApplicationMasterPartNo("");
+      setNewApplicationStatus("Active");
+    }
+    
+    let cancelled = false;
+    setMasterPartsLoading(true);
+    apiClient.getMasterParts()
+      .then((res) => {
+        if (cancelled) return;
+        if (res.error) {
+          setMasterParts([]);
+          return;
+        }
+        const arr = Array.isArray(res) ? res : (res?.data && Array.isArray(res.data) ? res.data : []);
+        // Keep UI responsive when list is large — defer state update so dialog stays fast
+        startTransition(() => setMasterParts(arr));
+      })
+      .catch(() => { if (!cancelled) setMasterParts([]); })
+      .finally(() => { if (!cancelled) setMasterPartsLoading(false); });
+    return () => { cancelled = true; };
+  }, [applicationDialogOpen, editingApplication]);
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -347,16 +534,25 @@ export const AttributesPage = () => {
   };
 
   const handleAddApplication = async () => {
-    if (!newApplicationName.trim() || !newApplicationSubcategoryId) {
-      toast({ title: "Error", description: "Application name and subcategory are required", variant: "destructive" });
+    const name = String(newApplicationName ?? "").trim();
+    const masterPartNo = String(newApplicationMasterPartNo ?? "").trim();
+    
+    if (!name) {
+      toast({ title: "Error", description: "Application name is required", variant: "destructive" });
       return;
     }
+    if (!masterPartNo) {
+      toast({ title: "Error", description: "Master Part Number is required", variant: "destructive" });
+      return;
+    }
+    
     try {
       if (editingApplication) {
         const response = await apiClient.updateApplication(editingApplication.id, {
-          name: newApplicationName,
-          subcategory_id: newApplicationSubcategoryId,
+          name,
+          master_part_no: masterPartNo,
           status: newApplicationStatus,
+          subcategory_id: "",
         });
         if (response.error) {
           toast({ title: "Error", description: response.error, variant: "destructive" });
@@ -374,9 +570,10 @@ export const AttributesPage = () => {
         }
       } else {
         const response = await apiClient.createApplication({
-          name: newApplicationName,
-          subcategory_id: newApplicationSubcategoryId,
+          name,
+          master_part_no: masterPartNo,
           status: newApplicationStatus,
+          subcategory_id: "",
         });
         if (response.error) {
           toast({ title: "Error", description: response.error, variant: "destructive" });
@@ -392,7 +589,6 @@ export const AttributesPage = () => {
         }
       }
       resetApplicationForm();
-      await fetchAllData();
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to save application", variant: "destructive" });
     }
@@ -471,7 +667,7 @@ export const AttributesPage = () => {
 
   const resetApplicationForm = () => {
     setNewApplicationName("");
-    setNewApplicationSubcategoryId("");
+    setNewApplicationMasterPartNo("");
     setNewApplicationStatus("Active");
     setEditingApplication(null);
     setApplicationDialogOpen(false);
@@ -502,7 +698,7 @@ export const AttributesPage = () => {
   const openEditApplication = (application: Application) => {
     setEditingApplication(application);
     setNewApplicationName(application.name);
-    setNewApplicationSubcategoryId(application.subcategoryId);
+    setNewApplicationMasterPartNo(application.masterPartNo ?? "");
     setNewApplicationStatus(application.status);
     setApplicationDialogOpen(true);
   };
@@ -609,11 +805,15 @@ export const AttributesPage = () => {
   };
 
   const toggleApplicationStatus = async (application: Application) => {
+    if (!application.masterPartNo) {
+      toast({ title: "Error", description: "Master Part Number is required. Edit the application to set it.", variant: "destructive" });
+      return;
+    }
     const newStatus = application.status === "Active" ? "Inactive" : "Active";
     try {
       const response = await apiClient.updateApplication(application.id, {
         name: application.name,
-        subcategory_id: application.subcategoryId,
+        master_part_no: application.masterPartNo,
         status: newStatus,
       });
       if (response.error) {
@@ -833,23 +1033,16 @@ export const AttributesPage = () => {
               <div>
                 <h3 className="text-base font-semibold text-foreground">Applications List</h3>
               </div>
-              <Button size="sm" className="gap-1 h-8 text-xs shrink-0" onClick={() => setApplicationDialogOpen(true)}>
+              <Button
+                size="sm"
+                className="gap-1 h-8 text-xs shrink-0"
+                onClick={() => setApplicationDialogOpen(true)}
+              >
                 <Plus className="w-3.5 h-3.5" />
                 Add New
               </Button>
             </div>
             <div className="flex gap-2">
-              <Select value={applicationSubcategoryFilter} onValueChange={setApplicationSubcategoryFilter}>
-                <SelectTrigger className="w-32 h-8 text-xs border-border">
-                  <SelectValue placeholder="All" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  {subcategories.map((sub) => (
-                    <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Input
                 placeholder="Search applications..."
                 value={applicationSearch}
@@ -980,6 +1173,29 @@ export const AttributesPage = () => {
             <Button variant="outline" onClick={resetBrandForm}>Cancel</Button>
             <Button onClick={handleAddBrand}>{editingBrand ? "Update" : "Add"}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Application Dialog — isolated form so typing/selecting does not re-render whole page */}
+      <Dialog open={applicationDialogOpen} onOpenChange={(open) => { if (!open) resetApplicationForm(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingApplication ? "Edit Application" : "Add New Application"}</DialogTitle>
+          </DialogHeader>
+          <ApplicationDialogForm
+            open={applicationDialogOpen}
+            onClose={resetApplicationForm}
+            onSubmit={handleAddApplication}
+            editingApplication={editingApplication}
+            masterParts={masterParts}
+            masterPartsLoading={masterPartsLoading}
+            formName={newApplicationName}
+            formMasterPartNo={newApplicationMasterPartNo}
+            formStatus={newApplicationStatus}
+            onNameChange={setNewApplicationName}
+            onMasterPartNoChange={setNewApplicationMasterPartNo}
+            onStatusChange={setNewApplicationStatus}
+          />
         </DialogContent>
       </Dialog>
 

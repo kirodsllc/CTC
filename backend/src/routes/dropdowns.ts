@@ -99,23 +99,28 @@ router.get('/subcategories', async (req: Request, res: Response) => {
   }
 });
 
-// Get applications by subcategory
+// Get applications by subcategory or master_part_no
 router.get('/applications', async (req: Request, res: Response) => {
   try {
-    const { subcategory_id, search } = req.query;
+    const { subcategory_id, master_part_no, search } = req.query;
     
     const where: any = { status: 'active', NOT: [{ name: '.' }, { name: '' }] };
     if (subcategory_id) {
       where.subcategoryId = subcategory_id as string;
     }
+    if (master_part_no) {
+      const mp = await prisma.masterPart.findFirst({
+        where: { masterPartNo: String(master_part_no).trim() },
+      });
+      if (mp) where.masterPartId = mp.id;
+    }
     if (search) {
-      // SQLite doesn't support case-insensitive mode
       where.name = { contains: search as string };
     }
 
     const applications = await prisma.application.findMany({
       where,
-      select: { id: true, name: true, subcategoryId: true },
+      select: { id: true, name: true, subcategoryId: true, masterPartId: true },
       orderBy: { name: 'asc' },
     });
 
@@ -125,10 +130,10 @@ router.get('/applications', async (req: Request, res: Response) => {
   }
 });
 
-// Get all applications (with status filter for attributes page)
+// Get all applications (with status/master_part_no/subcategory filter for attributes page)
 router.get('/applications/all', async (req: Request, res: Response) => {
   try {
-    const { search, status, subcategory_id } = req.query;
+    const { search, status, subcategory_id, master_part_no } = req.query;
     
     const where: any = { NOT: [{ name: '.' }, { name: '' }] };
     if (status && status !== 'all') {
@@ -136,6 +141,12 @@ router.get('/applications/all', async (req: Request, res: Response) => {
     }
     if (subcategory_id && subcategory_id !== 'all') {
       where.subcategoryId = subcategory_id as string;
+    }
+    if (master_part_no && master_part_no !== 'all') {
+      const mp = await prisma.masterPart.findFirst({
+        where: { masterPartNo: String(master_part_no).trim() },
+      });
+      if (mp) where.masterPartId = mp.id;
     }
     if (search) {
       where.name = { contains: search as string };
@@ -147,6 +158,7 @@ router.get('/applications/all', async (req: Request, res: Response) => {
         subcategory: {
           select: { name: true, category: { select: { name: true } } },
         },
+        masterPart: { select: { masterPartNo: true } },
       },
       orderBy: { name: 'asc' },
     });
@@ -156,8 +168,10 @@ router.get('/applications/all', async (req: Request, res: Response) => {
         id: app.id,
         name: app.name,
         subcategoryId: app.subcategoryId,
-        subcategoryName: app.subcategory.name,
-        categoryName: app.subcategory.category.name,
+        subcategoryName: app.subcategory?.name ?? null,
+        categoryName: app.subcategory?.category?.name ?? null,
+        masterPartId: app.masterPartId,
+        masterPartNo: app.masterPart?.masterPartNo ?? null,
         status: app.status === 'active' ? 'Active' : 'Inactive',
         createdAt: app.createdAt,
       }))
@@ -167,10 +181,10 @@ router.get('/applications/all', async (req: Request, res: Response) => {
   }
 });
 
-// Create application
+// Create application (linked by Master Part Number only; subcategory is not used)
 router.post('/applications', async (req: Request, res: Response) => {
   try {
-    const { name, subcategory_id, status } = req.body;
+    const { name, master_part_no, status } = req.body;
 
     const trimmedName = String(name ?? '').trim();
     if (!trimmedName) {
@@ -179,20 +193,30 @@ router.post('/applications', async (req: Request, res: Response) => {
     if (/^\.+$/.test(trimmedName)) {
       return res.status(400).json({ error: 'Invalid application name' });
     }
-    if (!subcategory_id) {
-      return res.status(400).json({ error: 'Subcategory is required' });
+    const masterPartNoTrim = String(master_part_no ?? '').trim();
+    if (!masterPartNoTrim) {
+      return res.status(400).json({ error: 'Master Part Number is required' });
+    }
+
+    const masterPart = await prisma.masterPart.findFirst({
+      where: { masterPartNo: masterPartNoTrim },
+    });
+    if (!masterPart) {
+      return res.status(400).json({ error: `Master Part Number "${masterPartNoTrim}" not found` });
     }
 
     const application = await prisma.application.create({
       data: {
         name: trimmedName,
-        subcategoryId: subcategory_id,
+        subcategoryId: null,
+        masterPartId: masterPart.id,
         status: status === 'Inactive' ? 'inactive' : 'active',
       },
       include: {
         subcategory: {
           select: { name: true, category: { select: { name: true } } },
         },
+        masterPart: { select: { masterPartNo: true } },
       },
     });
 
@@ -200,24 +224,26 @@ router.post('/applications', async (req: Request, res: Response) => {
       id: application.id,
       name: application.name,
       subcategoryId: application.subcategoryId,
-      subcategoryName: application.subcategory.name,
-      categoryName: application.subcategory.category.name,
+      subcategoryName: application.subcategory?.name ?? null,
+      categoryName: application.subcategory?.category?.name ?? null,
+      masterPartId: application.masterPartId,
+      masterPartNo: application.masterPart?.masterPartNo ?? null,
       status: application.status === 'active' ? 'Active' : 'Inactive',
       createdAt: application.createdAt,
     });
   } catch (error: any) {
     if (error.code === 'P2002') {
-      return res.status(400).json({ error: 'Application with this name already exists in this subcategory' });
+      return res.status(400).json({ error: 'Application with this name already exists for this master part or subcategory' });
     }
     res.status(500).json({ error: error.message });
   }
 });
 
-// Update application
+// Update application (linked by Master Part Number only; subcategory is not used)
 router.put('/applications/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, subcategory_id, status } = req.body;
+    const { name, master_part_no, status } = req.body;
 
     const trimmedName = String(name ?? '').trim();
     if (!trimmedName) {
@@ -226,21 +252,31 @@ router.put('/applications/:id', async (req: Request, res: Response) => {
     if (/^\.+$/.test(trimmedName)) {
       return res.status(400).json({ error: 'Invalid application name' });
     }
-    if (!subcategory_id) {
-      return res.status(400).json({ error: 'Subcategory is required' });
+    const masterPartNoTrim = String(master_part_no ?? '').trim();
+    if (!masterPartNoTrim) {
+      return res.status(400).json({ error: 'Master Part Number is required' });
+    }
+
+    const masterPart = await prisma.masterPart.findFirst({
+      where: { masterPartNo: masterPartNoTrim },
+    });
+    if (!masterPart) {
+      return res.status(400).json({ error: `Master Part Number "${masterPartNoTrim}" not found` });
     }
 
     const application = await prisma.application.update({
       where: { id },
       data: {
         name: trimmedName,
-        subcategoryId: subcategory_id,
+        subcategoryId: null,
+        masterPartId: masterPart.id,
         status: status === 'Inactive' ? 'inactive' : 'active',
       },
       include: {
         subcategory: {
           select: { name: true, category: { select: { name: true } } },
         },
+        masterPart: { select: { masterPartNo: true } },
       },
     });
 
@@ -248,8 +284,10 @@ router.put('/applications/:id', async (req: Request, res: Response) => {
       id: application.id,
       name: application.name,
       subcategoryId: application.subcategoryId,
-      subcategoryName: application.subcategory.name,
-      categoryName: application.subcategory.category.name,
+      subcategoryName: application.subcategory?.name ?? null,
+      categoryName: application.subcategory?.category?.name ?? null,
+      masterPartId: application.masterPartId,
+      masterPartNo: application.masterPart?.masterPartNo ?? null,
       status: application.status === 'active' ? 'Active' : 'Inactive',
       createdAt: application.createdAt,
     });
@@ -258,7 +296,7 @@ router.put('/applications/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Application not found' });
     }
     if (error.code === 'P2002') {
-      return res.status(400).json({ error: 'Application with this name already exists in this subcategory' });
+      return res.status(400).json({ error: 'Application with this name already exists for this master part or subcategory' });
     }
     res.status(500).json({ error: error.message });
   }

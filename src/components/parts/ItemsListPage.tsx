@@ -409,26 +409,6 @@ export const ItemsListPage = ({
       if (activeFilters.subcategory_name && activeFilters.subcategory_name !== 'all') params.subcategory_name = activeFilters.subcategory_name;
       if (activeFilters.application_name && activeFilters.application_name !== 'all') params.application_name = activeFilters.application_name;
 
-      // Add date and time filters
-      if (activeFilters.created_from_date) {
-        let fromDateTime = activeFilters.created_from_date;
-        if (activeFilters.created_from_time) {
-          fromDateTime = `${activeFilters.created_from_date}T${activeFilters.created_from_time}`;
-        } else {
-          fromDateTime = `${activeFilters.created_from_date}T00:00:00`;
-        }
-        params.created_from = fromDateTime;
-      }
-      if (activeFilters.created_to_date) {
-        let toDateTime = activeFilters.created_to_date;
-        if (activeFilters.created_to_time) {
-          toDateTime = `${activeFilters.created_to_date}T${activeFilters.created_to_time}`;
-        } else {
-          toDateTime = `${activeFilters.created_to_date}T23:59:59`;
-        }
-        params.created_to = toDateTime;
-      }
-
       const response = await apiClient.getParts(params);
 
       // Handle different response structures

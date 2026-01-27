@@ -8,11 +8,12 @@ datasource db {
 }
 
 model MasterPart {
-  id           String   @id @default(uuid())
-  masterPartNo String   @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  parts        Part[]
+  id            String        @id @default(uuid())
+  masterPartNo  String        @unique
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  parts         Part[]
+  applications  Application[]
 }
 
 model Brand {
@@ -49,16 +50,20 @@ model Subcategory {
 }
 
 model Application {
-  id            String      @id @default(uuid())
-  subcategoryId String
+  id            String       @id @default(uuid())
+  subcategoryId String?      // optional when application is linked to master part only
+  masterPartId  String?      // when set, application is "against" this master part
   name          String
-  status        String      @default("active")
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  subcategory   Subcategory @relation(fields: [subcategoryId], references: [id], onDelete: Cascade)
+  status        String       @default("active")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  subcategory   Subcategory? @relation(fields: [subcategoryId], references: [id], onDelete: Cascade)
+  masterPart    MasterPart?  @relation(fields: [masterPartId], references: [id], onDelete: Cascade)
   parts         Part[]
 
-  @@unique([subcategoryId, name])
+  @@unique([masterPartId, name])
+  @@index([subcategoryId])
+  @@index([masterPartId])
 }
 
 model Part {

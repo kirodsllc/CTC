@@ -555,7 +555,7 @@ router.get('/balance/:partId', async (req: Request, res: Response) => {
 // Get all stock balances
 router.get('/balances', async (req: Request, res: Response) => {
   try {
-    const { search, category_id, low_stock, out_of_stock, page = '1', limit = '50' } = req.query;
+    const { search, category_id, low_stock, out_of_stock, in_stock, page = '1', limit = '50' } = req.query;
 
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
@@ -651,6 +651,9 @@ router.get('/balances', async (req: Request, res: Response) => {
 
     // Apply filters
     let filteredBalances = balances;
+    if (String(in_stock ?? '').toLowerCase() === 'true') {
+      filteredBalances = filteredBalances.filter(b => b.current_stock > 0);
+    }
     if (low_stock === 'true') {
       filteredBalances = filteredBalances.filter(b => b.is_low_stock && !b.is_out_of_stock);
     }

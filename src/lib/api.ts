@@ -314,9 +314,10 @@ class ApiClient {
     return this.request(`/dropdowns/subcategories${query}`);
   }
 
-  async getApplications(subcategoryId?: string, search?: string) {
+  async getApplications(subcategoryId?: string, master_part_no?: string, search?: string) {
     const params = new URLSearchParams();
     if (subcategoryId) params.append('subcategory_id', subcategoryId);
+    if (master_part_no) params.append('master_part_no', master_part_no);
     if (search) params.append('search', search);
     const query = params.toString() ? `?${params.toString()}` : '';
     return this.request(`/dropdowns/applications${query}`);
@@ -416,23 +417,24 @@ class ApiClient {
     });
   }
 
-  async getAllApplications(search?: string, status?: string, subcategory_id?: string) {
+  async getAllApplications(search?: string, status?: string, subcategory_id?: string, master_part_no?: string) {
     const params = new URLSearchParams();
     if (search) params.append('search', search);
     if (status && status !== 'all') params.append('status', status);
     if (subcategory_id && subcategory_id !== 'all') params.append('subcategory_id', subcategory_id);
+    if (master_part_no && master_part_no !== 'all') params.append('master_part_no', master_part_no);
     const query = params.toString() ? `?${params.toString()}` : '';
     return this.request(`/dropdowns/applications/all${query}`);
   }
 
-  async createApplication(data: { name: string; subcategory_id: string; status?: string }) {
+  async createApplication(data: { name: string; subcategory_id?: string; master_part_no?: string; status?: string }) {
     return this.request('/dropdowns/applications', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateApplication(id: string, data: { name: string; subcategory_id: string; status?: string }) {
+  async updateApplication(id: string, data: { name: string; subcategory_id?: string; master_part_no?: string; status?: string }) {
     return this.request(`/dropdowns/applications/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -497,6 +499,7 @@ class ApiClient {
     category_id?: string;
     low_stock?: boolean;
     out_of_stock?: boolean;
+    in_stock?: boolean;
     page?: number;
     limit?: number;
   }) {

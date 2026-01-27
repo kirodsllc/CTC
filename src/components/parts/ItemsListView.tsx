@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Download, Printer, Plus, Upload, CheckCircle, Edit, Trash2, ChevronDown, Image, X, ChevronLeft, ChevronRight, Loader2, FileText, FileSpreadsheet, FileJson, Clock, History, Package, Calendar } from "lucide-react";
+import { Search, Download, Printer, Plus, Upload, CheckCircle, Edit, Trash2, ChevronDown, Image, X, ChevronLeft, ChevronRight, Loader2, FileText, FileSpreadsheet, FileJson, Clock, History, Package } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { ReservedQuantityManager } from "@/utils/reservedQuantityManager";
 import { handleReserveStockFixed } from "@/utils/reserveStockHandler";
@@ -1094,47 +1094,11 @@ export const ItemsListView = ({
                 </div>
               </div>
 
-              {/* Date Filters */}
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-                    <Calendar className="w-2.5 h-2.5" />
-                    From Date
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type="date"
-                      value={localInputValues.created_from_date}
-                      onChange={(e) => updateFilterImmediate('created_from_date', e.target.value)}
-                      className="h-7 text-[10px] pr-7 w-full"
-                    />
-                    <Calendar className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-                    <Calendar className="w-2.5 h-2.5" />
-                    To Date
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type="date"
-                      value={localInputValues.created_to_date || new Date().toISOString().split('T')[0]}
-                      onChange={(e) => updateFilterImmediate('created_to_date', e.target.value)}
-                      className="h-7 text-[10px] pr-7 w-full"
-                    />
-                    <Calendar className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
-                  </div>
-                </div>
-              </div>
-
               {/* Clear Filters Button */}
               {(searchFilters.search || searchFilters.master_part_no || searchFilters.part_no ||
                 searchFilters.brand_name || searchFilters.description ||
                 searchFilters.category_name !== 'all' || searchFilters.subcategory_name !== 'all' ||
-                searchFilters.application_name !== 'all' ||
-                searchFilters.created_from_date || searchFilters.created_to_date ||
-                searchFilters.created_from_time || searchFilters.created_to_time) && (
+                searchFilters.application_name !== 'all') && (
                   <div className="flex justify-end pt-2">
                     <Button
                       variant="outline"
@@ -1244,16 +1208,6 @@ export const ItemsListView = ({
                                   }}
                                 >
                                   Price Updated
-                                </Badge>
-                              )}
-                              {item.createdAt && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] px-1.5 py-0 bg-muted/50 text-muted-foreground border-muted-foreground/20"
-                                  title={`Created: ${item.createdAt}`}
-                                >
-                                  <Clock className="w-2.5 h-2.5 mr-1" />
-                                  {item.createdAt}
                                 </Badge>
                               )}
                             </div>
