@@ -5,10 +5,10 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { getCurrentDatePakistan, getStartOfCurrentMonthPakistan } from "@/utils/dateUtils";
+import { getApiBaseUrl } from "@/lib/api";
 
-const API_URL_RAW = import.meta.env.VITE_API_URL || 
-  (import.meta.env.DEV ? 'http://localhost:3001' : '');
-const API_URL = API_URL_RAW.replace(/\/api\/?$/, '');
+// Use shared API base URL so /dev-koncepts routes through Nginx to port 3002
+const API_BASE_URL = getApiBaseUrl(); // includes trailing "/api" (or "/dev-koncepts/api")
 
 interface IncomeAccount {
   accountId: string;
@@ -55,7 +55,10 @@ export const IncomeStatementTab = () => {
     try {
       setLoading(true);
       
-      const response = await fetch(`${API_URL}/api/accounting/income-statement?from_date=${fromDate}&to_date=${toDate}`);
+      const response = await fetch(`${API_BASE_URL}/accounting/income-statement?from_date=${fromDate}&to_date=${toDate}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache, no-store' },
+      });
       
       if (!response.ok) {
         const errorText = await response.text();

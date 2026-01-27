@@ -7,14 +7,24 @@ export function getApiBaseUrl(): string {
 
   if (typeof window !== 'undefined') {
     const origin = window.location.origin.replace(/\/$/, '');
-    // Dev: hit backend on port 3002 directly
-    if (import.meta.env.DEV) {
-      return 'http://localhost:3002/api';
+    const pathname = window.location.pathname;
+
+    // Production/Proxy: If app is under /dev-koncepts, API MUST go to /dev-koncepts/api
+    // This allows Nginx to proxy it correctly to port 3002.
+    if (pathname.startsWith('/dev-koncepts')) {
+      const url = `${origin}/dev-koncepts/api`;
+      console.log('API Base URL (Proxy):', url);
+      return url;
     }
-    // Production: if app is under /dev-koncepts, API must go to /dev-koncepts/api (Dev-Koncepts backend). /api goes to main app.
-    if (window.location.pathname.startsWith('/dev-koncepts')) {
-      return `${origin}/dev-koncepts/api`;
+
+    // Dev: hit backend on port 3002 directly if on localhost or similar
+    if (import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      const hostname = window.location.hostname;
+      const url = `http://${hostname}:3002/api`;
+      console.log('API Base URL (Direct):', url);
+      return url;
     }
+
     return `${origin}/api`;
   }
 

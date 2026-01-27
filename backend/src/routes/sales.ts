@@ -1467,21 +1467,14 @@ router.post('/invoices', async (req: Request, res: Response) => {
     // Always create JV voucher, and RV vouchers if accounts with amounts are selected
     try {
       // Get Sales Revenue account (required for all invoices)
+      // STricter search: Prioritize by Main Group Type 'Revenue'
       let salesRevenueAccount = await prisma.account.findFirst({
         where: {
-          OR: [
-            { name: { contains: 'Sales Revenue' } },
-            { name: { contains: 'Goods Sold' } },
-            { name: { contains: 'Revenue' } },
-            { code: { startsWith: '701' } }, // Revenue subgroup typically starts with 701 or 401
-            { 
-              subgroup: {
-                mainGroup: {
-                  type: { in: ['Revenue', 'revenue', 'REVENUE'] }
-                }
-              }
+          subgroup: {
+            mainGroup: {
+              type: { in: ['Revenue', 'revenue', 'REVENUE'] }
             }
-          ],
+          },
           status: 'Active',
         },
         include: {
@@ -1491,7 +1484,32 @@ router.post('/invoices', async (req: Request, res: Response) => {
             },
           },
         },
+        orderBy: {
+          code: 'asc' // Usually picking the first revenue account is safe
+        }
       });
+
+      // Fallback only if no Revenue type account exists
+      if (!salesRevenueAccount) {
+        salesRevenueAccount = await prisma.account.findFirst({
+          where: {
+            OR: [
+              { name: { contains: 'Sales Revenue' } },
+              { name: { contains: 'Goods Sold' } },
+              { name: { contains: 'Revenue' } },
+              { code: { startsWith: '701' } },
+            ],
+            status: 'Active',
+          },
+          include: {
+            subgroup: {
+              include: {
+                mainGroup: true,
+              },
+            },
+          },
+        });
+      }
 
       // If Sales Revenue account doesn't exist, try to find or create Revenue subgroup and account
       if (!salesRevenueAccount) {
@@ -2418,10 +2436,16 @@ router.post('/invoices/:id/approve', async (req: Request, res: Response) => {
       });
 
       if (!existingCostVoucher) {
-        // Inventory account (expected code 101001 in this system)
+        // Inventory account (flexible search)
         const inventoryAccount = await prisma.account.findFirst({
           where: {
-            code: '101001',
+            OR: [
+              { code: '101001' },
+              { code: '104005' },
+              { name: { contains: 'Inventory' } },
+              { subgroup: { name: { contains: 'Inventory' } } },
+              { subgroup: { mainGroup: { type: 'Asset' }, name: { contains: 'Inventory' } } }
+            ],
             status: 'Active',
           },
           include: {
@@ -2429,7 +2453,7 @@ router.post('/invoices/:id/approve', async (req: Request, res: Response) => {
           },
         });
 
-        // COGS account (expected code 901001). Create it if missing.
+        // COGS account (flexible search)
         let cogsAccount = await prisma.account.findFirst({
           where: {
             status: 'Active',
@@ -2437,6 +2461,9 @@ router.post('/invoices/:id/approve', async (req: Request, res: Response) => {
               { code: '901001' },
               { name: { contains: 'Cost of Goods Sold' } },
               { name: { contains: 'COGS' } },
+              { name: { contains: 'Cost Inventory' } },
+              { subgroup: { mainGroup: { name: 'Cost' } } },
+              { subgroup: { mainGroup: { type: 'Cost' } } }
             ],
           },
           include: {

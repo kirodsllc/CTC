@@ -4,43 +4,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Calendar, Download, Printer, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { apiClient } from "@/lib/api";
 
 interface IncomeCategory {
   name: string;
   items: { name: string; amount: number }[];
 }
 
-// Use the same API URL detection as api.ts to ensure database isolation
-const getApiBaseUrl = () => {
-  if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim()) {
-    return import.meta.env.VITE_API_URL.trim().replace(/\/api\/?$/, '');
-  }
-  
-  if (typeof window !== 'undefined') {
-    const origin = window.location.origin.replace(/\/$/, '');
-    const pathname = window.location.pathname;
-    
-    // If we're in /dev-koncepts path, use /dev-koncepts/api (routes to port 3002)
-    if (pathname.startsWith('/dev-koncepts')) {
-      return `${origin}/dev-koncepts`;
-    }
-    
-    // Otherwise use /api (routes to port 3001 for main app)
-    return origin;
-  }
-  
-  return 'http://localhost:3001';
-};
-
-const API_URL = getApiBaseUrl();
-
 export const IncomeStatementTab = () => {
   const [revenueData, setRevenueData] = useState<IncomeCategory[]>([]);
   const [costData, setCostData] = useState<IncomeCategory[]>([]);
   const [expenseData, setExpenseData] = useState<IncomeCategory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [fromDate, setFromDate] = useState("2025-12-01");
-  const [toDate, setToDate] = useState("2025-12-26");
+  const [fromDate, setFromDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [toDate, setToDate] = useState(() => {
+    const d = new Date();
+    return d.toISOString().split('T')[0];
+  });
   const [expandedRevenue, setExpandedRevenue] = useState<string[]>([]);
   const [expandedCost, setExpandedCost] = useState<string[]>([]);
   const [expandedExpenses, setExpandedExpenses] = useState<string[]>([]);
@@ -52,13 +35,25 @@ export const IncomeStatementTab = () => {
   const fetchIncomeStatement = async () => {
     try {
       setLoading(true);
+      console.log("Fetching Income Statement with dates:", fromDate, toDate);
+      
       const params = new URLSearchParams();
       params.append("from_date", fromDate);
       params.append("to_date", toDate);
       
-      const response = await fetch(`${API_URL}/api/accounting/income-statement?${params}`);
+      // Hit /api/accounting/income-statement directly as it has more robust cost account detection
+      const baseUrl = apiClient.baseUrl.replace(/\/api\/?$/, '');
+      const url = `${baseUrl}/api/accounting/income-statement?${params.toString()}`;
+      console.log("Fetching from URL:", url);
+
+      const response = await fetch(url, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache, no-store' }
+      });
+      
       if (response.ok) {
         const data = await response.json();
+        console.log("Income Statement Response:", data);
         setRevenueData(data.revenue || []);
         setCostData(data.cost || []);
         setExpenseData(data.expenses || []);
@@ -73,9 +68,10 @@ export const IncomeStatementTab = () => {
           setExpandedExpenses([data.expenses[0].name]);
         }
       } else {
-        const errorData = await response.json().catch(() => ({}));
+        console.error("Error fetching income statement:", response?.error);
       }
     } catch (error) {
+      console.error("Error in fetchIncomeStatement:", error);
     } finally {
       setLoading(false);
     }

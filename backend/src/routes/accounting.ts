@@ -1261,11 +1261,6 @@ router.get('/income-statement', async (req: Request, res: Response) => {
       },
     });
 
-    console.log(`DEBUG: Found ${revenueAccounts.length} revenue accounts`);
-    if (revenueAccounts.length > 0) {
-      console.log(`DEBUG: First revenue account: ${revenueAccounts[0].code} - ${revenueAccounts[0].name}`);
-    }
-
     // Separate cost accounts from expense accounts
     // NOTE: Cost main group has type "Expense" in database, so we filter by name instead
     const costAccounts = await prisma.account.findMany({
