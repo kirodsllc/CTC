@@ -1452,8 +1452,8 @@ router.post('/adjustments', async (req: Request, res: Response) => {
       return `Item: ${partInfo} is ${add_inventory !== false ? 'added' : 'remove'} from Adjust Inventory, Qty:${item.quantity}, Rate: ${item.cost || 0}`;
     }).join('; ');
 
-    // Find required accounts
-    const inventoryAccount = await prisma.account.findFirst({
+    // Find required accounts (101001, 104005, or 104001); create if missing when subgroup exists
+    let inventoryAccount = await prisma.account.findFirst({
       where: {
         OR: [
           { code: '101001' }, // Inventory
@@ -1468,7 +1468,44 @@ router.post('/adjustments', async (req: Request, res: Response) => {
     });
 
     if (!inventoryAccount) {
-      return res.status(400).json({ error: 'Inventory account (101001) not found. Please create it first.' });
+      // Try to create Inventory account: prefer 104005 under subgroup 104, else 101001 under 101
+      const invSubgroup104 = await prisma.subgroup.findFirst({ where: { code: '104' } });
+      const invSubgroup101 = await prisma.subgroup.findFirst({ where: { code: '101' } });
+      if (invSubgroup104) {
+        inventoryAccount = await prisma.account.create({
+          data: {
+            code: '104005',
+            name: 'Inventory - General',
+            description: 'General inventory account for adjustments',
+            openingBalance: 0,
+            currentBalance: 0,
+            status: 'Active',
+            subgroupId: invSubgroup104.id,
+          },
+          include: {
+            subgroup: { include: { mainGroup: true } },
+          },
+        });
+      } else if (invSubgroup101) {
+        inventoryAccount = await prisma.account.create({
+          data: {
+            code: '101001',
+            name: 'Inventory',
+            description: 'Inventory account for adjustments',
+            openingBalance: 0,
+            currentBalance: 0,
+            status: 'Active',
+            subgroupId: invSubgroup101.id,
+          },
+          include: {
+            subgroup: { include: { mainGroup: true } },
+          },
+        });
+      } else {
+        return res.status(400).json({
+          error: 'Inventory account (101001/104005) not found. Create Accounting structure first: Main Groups → Subgroups (104 Inventory or 101). Use Accounting → Main Groups → Restore defaults, then add Subgroup 104 (Inventory) if needed.',
+        });
+      }
     }
 
     let secondAccount;

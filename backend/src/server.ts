@@ -310,6 +310,32 @@ app.use('/api/dpo-returns', dpoReturnsRoutes);
 app.use('/api/sales-returns', salesReturnsRoutes);
 app.use('/api/advanced-search', advancedSearchRoutes);
 
+// Dev-Koncepts deployment: all API under /dev-koncepts/api when frontend is at /dev-koncepts/ (so requests hit this backend, not main app)
+app.use('/dev-koncepts/api/parts', partsRoutes);
+app.use('/dev-koncepts/api/dropdowns', dropdownsRoutes);
+app.use('/dev-koncepts/api/inventory', inventoryRoutes);
+app.use('/dev-koncepts/api/expenses', expensesRoutes);
+app.use('/dev-koncepts/api/accounting', accountingRoutes);
+app.use('/dev-koncepts/api/financial', financialRoutes);
+app.use('/dev-koncepts/api/customers', customersRoutes);
+app.use('/dev-koncepts/api/suppliers', suppliersRoutes);
+app.use('/dev-koncepts/api/reports', reportsRoutes);
+app.use('/dev-koncepts/api/users', usersRoutes);
+app.use('/dev-koncepts/api/roles', rolesRoutes);
+app.use('/dev-koncepts/api/activity-logs', activityLogsRoutes);
+app.use('/dev-koncepts/api/approval-flows', approvalFlowsRoutes);
+app.use('/dev-koncepts/api/backups', backupsRoutes);
+app.use('/dev-koncepts/api/company-profile', companyProfileRoutes);
+app.use('/dev-koncepts/api/whatsapp-settings', whatsappSettingsRoutes);
+app.use('/dev-koncepts/api/longcat-settings', longcatSettingsRoutes);
+app.use('/dev-koncepts/api/kits', kitsRoutes);
+app.use('/dev-koncepts/api/vouchers', vouchersRoutes);
+app.use('/dev-koncepts/api/getVouchers', vouchersRoutes);
+app.use('/dev-koncepts/api/sales', salesRoutes);
+app.use('/dev-koncepts/api/dpo-returns', dpoReturnsRoutes);
+app.use('/dev-koncepts/api/sales-returns', salesReturnsRoutes);
+app.use('/dev-koncepts/api/advanced-search', advancedSearchRoutes);
+
 // Trigger restart
 
 // Error handling middleware

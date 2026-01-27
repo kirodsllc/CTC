@@ -1471,8 +1471,16 @@ router.post('/invoices', async (req: Request, res: Response) => {
         where: {
           OR: [
             { name: { contains: 'Sales Revenue' } },
+            { name: { contains: 'Goods Sold' } },
             { name: { contains: 'Revenue' } },
-            { code: { startsWith: '401' } }, // Revenue subgroup typically starts with 401
+            { code: { startsWith: '701' } }, // Revenue subgroup typically starts with 701 or 401
+            { 
+              subgroup: {
+                mainGroup: {
+                  type: { in: ['Revenue', 'revenue', 'REVENUE'] }
+                }
+              }
+            }
           ],
           status: 'Active',
         },
@@ -1606,8 +1614,10 @@ router.post('/invoices', async (req: Request, res: Response) => {
             const receivableSubgroup = await prisma.subgroup.findFirst({
               where: {
                 OR: [
-                  { code: '201' }, // Accounts Receivable subgroup
+                  { code: '104' }, // Sales Customer Receivables
+                  { code: '201' }, // Standard Accounts Receivable subgroup
                   { name: { contains: 'Receivable' } },
+                  { mainGroup: { type: 'Asset' }, name: { contains: 'Receivable' } }
                 ],
               },
             });
@@ -1683,6 +1693,7 @@ router.post('/invoices', async (req: Request, res: Response) => {
           const receivableSubgroup = await prisma.subgroup.findFirst({
             where: {
               OR: [
+                { code: '104' },
                 { code: '201' },
                 { name: { contains: 'Receivable' } },
               ],
@@ -1694,6 +1705,7 @@ router.post('/invoices', async (req: Request, res: Response) => {
               where: {
                 subgroupId: receivableSubgroup.id,
                 OR: [
+                  { code: '104001' },
                   { code: '201001' },
                   { name: { contains: 'Accounts Receivable' } },
                 ],
@@ -3088,6 +3100,48 @@ router.post('/invoices/:id/cancel', async (req: Request, res: Response) => {
     });
 
     res.json(updatedInvoice);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Permanently delete a cancelled invoice
+router.delete('/invoices/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const invoice = await prisma.salesInvoice.findUnique({
+      where: { id },
+      include: { receivable: true },
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    if (invoice.status !== 'cancelled') {
+      return res.status(400).json({
+        error: 'Only cancelled invoices can be permanently deleted. Cancel the invoice first.',
+      });
+    }
+
+    // Unlink any quotation that references this invoice
+    await prisma.salesQuotation.updateMany({
+      where: { invoiceId: id },
+      data: { invoiceId: null },
+    });
+
+    // Delete receivable if exists (before invoice)
+    if (invoice.receivable) {
+      await prisma.receivable.delete({ where: { invoiceId: id } });
+    }
+
+    // Delete invoice (cascades to items, reservations, deliveryLogs, returns)
+    await prisma.salesInvoice.delete({
+      where: { id },
+    });
+
+    res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

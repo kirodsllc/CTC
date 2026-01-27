@@ -185,6 +185,10 @@ export const SalesInvoice = () => {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [invoiceToCancel, setInvoiceToCancel] = useState<Invoice | null>(null);
 
+  // Delete (permanent) Confirmation – for cancelled invoices
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
+
   // Status Update Confirmation
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [statusToUpdate, setStatusToUpdate] = useState<{ invoice: Invoice; newStatus: InvoiceStatus } | null>(null);
@@ -1290,6 +1294,86 @@ export const SalesInvoice = () => {
       toast({
         title: "Error",
         description: error.message || "Failed to cancel invoice",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Permanently delete a cancelled invoice
+  const handleDeleteInvoice = async () => {
+    if (!invoiceToDelete) return;
+
+    try {
+      const response = await apiClient.deleteInvoice(invoiceToDelete.id) as any;
+
+      if (response?.error) {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to delete invoice",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Invoice Deleted",
+        description: `Invoice ${invoiceToDelete.invoiceNo} has been permanently removed.`,
+      });
+
+      const invoicesResponse = await apiClient.getSalesInvoices();
+      const invoicesData: any = Array.isArray(invoicesResponse) ? invoicesResponse : (invoicesResponse?.data || []);
+      const transformedInvoices: Invoice[] = invoicesData.map((inv: any) => ({
+        id: inv.id,
+        invoiceNo: inv.invoiceNo,
+        invoiceDate: inv.invoiceDate,
+        customerType: inv.customerType as CustomerType,
+        customerId: inv.customerId,
+        customerName: inv.customerName,
+        salesPerson: inv.salesPerson || "Admin",
+        items: inv.items.map((item: any) => ({
+          id: item.id,
+          partId: item.partId,
+          partNo: item.partNo,
+          description: item.description || "",
+          orderedQty: item.orderedQty,
+          deliveredQty: item.deliveredQty,
+          pendingQty: item.pendingQty,
+          unitPrice: item.unitPrice,
+          discount: item.discount || 0,
+          discountType: "percent" as const,
+          lineTotal: item.lineTotal,
+          grade: (item.grade || "A") as ItemGrade,
+          brand: item.brand,
+        })),
+        subtotal: inv.subtotal,
+        overallDiscount: inv.overallDiscount || 0,
+        overallDiscountType: "fixed" as const,
+        tax: inv.tax || 0,
+        grandTotal: inv.grandTotal,
+        paidAmount: inv.paidAmount || 0,
+        status: inv.status as InvoiceStatus,
+        paymentStatus: inv.paymentStatus as "unpaid" | "partial" | "paid",
+        account: inv.accountId,
+        deliveryLog: inv.deliveryLogs?.map((log: any) => ({
+          challanNo: log.challanNo,
+          deliveryDate: log.deliveryDate,
+          deliveredBy: log.deliveredBy || "",
+          items: log.items.map((item: any) => ({
+            invoiceItemId: item.invoiceItemId,
+            quantity: item.quantity,
+          })),
+        })) || [],
+        createdAt: inv.createdAt,
+        updatedAt: inv.updatedAt,
+      }));
+      setInvoices(transformedInvoices);
+
+      setShowDeleteConfirm(false);
+      setInvoiceToDelete(null);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete invoice",
         variant: "destructive",
       });
     }
@@ -2472,6 +2556,14 @@ export const SalesInvoice = () => {
               <Button variant="outline" onClick={resetForm}>
                 Cancel
               </Button>
+              <Button
+                variant="destructive"
+                onClick={resetForm}
+                title="Discard this draft and return to invoice list"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </Button>
               <Button onClick={handleCreateInvoice}>
                 <FileText className="w-4 h-4 mr-2" />
                 Create Invoice
@@ -2574,6 +2666,24 @@ export const SalesInvoice = () => {
                             >
                               <Printer className="w-4 h-4" />
                             </Button>
+                            {/* Delete - always visible: cancel for active, permanent delete for cancelled */}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              title={inv.status === "cancelled" ? "Permanently delete invoice" : "Cancel / delete invoice"}
+                              onClick={() => {
+                                if (inv.status === "cancelled") {
+                                  setInvoiceToDelete(inv);
+                                  setShowDeleteConfirm(true);
+                                } else {
+                                  setInvoiceToCancel(inv);
+                                  setShowCancelConfirm(true);
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                             {/* Status Update Dropdown */}
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -2626,6 +2736,22 @@ export const SalesInvoice = () => {
                                     Canceled
                                   </DropdownMenuItem>
                                 )}
+                                {/* Delete invoice – cancel if active, permanent delete if cancelled */}
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    if (inv.status === "cancelled") {
+                                      setInvoiceToDelete(inv);
+                                      setShowDeleteConfirm(true);
+                                    } else {
+                                      setInvoiceToCancel(inv);
+                                      setShowCancelConfirm(true);
+                                    }
+                                  }}
+                                  className="text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  {inv.status === "cancelled" ? "Delete Permanently" : "Delete Invoice"}
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                             {/* Hold - show for active invoices */}
@@ -2864,6 +2990,37 @@ export const SalesInvoice = () => {
               className="bg-destructive hover:bg-destructive/90"
             >
               Cancel Invoice
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete (permanent) Confirmation – for cancelled invoices */}
+      <AlertDialog
+        open={showDeleteConfirm}
+        onOpenChange={(open) => {
+          setShowDeleteConfirm(open);
+          if (!open) setInvoiceToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Delete Invoice Permanently?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove invoice {invoiceToDelete?.invoiceNo} from the list.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setInvoiceToDelete(null)}>Keep</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteInvoice}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

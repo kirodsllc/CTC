@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { Search, Edit, Trash2, MoreVertical, Printer, CheckCircle, Clock, X, Plus, CalendarIcon } from "lucide-react";
+import { Search, Edit, Trash2, MoreVertical, Printer, CheckCircle, Clock, X, Plus, CalendarIcon, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from "@/components/ui/table";
 import {
   Dialog,
@@ -98,6 +99,9 @@ export const ViewVouchersTab = ({
   const [editEntries, setEditEntries] = useState<Voucher["entries"]>([]);
   const [editNarration, setEditNarration] = useState("");
   const [editDate, setEditDate] = useState("");
+
+  // View dialog (read-only)
+  const [viewingVoucher, setViewingVoucher] = useState<Voucher | null>(null);
   
   // Print function - opens print dialog directly
   const handlePrint = (voucher: Voucher) => {
@@ -970,6 +974,17 @@ export const ViewVouchersTab = ({
                     <TableCell>{getStatusBadge(voucher.status)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
+                        <ActionButtonTooltip label="View" variant="view">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1 text-primary"
+                            onClick={() => setViewingVoucher(voucher)}
+                          >
+                            <Eye className="h-4 w-4" />
+                            View
+                          </Button>
+                        </ActionButtonTooltip>
                         <ActionButtonTooltip label="Edit" variant="edit">
                           <Button
                             variant="ghost"
@@ -1001,6 +1016,10 @@ export const ViewVouchersTab = ({
                             </DropdownMenuTrigger>
                           </ActionButtonTooltip>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setViewingVoucher(voucher)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handlePrint(voucher)}>
                               <Printer className="h-4 w-4 mr-2" />
                               Print
@@ -1334,6 +1353,105 @@ export const ViewVouchersTab = ({
               Cancel
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Voucher Dialog (read-only) */}
+      <Dialog open={!!viewingVoucher} onOpenChange={() => setViewingVoucher(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-primary" />
+              View Voucher {viewingVoucher?.voucherNumber}
+            </DialogTitle>
+          </DialogHeader>
+          {viewingVoucher && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Type</p>
+                  <p className="font-medium">
+                    {viewingVoucher.type.charAt(0).toUpperCase() + viewingVoucher.type.slice(1)} Voucher
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Date</p>
+                  <p className="font-medium">{formatDisplayDate(viewingVoucher.date)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Status</p>
+                  <p className="font-medium">{getStatusBadge(viewingVoucher.status)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Cash/Bank Account</p>
+                  <p className="font-medium">{getAccountLabel(viewingVoucher.cashBankAccount)}</p>
+                </div>
+                {viewingVoucher.chequeNumber && (
+                  <div className="space-y-1">
+                    <p className="text-muted-foreground">Cheque No</p>
+                    <p className="font-medium">{viewingVoucher.chequeNumber}</p>
+                  </div>
+                )}
+                {viewingVoucher.chequeDate && (
+                  <div className="space-y-1">
+                    <p className="text-muted-foreground">Cheque Date</p>
+                    <p className="font-medium">{formatDisplayDate(viewingVoucher.chequeDate)}</p>
+                  </div>
+                )}
+              </div>
+              {viewingVoucher.narration && (
+                <div className="space-y-1">
+                  <p className="text-muted-foreground text-sm">Narration</p>
+                  <p className="text-sm bg-muted/50 p-3 rounded-md">{viewingVoucher.narration}</p>
+                </div>
+              )}
+              <div className="space-y-2">
+                <p className="text-muted-foreground text-sm font-medium">Entries</p>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="w-12">#</TableHead>
+                      <TableHead>Account</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="text-right">Debit (Rs)</TableHead>
+                      <TableHead className="text-right">Credit (Rs)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {viewingVoucher.entries.map((entry, idx) => (
+                      <TableRow key={entry.id}>
+                        <TableCell>{idx + 1}</TableCell>
+                        <TableCell>{getAccountLabel(entry.account)}</TableCell>
+                        <TableCell>{entry.description || "-"}</TableCell>
+                        <TableCell className="text-right">
+                          {entry.debit > 0 ? formatAmount(entry.debit) : "-"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {entry.credit > 0 ? formatAmount(entry.credit) : "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                  <TableFooter>
+                    <TableRow className="bg-muted/50 font-semibold">
+                      <TableCell colSpan={3} className="text-right">Total</TableCell>
+                      <TableCell className="text-right">{formatAmount(viewingVoucher.totalDebit)}</TableCell>
+                      <TableCell className="text-right">{formatAmount(viewingVoucher.totalCredit)}</TableCell>
+                    </TableRow>
+                  </TableFooter>
+                </Table>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => viewingVoucher && handlePrint(viewingVoucher)}>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print
+                </Button>
+                <Button variant="outline" onClick={() => setViewingVoucher(null)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

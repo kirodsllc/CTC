@@ -1,26 +1,25 @@
-// Prefer explicit env, otherwise use current origin (works when backend is same host); fall back to local dev port
-// CRITICAL: For Dev-Koncepts, use /dev-koncepts/api to route to port 3002 (Dev-Koncepts backend)
-// For main app, use /api to route to port 3001 (nextapp backend)
-const getApiBaseUrl = () => {
+// Prefer explicit env, otherwise use current origin. Dev-Koncepts app MUST hit /dev-koncepts/api so Nginx routes to this backend.
+// CRITICAL: When app is at /dev-koncepts/, API base must be /dev-koncepts/api — never /api (that goes to main app).
+export function getApiBaseUrl(): string {
   if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim()) {
     return import.meta.env.VITE_API_URL.trim();
   }
 
   if (typeof window !== 'undefined') {
     const origin = window.location.origin.replace(/\/$/, '');
-    const pathname = window.location.pathname;
-
-    // If we're in /dev-koncepts path, use /dev-koncepts/api (routes to port 3002)
-    if (pathname.startsWith('/dev-koncepts')) {
+    // Dev: hit backend on port 3002 directly
+    if (import.meta.env.DEV) {
+      return 'http://localhost:3002/api';
+    }
+    // Production: if app is under /dev-koncepts, API must go to /dev-koncepts/api (Dev-Koncepts backend). /api goes to main app.
+    if (window.location.pathname.startsWith('/dev-koncepts')) {
       return `${origin}/dev-koncepts/api`;
     }
-
-    // Otherwise use /api (routes to port 3001 for main app)
     return `${origin}/api`;
   }
 
-  return 'http://localhost:3001/api';
-};
+  return 'http://localhost:3002/api';
+}
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -151,18 +150,21 @@ class ApiClient {
       const data = await response.json();
       return data;
     } catch (error: any) {
-      // Provide more helpful error messages
-      if (error.message && error.message.includes('HTML')) {
+      const msg = error.message || '';
+      if (msg.includes('redirect')) {
+        return { error: msg };
+      }
+      if (msg.includes('HTML')) {
+        if (msg.includes('404')) {
+          return {
+            error: 'Request returned 404. Ensure Nginx (or your proxy) forwards /dev-koncepts/api to the backend on port 3002. See nginx-dev-koncepts.example.conf in the project.'
+          };
+        }
         return {
-          error: 'Backend API is not responding. Please ensure the backend server is running on port 3001.'
+          error: 'Backend API is not responding. Please ensure the backend server is running on port 3002 and that the proxy forwards /dev-koncepts/api to it.'
         };
       }
-      if (error.message && error.message.includes('redirect')) {
-        return {
-          error: error.message
-        };
-      }
-      return { error: error.message || 'Network error occurred' };
+      return { error: msg || 'Network error occurred' };
     }
   }
 
@@ -1301,6 +1303,25 @@ class ApiClient {
 
   async getMainGroups() {
     return this.request('/accounting/main-groups');
+  }
+
+  async seedMainGroups() {
+    return this.request('/accounting/seed-main-groups', { method: 'POST' });
+  }
+
+  async seedSubgroups() {
+    return this.request('/accounting/seed-subgroups', { method: 'POST' });
+  }
+
+  async seedRequiredAccounts() {
+    return this.request('/accounting/seed-required-accounts', { method: 'POST' });
+  }
+
+  async createMainGroup(data: { code: string; name: string; type?: string; displayOrder?: number }) {
+    return this.request('/accounting/main-groups', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   async getSubgroups(params?: { mainGroupId?: string; isActive?: boolean }) {
@@ -2511,6 +2532,35 @@ class ApiClient {
     return this.request(`/sales/invoices/${id}/cancel`, {
       method: 'POST',
     });
+  }
+
+  async deleteInvoice(id: string) {
+    const result = await this.request(`/sales/invoices/${id}`, {
+      method: 'DELETE',
+    });
+    // If 404 and we use /dev-koncepts/api, retry with /api (common when proxy only forwards /api)
+    if (result?.error && typeof window !== 'undefined' && this.baseUrl.includes('/dev-koncepts/api')) {
+      const origin = window.location.origin.replace(/\/$/, '');
+      const fallbackUrl = `${origin}/api/sales/invoices/${id}`;
+      try {
+        const r = await fetch(fallbackUrl, {
+          method: 'DELETE',
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache, no-store' },
+        });
+        const isJson = r.headers.get('content-type')?.includes('application/json');
+        if (r.ok) {
+          if (isJson) {
+            const data = await r.json();
+            return data as ApiResponse<unknown>;
+          }
+          return { success: true } as ApiResponse<unknown>;
+        }
+      } catch (_) {
+        /* keep original result */
+      }
+    }
+    return result;
   }
 
   async updateInvoiceStatus(id: string, status: string) {

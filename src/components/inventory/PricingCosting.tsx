@@ -1612,7 +1612,23 @@ export const PricingCosting = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedItems.map(item => {
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={14} className="text-center py-8">
+                          <div className="flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                            <span className="ml-2">Loading...</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : paginatedItems.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
+                          No pricing data found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                    paginatedItems.map(item => {
                       const hasChanges =
                         (typeof item.newCost !== "string" && item.newCost !== item.cost) ||
                         (typeof item.newPriceA !== "string" && item.newPriceA !== item.priceA) ||
@@ -1766,7 +1782,8 @@ export const PricingCosting = () => {
                           </TableCell>
                         </TableRow>
                       );
-                    })}
+                    })
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -2063,7 +2080,16 @@ export const PricingCosting = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(() => {
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                          <span className="ml-2">Loading...</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (() => {
                     const filtered = items
                       .filter(item => {
                         if (item.cost <= 0 || item.priceA <= 0) return false;
@@ -2073,7 +2099,7 @@ export const PricingCosting = () => {
                         // Search filter
                         if (profitabilitySearch) {
                           const searchLower = profitabilitySearch.toLowerCase();
-                          if (!item.partNo.toLowerCase().includes(searchLower) && 
+                          if (!item.partNo.toLowerCase().includes(searchLower) &&
                               !item.description.toLowerCase().includes(searchLower)) {
                             return false;
                           }

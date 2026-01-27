@@ -31,6 +31,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { getApiBaseUrl } from "@/lib/api";
 
 interface VerificationItem {
   id: string;
@@ -54,7 +55,7 @@ interface VerificationSession {
   discrepancies: number;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = getApiBaseUrl();
 
 export const StockVerification = () => {
   const { toast } = useToast();

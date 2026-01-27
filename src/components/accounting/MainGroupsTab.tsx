@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,30 +44,28 @@ export const MainGroupsTab = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ code: "", name: "", type: "" });
 
+  const hasAutoSeededRef = useRef(false);
+
   useEffect(() => {
     fetchMainGroups();
   }, []);
 
+  // When the list is empty after first load, auto-restore the 9 default main groups once
+  useEffect(() => {
+    if (loading || mainGroups.length > 0 || hasAutoSeededRef.current) return;
+    hasAutoSeededRef.current = true;
+    handleRestoreDefaults();
+  }, [loading, mainGroups.length]);
+
   const fetchMainGroups = async () => {
     try {
       setLoading(true);
-      // Use fetch directly with proper API URL construction
-      const API_BASE = import.meta.env.VITE_API_URL || 
-        (import.meta.env.DEV ? 'http://localhost:3001/api' : '/api');
-      const response = await fetch(`${API_BASE}/accounting/main-groups`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          setMainGroups(data);
-        } else if (data.data && Array.isArray(data.data)) {
-          setMainGroups(data.data);
-        } else {
-          setMainGroups([]);
-        }
-      } else {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const res = await apiClient.getMainGroups() as any;
+      if (res?.error) {
+        throw new Error(res.error);
       }
+      const data = Array.isArray(res) ? res : res?.data;
+      setMainGroups(Array.isArray(data) ? data : []);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -75,6 +73,32 @@ export const MainGroupsTab = () => {
         variant: "destructive",
       });
       setMainGroups([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestoreDefaults = async () => {
+    try {
+      setLoading(true);
+      const res = await apiClient.seedMainGroups() as any;
+      if (res?.error) {
+        throw new Error(res.error);
+      }
+      // Also seed subgroups (101, 104, 501, 801) and required accounts (104005 Inventory, 501003, 801014) so inventory adjustments work
+      await apiClient.seedSubgroups().catch(() => null);
+      await apiClient.seedRequiredAccounts().catch(() => null);
+      toast({
+        title: "Restored",
+        description: res?.count ? `Default ${res.count} main groups restored. Subgroups and required accounts (e.g. Inventory 104005) updated.` : "Default main groups and accounting structure restored.",
+      });
+      await fetchMainGroups();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to restore default main groups",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -91,39 +115,26 @@ export const MainGroupsTab = () => {
         return;
       }
 
-      const API_BASE = import.meta.env.VITE_API_URL || 
-        (import.meta.env.DEV ? 'http://localhost:3001/api' : '/api');
-      const response = await fetch(`${API_BASE}/accounting/main-groups`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          code: formData.code,
-          name: formData.name,
-          type: formData.type || undefined,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: response.statusText }));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+      const res = await apiClient.createMainGroup({
+        code: formData.code,
+        name: formData.name,
+        type: formData.type || undefined,
+      }) as any;
+      if (res?.error) {
+        throw new Error(res.error);
       }
-
-      const result = await response.json();
 
       toast({
         title: "Success",
         description: "Main group created successfully",
       });
-      
       setIsAddDialogOpen(false);
       setFormData({ code: "", name: "", type: "" });
-      fetchMainGroups();
+      await fetchMainGroups();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error?.error || "Failed to create main group",
+        description: error?.message ?? "Failed to create main group",
         variant: "destructive",
       });
     }
@@ -269,8 +280,18 @@ export const MainGroupsTab = () => {
                 </tr>
               ) : paginatedGroups.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="p-8 text-center text-muted-foreground">
-                    No main groups found.
+                  <td colSpan={3} className="p-8 text-center">
+                    <p className="text-muted-foreground mb-4">No main groups found.</p>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleRestoreDefaults}
+                      disabled={loading}
+                      className="gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Restore default main groups
+                    </Button>
                   </td>
                 </tr>
               ) : (

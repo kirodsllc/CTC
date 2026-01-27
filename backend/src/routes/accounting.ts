@@ -140,6 +140,99 @@ router.delete('/main-groups/:id', async (req: Request, res: Response) => {
   }
 });
 
+// Restore default main groups (upsert codes 1–9). Safe to call when empty or to recover deleted.
+router.post('/seed-main-groups', async (req: Request, res: Response) => {
+  try {
+    const mainGroupsData = [
+      { code: '1', name: 'Current Assets', type: 'Asset', displayOrder: 1 },
+      { code: '2', name: 'Long Term Assets', type: 'Asset', displayOrder: 2 },
+      { code: '3', name: 'Current Liabilities', type: 'Liability', displayOrder: 3 },
+      { code: '4', name: 'Long Term Liabilities', type: 'Liability', displayOrder: 4 },
+      { code: '5', name: 'Capital', type: 'Equity', displayOrder: 5 },
+      { code: '6', name: 'Drawings', type: 'Equity', displayOrder: 6 },
+      { code: '7', name: 'Revenues', type: 'Revenue', displayOrder: 7 },
+      { code: '8', name: 'Expenses', type: 'Expense', displayOrder: 8 },
+      { code: '9', name: 'Cost', type: 'Cost', displayOrder: 9 },
+    ];
+
+    for (const mg of mainGroupsData) {
+      await prisma.mainGroup.upsert({
+        where: { code: mg.code },
+        update: { name: mg.name, type: mg.type, displayOrder: mg.displayOrder },
+        create: mg,
+      });
+    }
+
+    const groups = await prisma.mainGroup.findMany({ orderBy: { displayOrder: 'asc' } });
+    res.json({ success: true, count: groups.length, data: groups });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Subgroups seed data (needed for Inventory 104, Capital 501, Expense 801, etc.)
+const SUBGROUPS_SEED = [
+  { mainGroupCode: '1', code: '101', name: 'Cash and Cash Equivalents' },
+  { mainGroupCode: '1', code: '102', name: 'Bank Accounts' },
+  { mainGroupCode: '1', code: '103', name: 'Accounts Receivable' },
+  { mainGroupCode: '1', code: '104', name: 'Inventory' },
+  { mainGroupCode: '1', code: '105', name: 'Prepaid Expenses' },
+  { mainGroupCode: '5', code: '501', name: "Owner's Capital" },
+  { mainGroupCode: '8', code: '801', name: 'Operating Expenses' },
+];
+
+router.post('/seed-subgroups', async (req: Request, res: Response) => {
+  try {
+    let created = 0;
+    for (const sg of SUBGROUPS_SEED) {
+      const mg = await prisma.mainGroup.findFirst({ where: { code: sg.mainGroupCode } });
+      if (!mg) continue;
+      await prisma.subgroup.upsert({
+        where: { code: sg.code },
+        update: { name: sg.name, mainGroupId: mg.id },
+        create: { mainGroupId: mg.id, code: sg.code, name: sg.name },
+      });
+      created++;
+    }
+    const subgroups = await prisma.subgroup.findMany({ where: { code: { in: SUBGROUPS_SEED.map(s => s.code) } }, include: { mainGroup: true } });
+    res.json({ success: true, count: subgroups.length, data: subgroups });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create required accounts for inventory adjustments: 104005 (Inventory), 501003 (Owner Capital), 801014 (Dispose Inventory)
+router.post('/seed-required-accounts', async (req: Request, res: Response) => {
+  try {
+    const created: string[] = [];
+    for (const { subgroupCode, code, name, description } of [
+      { subgroupCode: '104', code: '104005', name: 'Inventory - General', description: 'General inventory account for adjustments' },
+      { subgroupCode: '501', code: '501003', name: 'OWNER CAPITAL', description: 'Owner Capital account for inventory adjustments' },
+      { subgroupCode: '801', code: '801014', name: 'Dispose Inventory', description: 'Dispose Inventory expense for adjustments' },
+    ]) {
+      const sg = await prisma.subgroup.findFirst({ where: { code: subgroupCode } });
+      if (!sg) continue;
+      const existing = await prisma.account.findUnique({ where: { code } });
+      if (existing) continue;
+      await prisma.account.create({
+        data: {
+          subgroupId: sg.id,
+          code,
+          name,
+          description: description || name,
+          openingBalance: 0,
+          currentBalance: 0,
+          status: 'Active',
+        },
+      });
+      created.push(code);
+    }
+    res.json({ success: true, created, count: created.length });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ========== Subgroups ==========
 router.get('/subgroups', async (req: Request, res: Response) => {
   try {
@@ -890,6 +983,20 @@ router.get('/trial-balance', async (req: Request, res: Response) => {
     }
 
 
+    // Get all posted voucher numbers to avoid double counting
+    const postedVouchers = await prisma.voucher.findMany({
+      where: {
+        status: 'posted',
+        ...(from_date && { date: { gte: new Date(from_date as string) } }),
+        ...(to_date && { date: { lte: new Date(to_date as string) } }),
+      },
+      select: {
+        voucherNumber: true,
+      },
+    });
+    const voucherNumbers = postedVouchers.map(v => v.voucherNumber);
+    const journalExcludeVouchers = voucherNumbers.length > 0 ? { entryNo: { notIn: voucherNumbers } } : {};
+
     const accounts = await prisma.account.findMany({
       include: {
         subgroup: {
@@ -899,6 +1006,7 @@ router.get('/trial-balance', async (req: Request, res: Response) => {
           where: {
             journalEntry: {
               status: 'posted',
+              ...journalExcludeVouchers,
               ...dateFilter,
             },
           },
@@ -1103,6 +1211,20 @@ router.get('/income-statement', async (req: Request, res: Response) => {
       }
     }
 
+    // Get all posted voucher numbers to avoid double counting
+    const postedVouchers = await prisma.voucher.findMany({
+      where: {
+        status: 'posted',
+        ...(from_date && { date: { gte: new Date(from_date as string) } }),
+        ...(to_date && { date: { lte: new Date(to_date as string) } }),
+      },
+      select: {
+        voucherNumber: true,
+      },
+    });
+    const voucherNumbers = postedVouchers.map(v => v.voucherNumber);
+    const journalExcludeVouchers = voucherNumbers.length > 0 ? { entryNo: { notIn: voucherNumbers } } : {};
+
     const revenueAccounts = await prisma.account.findMany({
       where: {
         subgroup: {
@@ -1119,7 +1241,17 @@ router.get('/income-statement', async (req: Request, res: Response) => {
           where: {
             journalEntry: {
               status: 'posted',
+              ...journalExcludeVouchers,
               ...dateFilter,
+            },
+          },
+        },
+        voucherEntries: {
+          where: {
+            voucher: {
+              status: 'posted',
+              ...(from_date && { date: { gte: new Date(from_date as string) } }),
+              ...(to_date && { date: { lte: new Date(to_date as string) } }),
             },
           },
         },
@@ -1128,6 +1260,11 @@ router.get('/income-statement', async (req: Request, res: Response) => {
         code: 'asc',
       },
     });
+
+    console.log(`DEBUG: Found ${revenueAccounts.length} revenue accounts`);
+    if (revenueAccounts.length > 0) {
+      console.log(`DEBUG: First revenue account: ${revenueAccounts[0].code} - ${revenueAccounts[0].name}`);
+    }
 
     // Separate cost accounts from expense accounts
     // NOTE: Cost main group has type "Expense" in database, so we filter by name instead
@@ -1147,7 +1284,17 @@ router.get('/income-statement', async (req: Request, res: Response) => {
           where: {
             journalEntry: {
               status: 'posted',
+              ...journalExcludeVouchers,
               ...dateFilter,
+            },
+          },
+        },
+        voucherEntries: {
+          where: {
+            voucher: {
+              status: 'posted',
+              ...(from_date && { date: { gte: new Date(from_date as string) } }),
+              ...(to_date && { date: { lte: new Date(to_date as string) } }),
             },
           },
         },
@@ -1175,7 +1322,17 @@ router.get('/income-statement', async (req: Request, res: Response) => {
           where: {
             journalEntry: {
               status: 'posted',
+              ...journalExcludeVouchers,
               ...dateFilter,
+            },
+          },
+        },
+        voucherEntries: {
+          where: {
+            voucher: {
+              status: 'posted',
+              ...(from_date && { date: { gte: new Date(from_date as string) } }),
+              ...(to_date && { date: { lte: new Date(to_date as string) } }),
             },
           },
         },
@@ -1198,8 +1355,13 @@ router.get('/income-statement', async (req: Request, res: Response) => {
       if (!revenueBySubgroup[subGroupName]) {
         revenueBySubgroup[subGroupName] = [];
       }
-      const totalDebit = account.journalLines.reduce((sum, line) => sum + line.debit, 0);
-      const totalCredit = account.journalLines.reduce((sum, line) => sum + line.credit, 0);
+      const journalDebit = account.journalLines.reduce((sum, line) => sum + line.debit, 0);
+      const journalCredit = account.journalLines.reduce((sum, line) => sum + line.credit, 0);
+      const voucherDebit = account.voucherEntries?.reduce((sum, entry) => sum + entry.debit, 0) || 0;
+      const voucherCredit = account.voucherEntries?.reduce((sum, entry) => sum + entry.credit, 0) || 0;
+
+      const totalDebit = journalDebit + voucherDebit;
+      const totalCredit = journalCredit + voucherCredit;
 
       // Revenue balance: openingBalance + credits - debits
       const revenueAmount = calculateAccountBalance(
@@ -1227,8 +1389,13 @@ router.get('/income-statement', async (req: Request, res: Response) => {
       if (!costBySubgroup[subGroupName]) {
         costBySubgroup[subGroupName] = [];
       }
-      const totalDebit = account.journalLines.reduce((sum, line) => sum + line.debit, 0);
-      const totalCredit = account.journalLines.reduce((sum, line) => sum + line.credit, 0);
+      const journalDebit = account.journalLines.reduce((sum, line) => sum + line.debit, 0);
+      const journalCredit = account.journalLines.reduce((sum, line) => sum + line.credit, 0);
+      const voucherDebit = account.voucherEntries?.reduce((sum, entry) => sum + entry.debit, 0) || 0;
+      const voucherCredit = account.voucherEntries?.reduce((sum, entry) => sum + entry.credit, 0) || 0;
+
+      const totalDebit = journalDebit + voucherDebit;
+      const totalCredit = journalCredit + voucherCredit;
 
       // Cost balance: openingBalance + debits - credits
       const costAmount = calculateAccountBalance(
@@ -1256,8 +1423,13 @@ router.get('/income-statement', async (req: Request, res: Response) => {
       if (!expenseBySubgroup[subGroupName]) {
         expenseBySubgroup[subGroupName] = [];
       }
-      const totalDebit = account.journalLines.reduce((sum, line) => sum + line.debit, 0);
-      const totalCredit = account.journalLines.reduce((sum, line) => sum + line.credit, 0);
+      const journalDebit = account.journalLines.reduce((sum, line) => sum + line.debit, 0);
+      const journalCredit = account.journalLines.reduce((sum, line) => sum + line.credit, 0);
+      const voucherDebit = account.voucherEntries?.reduce((sum, entry) => sum + entry.debit, 0) || 0;
+      const voucherCredit = account.voucherEntries?.reduce((sum, entry) => sum + entry.credit, 0) || 0;
+
+      const totalDebit = journalDebit + voucherDebit;
+      const totalCredit = journalCredit + voucherCredit;
 
       // Expense balance: openingBalance + debits - credits
       const expenseAmount = calculateAccountBalance(
@@ -1388,6 +1560,19 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
 
     console.log('Parsed date:', dateParam, '->', asOfDate.toISOString());
 
+    // Get all posted voucher numbers to avoid double counting
+    const postedVouchers = await prisma.voucher.findMany({
+      where: {
+        status: 'posted',
+        date: { lte: asOfDate },
+      },
+      select: {
+        voucherNumber: true,
+      },
+    });
+    const voucherNumbers = postedVouchers.map(v => v.voucherNumber);
+    const journalExcludeVouchers = voucherNumbers.length > 0 ? { entryNo: { notIn: voucherNumbers } } : {};
+
     // Get Assets (MainGroup type = 'Asset')
     // First get all accounts, then fetch their transactions separately to avoid filtering issues
     const assetMainGroups = await prisma.mainGroup.findMany({
@@ -1402,6 +1587,7 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
                   where: {
                     journalEntry: {
                       status: 'posted',
+                      entryNo: { notIn: voucherNumbers },
                       entryDate: { lte: asOfDate },
                     },
                   },
@@ -1506,6 +1692,7 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
                   where: {
                     journalEntry: {
                       status: 'posted',
+                      ...journalExcludeVouchers,
                       entryDate: { lte: asOfDate },
                     },
                   },
@@ -1585,6 +1772,7 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
                   where: {
                     journalEntry: {
                       status: 'posted',
+                      entryNo: { notIn: voucherNumbers },
                       entryDate: { lte: asOfDate },
                     },
                   },
@@ -1665,6 +1853,7 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
                   where: {
                     journalEntry: {
                       status: 'posted',
+                      ...journalExcludeVouchers,
                       entryDate: { lte: asOfDate },
                     },
                   },
@@ -1725,6 +1914,7 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
                   where: {
                     journalEntry: {
                       status: 'posted',
+                      entryNo: { notIn: voucherNumbers },
                       entryDate: { lte: asOfDate },
                     },
                   },
@@ -1777,6 +1967,7 @@ router.get('/balance-sheet', async (req: Request, res: Response) => {
                   where: {
                     journalEntry: {
                       status: 'posted',
+                      ...journalExcludeVouchers,
                       entryDate: { lte: asOfDate },
                     },
                   },

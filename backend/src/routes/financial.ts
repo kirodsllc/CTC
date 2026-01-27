@@ -204,6 +204,20 @@ router.get('/trial-balance', async (req: Request, res: Response) => {
   try {
     const { from_date, to_date } = req.query;
     
+    // Get all posted voucher numbers to avoid double counting
+    const postedVouchers = await prisma.voucher.findMany({
+      where: {
+        status: 'posted',
+        ...(from_date && { date: { gte: new Date(from_date as string) } }),
+        ...(to_date && { date: { lte: new Date(to_date as string) } }),
+      },
+      select: {
+        voucherNumber: true,
+      },
+    });
+    const voucherNumbers = postedVouchers.map(v => v.voucherNumber);
+    const journalExcludeVouchers = voucherNumbers.length > 0 ? { entryNo: { notIn: voucherNumbers } } : {};
+
     // Build date filter if provided
     let dateFilter: any = {};
     if (from_date || to_date) {
@@ -228,7 +242,17 @@ router.get('/trial-balance', async (req: Request, res: Response) => {
           where: {
             journalEntry: {
               status: 'posted',
+              ...journalExcludeVouchers,
               ...dateFilter,
+            },
+          },
+        },
+        voucherEntries: {
+          where: {
+            voucher: {
+              status: 'posted',
+              ...(from_date && { date: { gte: new Date(from_date as string) } }),
+              ...(to_date && { date: { lte: new Date(to_date as string) } }),
             },
           },
         },
@@ -254,9 +278,14 @@ router.get('/trial-balance', async (req: Request, res: Response) => {
       const subgroup = account.subgroup;
       const accountType = mainGroup.type;
       
-      // Calculate totals from journal lines
-      const totalDebit = account.journalLines.reduce((sum, line) => sum + (line.debit || 0), 0);
-      const totalCredit = account.journalLines.reduce((sum, line) => sum + (line.credit || 0), 0);
+      // Calculate totals from journal lines and voucher entries
+      const journalDebit = account.journalLines.reduce((sum, line) => sum + (line.debit || 0), 0);
+      const journalCredit = account.journalLines.reduce((sum, line) => sum + (line.credit || 0), 0);
+      const voucherDebit = account.voucherEntries?.reduce((sum, entry) => sum + (entry.debit || 0), 0) || 0;
+      const voucherCredit = account.voucherEntries?.reduce((sum, entry) => sum + (entry.credit || 0), 0) || 0;
+
+      const totalDebit = journalDebit + voucherDebit;
+      const totalCredit = journalCredit + voucherCredit;
       
       // Calculate balance using proper accounting logic (INCLUDING opening balance)
       const balance = calculateAccountBalance(
@@ -374,6 +403,20 @@ router.get('/income-statement', async (req: Request, res: Response) => {
   try {
     const { from_date, to_date } = req.query;
     
+    // Get all posted voucher numbers to avoid double counting
+    const postedVouchers = await prisma.voucher.findMany({
+      where: {
+        status: 'posted',
+        ...(from_date && { date: { gte: new Date(from_date as string) } }),
+        ...(to_date && { date: { lte: new Date(to_date as string) } }),
+      },
+      select: {
+        voucherNumber: true,
+      },
+    });
+    const voucherNumbers = postedVouchers.map(v => v.voucherNumber);
+    const journalExcludeVouchers = voucherNumbers.length > 0 ? { entryNo: { notIn: voucherNumbers } } : {};
+
     // Query revenue accounts
     const revenueAccounts = await prisma.account.findMany({
       where: {
@@ -388,8 +431,18 @@ router.get('/income-statement', async (req: Request, res: Response) => {
           where: {
             journalEntry: {
               status: 'posted',
+              ...journalExcludeVouchers,
               ...(from_date && { entryDate: { gte: new Date(from_date as string) } }),
               ...(to_date && { entryDate: { lte: new Date(to_date as string) } }),
+            },
+          },
+        },
+        voucherEntries: {
+          where: {
+            voucher: {
+              status: 'posted',
+              ...(from_date && { date: { gte: new Date(from_date as string) } }),
+              ...(to_date && { date: { lte: new Date(to_date as string) } }),
             },
           },
         },
@@ -410,8 +463,18 @@ router.get('/income-statement', async (req: Request, res: Response) => {
           where: {
             journalEntry: {
               status: 'posted',
+              ...journalExcludeVouchers,
               ...(from_date && { entryDate: { gte: new Date(from_date as string) } }),
               ...(to_date && { entryDate: { lte: new Date(to_date as string) } }),
+            },
+          },
+        },
+        voucherEntries: {
+          where: {
+            voucher: {
+              status: 'posted',
+              ...(from_date && { date: { gte: new Date(from_date as string) } }),
+              ...(to_date && { date: { lte: new Date(to_date as string) } }),
             },
           },
         },
@@ -432,8 +495,18 @@ router.get('/income-statement', async (req: Request, res: Response) => {
           where: {
             journalEntry: {
               status: 'posted',
+              ...journalExcludeVouchers,
               ...(from_date && { entryDate: { gte: new Date(from_date as string) } }),
               ...(to_date && { entryDate: { lte: new Date(to_date as string) } }),
+            },
+          },
+        },
+        voucherEntries: {
+          where: {
+            voucher: {
+              status: 'posted',
+              ...(from_date && { date: { gte: new Date(from_date as string) } }),
+              ...(to_date && { date: { lte: new Date(to_date as string) } }),
             },
           },
         },
@@ -442,8 +515,14 @@ router.get('/income-statement', async (req: Request, res: Response) => {
     
     // Calculate amounts
     const calculateAmount = (account: any) => {
-      const totalDebit = account.journalLines.reduce((sum: number, line: any) => sum + (line.debit || 0), 0);
-      const totalCredit = account.journalLines.reduce((sum: number, line: any) => sum + (line.credit || 0), 0);
+      const journalDebit = account.journalLines.reduce((sum: number, line: any) => sum + (line.debit || 0), 0);
+      const journalCredit = account.journalLines.reduce((sum: number, line: any) => sum + (line.credit || 0), 0);
+      const voucherDebit = account.voucherEntries?.reduce((sum: number, entry: any) => sum + (entry.debit || 0), 0) || 0;
+      const voucherCredit = account.voucherEntries?.reduce((sum: number, entry: any) => sum + (entry.credit || 0), 0) || 0;
+
+      const totalDebit = journalDebit + voucherDebit;
+      const totalCredit = journalCredit + voucherCredit;
+      
       return totalCredit - totalDebit; // Revenue/Cost/Expense: credit - debit
     };
     

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { apiClient } from "@/lib/api";
+import { apiClient, getApiBaseUrl } from "@/lib/api";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   AlertDialog,
@@ -1236,13 +1236,8 @@ export const DirectPurchaseOrder = () => {
     try {
       setLoading(true);
 
-      // Call payment API endpoint to create PV voucher
-      // Use the same API base URL pattern as apiClient
-      // Try to use apiClient's request method if possible, otherwise use fetch
-      const API_BASE_URL = import.meta.env.VITE_API_URL ||
-        (typeof window !== 'undefined' && window.location.hostname === 'localhost'
-          ? 'http://localhost:3001/api'
-          : '/api');
+      // Use shared base URL so Dev-Koncepts hits /dev-koncepts/api, not main app /api
+      const API_BASE_URL = getApiBaseUrl();
 
       const paymentPayload = {
         amount,
