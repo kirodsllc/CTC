@@ -20,7 +20,7 @@ export const ChartOfAccounts = () => {
           <TabsTrigger 
             value="subgroups"
             className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2 transition-all duration-200"
-          >
+          > 
             <span className="mr-1">λ</span> Subgroups
           </TabsTrigger>
           <TabsTrigger 

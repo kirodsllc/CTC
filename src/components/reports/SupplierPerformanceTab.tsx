@@ -30,7 +30,7 @@ interface SupplierData {
   supplier: string;
   totalOrders: number;
   totalValue: number;
-  onTimeDelivery: number;
+  onTimeDelivery: number; 
   qualityRating: number;
   avgDeliveryDays: number;
   defectRate: number;

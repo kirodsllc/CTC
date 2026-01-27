@@ -26,7 +26,7 @@ export const TrialBalanceReport = () => {
   const [trialBalanceData, setTrialBalanceData] = useState<TrialBalanceAccount[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchTrialBalance = async () => {
+  const fetchTrialBalance = async () => { 
     setLoading(true);
     try {
       const response = await apiClient.getTrialBalance({

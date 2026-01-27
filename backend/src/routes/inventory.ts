@@ -571,12 +571,13 @@ router.get('/balances', async (req: Request, res: Response) => {
       include: {
         brand: true,
         category: true,
+        masterPart: true,
       },
       skip,
       take: limitNum,
     });
 
-    // Get stock movements for these parts
+    // Get stock movements for these parts with location info
     const partIds = parts.map(p => p.id);
     const movements = await prisma.stockMovement.findMany({
       where: {
@@ -586,32 +587,56 @@ router.get('/balances', async (req: Request, res: Response) => {
         partId: true,
         quantity: true,
         type: true,
+        rack: {
+          select: {
+            id: true,
+            codeNo: true,
+          },
+        },
+        shelf: {
+          select: {
+            id: true,
+            shelfNo: true,
+          },
+        },
       },
     });
 
-    // Group movements by part
-    const stockByPart: Record<string, { in: number; out: number }> = {};
+    // Group movements by part and location
+    const stockByPart: Record<string, { in: number; out: number; locations: Set<string> }> = {};
     for (const movement of movements) {
       if (!stockByPart[movement.partId]) {
-        stockByPart[movement.partId] = { in: 0, out: 0 };
+        stockByPart[movement.partId] = { in: 0, out: 0, locations: new Set() };
       }
       if (movement.type === 'in') {
         stockByPart[movement.partId].in += movement.quantity;
       } else {
         stockByPart[movement.partId].out += movement.quantity;
       }
+      
+      // Collect location info
+      if (movement.rack?.codeNo) {
+        const location = movement.shelf?.shelfNo 
+          ? `${movement.rack.codeNo}${movement.shelf.shelfNo}`
+          : movement.rack.codeNo;
+        stockByPart[movement.partId].locations.add(location);
+      }
     }
 
     const balances = parts.map(part => {
-      const stock = stockByPart[part.id] || { in: 0, out: 0 };
+      const stock = stockByPart[part.id] || { in: 0, out: 0, locations: new Set() };
       const currentStock = stock.in - stock.out;
+      const locations = Array.from(stock.locations);
+      const location = locations.length > 0 ? locations[0] : null; // Use first location or null
 
       return {
         part_id: part.id,
         part_no: part.partNo,
+        master_part_no: part.masterPart?.masterPartNo || null,
         description: part.description,
         brand: part.brand?.name || null,
         category: part.category?.name || null,
+        location: location,
         stock_in: stock.in,
         stock_out: stock.out,
         current_stock: currentStock,
@@ -619,6 +644,7 @@ router.get('/balances', async (req: Request, res: Response) => {
         is_low_stock: part.reorderLevel ? currentStock <= part.reorderLevel : false,
         is_out_of_stock: currentStock <= 0,
         cost: part.cost,
+        price: part.priceA || part.priceB || part.priceM || null,
         value: (part.cost || 0) * currentStock,
       };
     });
@@ -1526,13 +1552,13 @@ router.post('/adjustments', async (req: Request, res: Response) => {
     const jvNumber = voucherCount + 1;
     const voucherNumber = `JV${String(jvNumber).padStart(4, '0')}`;
 
-    // Prepare voucher entries
+    // Prepare voucher entries - CRITICAL: accountId must be set for balance sheet queries
     const voucherEntries = [];
     
     if (add_inventory !== false) {
       // Quantity increase: Debit Inventory, Credit Owner Equity
       voucherEntries.push({
-        accountId: inventoryAccount.id,
+        accountId: inventoryAccount.id, // Must set accountId for balance sheet queries
         accountName: `${inventoryAccount.code}-${inventoryAccount.name}`,
         description: itemDescriptions,
         debit: totalAmount,
@@ -1540,7 +1566,7 @@ router.post('/adjustments', async (req: Request, res: Response) => {
         sortOrder: 0,
       });
       voucherEntries.push({
-        accountId: secondAccount.id,
+        accountId: secondAccount.id, // Must set accountId for balance sheet queries
         accountName: `${secondAccount.code}-${secondAccount.name}`,
         description: `Add Adjust Inventory:`,
         debit: 0,
@@ -1550,7 +1576,7 @@ router.post('/adjustments', async (req: Request, res: Response) => {
     } else {
       // Quantity decrease: Debit Dispose Inventory, Credit Inventory
       voucherEntries.push({
-        accountId: secondAccount.id,
+        accountId: secondAccount.id, // Must set accountId for balance sheet queries
         accountName: `${secondAccount.code}-${secondAccount.name}`,
         description: `Dispose Adjust Inventory:`,
         debit: totalAmount,
@@ -1558,7 +1584,7 @@ router.post('/adjustments', async (req: Request, res: Response) => {
         sortOrder: 0,
       });
       voucherEntries.push({
-        accountId: inventoryAccount.id,
+        accountId: inventoryAccount.id, // Must set accountId for balance sheet queries
         accountName: `${inventoryAccount.code}-${inventoryAccount.name}`,
         description: itemDescriptions,
         debit: 0,
@@ -1567,7 +1593,7 @@ router.post('/adjustments', async (req: Request, res: Response) => {
       });
     }
 
-    // Create pending voucher (status: draft)
+    // Create voucher and auto-post it (status: posted) so it appears in balance sheet immediately
     const voucher = await prisma.voucher.create({
       data: {
         voucherNumber,
@@ -1576,13 +1602,51 @@ router.post('/adjustments', async (req: Request, res: Response) => {
         narration: `Adjust Inventory: ${subject || 'Stock adjustment'}`,
         totalDebit: totalAmount,
         totalCredit: totalAmount,
-        status: 'draft', // Pending - will be approved when store manager updates
+        status: 'posted', // Auto-post so it appears in balance sheet immediately
         createdBy: 'System',
+        approvedBy: 'System',
+        approvedAt: new Date(),
         entries: {
           create: voucherEntries,
         },
       },
+      include: {
+        entries: {
+          include: {
+            account: {
+              include: {
+                subgroup: {
+                  include: {
+                    mainGroup: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
+
+    // Update account balances immediately since voucher is posted
+    for (const entry of voucher.entries) {
+      if (!entry.accountId || !entry.account) {
+        continue;
+      }
+
+      const accountType = entry.account.subgroup.mainGroup.type.toLowerCase();
+      const balanceChange = (accountType === 'asset' || accountType === 'expense' || accountType === 'cost')
+        ? (entry.debit - entry.credit)
+        : (entry.credit - entry.debit);
+
+      await prisma.account.update({
+        where: { id: entry.accountId },
+        data: {
+          currentBalance: {
+            increment: balanceChange,
+          },
+        },
+      });
+    }
 
     // Create adjustment with status "pending" and link voucher
     const adjustment = await prisma.adjustment.create({
@@ -1986,47 +2050,72 @@ router.put('/adjustments/:id/approve', async (req: Request, res: Response) => {
       });
     }
 
-    // Auto-approve voucher (draft -> posted)
-    const updatedVoucher = await prisma.voucher.update({
-      where: { id: adjustment.voucherId! },
-      data: {
-        status: 'posted',
-        approvedBy: 'Store Manager',
-        approvedAt: new Date(),
-      },
-      include: {
-        entries: {
-          include: {
-            account: {
-              include: {
-                subgroup: {
-                  include: {
-                    mainGroup: true,
+    // Voucher is already posted when adjustment is created, so just fetch it
+    // Only update if it's still in draft status (backward compatibility)
+    let updatedVoucher;
+    if (adjustment.voucher && adjustment.voucher.status === 'draft') {
+      // Legacy: If voucher is still draft, post it now
+      updatedVoucher = await prisma.voucher.update({
+        where: { id: adjustment.voucherId! },
+        data: {
+          status: 'posted',
+          approvedBy: 'Store Manager',
+          approvedAt: new Date(),
+        },
+        include: {
+          entries: {
+            include: {
+              account: {
+                include: {
+                  subgroup: {
+                    include: {
+                      mainGroup: true,
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-    });
+      });
 
-    // Update account balances
-    for (const entry of updatedVoucher.entries) {
-      if (!entry.accountId || !entry.account) {
-        continue;
+      // Update account balances only if voucher was just posted
+      for (const entry of updatedVoucher.entries) {
+        if (!entry.accountId || !entry.account) {
+          continue;
+        }
+
+        const accountType = entry.account.subgroup.mainGroup.type.toLowerCase();
+        const balanceChange = (accountType === 'asset' || accountType === 'expense' || accountType === 'cost')
+          ? (entry.debit - entry.credit)
+          : (entry.credit - entry.debit);
+
+        await prisma.account.update({
+          where: { id: entry.accountId },
+          data: {
+            currentBalance: {
+              increment: balanceChange,
+            },
+          },
+        });
       }
-
-      const accountType = entry.account.subgroup.mainGroup.type.toLowerCase();
-      const balanceChange = (accountType === 'asset' || accountType === 'expense' || accountType === 'cost')
-        ? (entry.debit - entry.credit)
-        : (entry.credit - entry.debit);
-
-      await prisma.account.update({
-        where: { id: entry.accountId },
-        data: {
-          currentBalance: {
-            increment: balanceChange,
+    } else {
+      // Voucher is already posted, just fetch it
+      updatedVoucher = await prisma.voucher.findUnique({
+        where: { id: adjustment.voucherId! },
+        include: {
+          entries: {
+            include: {
+              account: {
+                include: {
+                  subgroup: {
+                    include: {
+                      mainGroup: true,
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       });

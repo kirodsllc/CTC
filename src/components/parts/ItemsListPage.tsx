@@ -29,7 +29,7 @@ export const ItemsListPage = ({
   const [subcategoryOptions, setSubcategoryOptions] = useState<{ value: string; label: string; categoryName?: string }[]>([]);
   const [applicationOptions, setApplicationOptions] = useState<{ value: string; label: string }[]>([]);
   const [searchFilters, setSearchFilters] = useState({
-    search: '',
+    search: '', 
     master_part_no: '',
     part_no: '',
     brand_name: '',
@@ -264,10 +264,14 @@ export const ItemsListPage = ({
       application: applicationName || "",
       origin: p.origin || "",
       status: p.status === "active" ? "Active" : "Inactive",
-      images: [p.image_p1, p.image_p2].filter(img => img && img.trim() !== ''),
+      images: [
+        p.image_p1 ? (p.image_p1.startsWith('data:') ? p.image_p1 : `data:image/jpeg;base64,${p.image_p1}`) : null,
+        p.image_p2 ? (p.image_p2.startsWith('data:') ? p.image_p2 : `data:image/jpeg;base64,${p.image_p2}`) : null
+      ].filter(img => img && img.trim() !== ''),
       priceUpdated: priceUpdated,
       createdAt: formattedCreatedAt,
       reservedQuantity: p.reserved_quantity || p.reservedQuantity || 0,
+      stock: p.quantity || p.current_stock || p.stock || 0, // Stock quantity from API
     };
   };
 
@@ -356,7 +360,7 @@ export const ItemsListPage = ({
           uom: p.uom || "NOS",
           cost: p.cost ? parseFloat(p.cost) : null,
           price: p.price_a ? parseFloat(p.price_a) : null,
-          stock: 0, // TODO: Add stock tracking
+          stock: p.quantity || p.current_stock || p.stock || 0, // Stock quantity from API
           masterPartNo: (p.master_part_no || p.masterPartNo || "").trim(),
         }));
         onPartsUpdate(transformedParts);
@@ -492,7 +496,7 @@ export const ItemsListPage = ({
             uom: p.uom || "NOS",
             cost: p.cost ? parseFloat(p.cost) : null,
             price: p.price_a ? parseFloat(p.price_a) : null,
-            stock: 0, // TODO: Add stock tracking
+            stock: p.quantity || p.current_stock || p.stock || 0, // Stock quantity from API
             masterPartNo: (p.master_part_no || p.masterPartNo || "").trim(),
           }));
           onPartsUpdate(transformedParts);

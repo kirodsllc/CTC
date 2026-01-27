@@ -29,7 +29,7 @@ interface CustomerData {
   contact: string;
   totalOrders: number;
   totalSales: number;
-  balanceDue: number;
+  balanceDue: number; 
   lastOrder: string;
 }
 

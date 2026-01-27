@@ -31,7 +31,7 @@ interface PeriodData {
   returns: number;
   netSales: number;
   profit: number;
-  margin: number;
+  margin: number; 
   avgOrder: number;
 }
 

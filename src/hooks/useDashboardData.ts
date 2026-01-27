@@ -27,7 +27,7 @@ export interface DashboardData {
   orderStatus: OrderStatusData;
   loading: boolean;
   error: string | null;
-}
+} 
 
 export const useDashboardData = (timeRange: 'Week' | 'Month' | 'Year' = 'Month') => {
   const [data, setData] = useState<DashboardData>({

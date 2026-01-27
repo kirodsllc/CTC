@@ -23,4 +23,4 @@ const Attributes = () => {
   );
 };
 
-export default Attributes;
+export default Attributes; 

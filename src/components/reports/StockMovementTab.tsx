@@ -27,7 +27,7 @@ import { useEffect } from "react";
 type MovementFilter = "all" | "fast" | "slow" | "dead";
 
 interface StockItem {
-  id: string;
+  id: string; 
   partNumber: string;
   name: string;
   brand: string;

@@ -34,4 +34,4 @@ const Accounting = () => {
   );
 };
 
-export default Accounting;
+export default Accounting; 

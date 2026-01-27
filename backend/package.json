@@ -28,7 +28,10 @@
     "delete:invoices": "tsx scripts/delete-all-invoices.ts",
     "cleanup:test-accounts": "tsx scripts/cleanup-test-accounts.ts",
     "delete:accounts": "tsx scripts/delete-all-accounts.ts",
-    "seed:screenshot-accounts": "tsx scripts/seed-screenshot-accounts.ts"
+    "seed:screenshot-accounts": "tsx scripts/seed-screenshot-accounts.ts",
+    "import:items": "tsx src/scripts/import-items-from-json.js",
+    "import:stock": "tsx src/scripts/add-initial-stock.js",
+    "clean:subcategories": "tsx src/scripts/clean-subcategory-names.js"
   },
   "keywords": [],
   "author": "",

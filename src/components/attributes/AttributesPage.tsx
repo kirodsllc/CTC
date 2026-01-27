@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
-  AlertDialogAction,
+  AlertDialogAction, 
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -668,10 +668,10 @@ export const AttributesPage = () => {
             <div className="flex gap-2">
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger className="w-32 h-8 text-xs border-border">
-                  <SelectValue placeholder="All Categories" />
+                  <SelectValue placeholder="All" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                   ))}
@@ -686,7 +686,7 @@ export const AttributesPage = () => {
             </div>
           </div>
           <div className="px-4 py-2 border-b border-border">
-            <p className="text-sm text-muted-foreground">All Categories ({filteredCategories.length})</p>
+            <p className="text-sm text-muted-foreground">All ({filteredCategories.length})</p>
           </div>
           <div className="p-3 space-y-2">
             {filteredCategories.map((category) => (
@@ -724,10 +724,10 @@ export const AttributesPage = () => {
             <div className="flex gap-2">
               <Select value={subcategoryCategoryFilter} onValueChange={setSubcategoryCategoryFilter}>
                 <SelectTrigger className="w-32 h-8 text-xs border-border">
-                  <SelectValue placeholder="All Categories" />
+                  <SelectValue placeholder="All" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                   ))}
@@ -742,7 +742,7 @@ export const AttributesPage = () => {
             </div>
           </div>
           <div className="px-4 py-2 border-b border-border">
-            <p className="text-sm text-muted-foreground">All Sub Categories ({filteredSubcategories.length})</p>
+            <p className="text-sm text-muted-foreground">All ({filteredSubcategories.length})</p>
           </div>
           <div className="p-3 space-y-2">
             {filteredSubcategories.map((subcategory) => (
@@ -750,7 +750,10 @@ export const AttributesPage = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium text-foreground text-sm">
-                      {subcategory.name} <span className="text-muted-foreground font-normal">(under {subcategory.categoryName})</span>
+                      {subcategory.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {subcategory.categoryName}
                     </p>
                   </div>
                   <div className="flex gap-1">
@@ -782,10 +785,10 @@ export const AttributesPage = () => {
             <div className="flex gap-2">
               <Select value={brandFilter} onValueChange={setBrandFilter}>
                 <SelectTrigger className="w-32 h-8 text-xs border-border">
-                  <SelectValue placeholder="All Brands" />
+                  <SelectValue placeholder="All" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Brands</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
                   {brands.map((brand) => (
                     <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
                   ))}
@@ -800,7 +803,7 @@ export const AttributesPage = () => {
             </div>
           </div>
           <div className="px-4 py-2 border-b border-border">
-            <p className="text-sm text-muted-foreground">All Brands ({filteredBrands.length})</p>
+            <p className="text-sm text-muted-foreground">All ({filteredBrands.length})</p>
           </div>
           <div className="p-3 space-y-2">
             {filteredBrands.map((brand) => (
@@ -838,10 +841,10 @@ export const AttributesPage = () => {
             <div className="flex gap-2">
               <Select value={applicationSubcategoryFilter} onValueChange={setApplicationSubcategoryFilter}>
                 <SelectTrigger className="w-32 h-8 text-xs border-border">
-                  <SelectValue placeholder="All Subcategories" />
+                  <SelectValue placeholder="All" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Subcategories</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
                   {subcategories.map((sub) => (
                     <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
                   ))}
@@ -856,7 +859,7 @@ export const AttributesPage = () => {
             </div>
           </div>
           <div className="px-4 py-2 border-b border-border">
-            <p className="text-sm text-muted-foreground">All Applications ({filteredApplications.length})</p>
+            <p className="text-sm text-muted-foreground">All ({filteredApplications.length})</p>
           </div>
           <div className="p-3 space-y-2">
             {filteredApplications.map((application) => (
@@ -864,7 +867,7 @@ export const AttributesPage = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium text-foreground text-sm">
-                      {application.name} <span className="text-muted-foreground font-normal">(under {application.subcategoryName})</span>
+                      {application.name}
                     </p>
                   </div>
                   <div className="flex gap-1">

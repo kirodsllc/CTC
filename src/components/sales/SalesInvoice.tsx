@@ -81,64 +81,7 @@ import {
   ItemGrade,
 } from "@/types/invoice";
 
-// Customers Data
-const mockCustomers: Customer[] = [
-  { id: "1", name: "ABC Auto Parts", type: "registered", balance: 0, creditLimit: 50000, creditDays: 30 },
-  { id: "2", name: "XYZ Trading Co", type: "registered", balance: 5000, creditLimit: 100000, creditDays: 45 },
-  { id: "3", name: "Walk-in Customer", type: "walking", balance: 0, creditLimit: 0, creditDays: 0 },
-];
 
-// Parts Data
-const mockParts: PartItem[] = [
-  {
-    id: "1",
-    partNo: "TEST001",
-    description: "High quality brake pad for vehicles",
-    category: "Brakes",
-    price: 150.00,
-    stockQty: 50,
-    reservedQty: 0,
-    availableQty: 50,
-    lastSalePrice: 145.00,
-    grade: "A",
-    brands: [{ id: "1", name: "Test Brand" }],
-  },
-  {
-    id: "2",
-    partNo: "TEST002",
-    description: "Premium air filter element",
-    category: "Filters",
-    price: 250.00,
-    stockQty: 30,
-    reservedQty: 0,
-    availableQty: 30,
-    lastSalePrice: 240.00,
-    grade: "A",
-    brands: [{ id: "2", name: "Test Brand 2" }],
-  },
-  {
-    id: "3",
-    partNo: "ENG-001",
-    description: "Engine oil filter for diesel engines",
-    category: "Engine",
-    price: 120.00,
-    stockQty: 100,
-    reservedQty: 0,
-    availableQty: 100,
-    lastSalePrice: 115.00,
-    grade: "A",
-    brands: [{ id: "3", name: "Bosch" }],
-  },
-];
-
-// Alternate parts
-const mockAlternateParts: { id: string; name: string; quantity: number; salePrice: number }[] = [
-  { id: "alt1", name: "Alternate Brake Pad - Premium", quantity: 20, salePrice: 160.00 },
-  { id: "alt2", name: "Alternate Brake Pad - Standard", quantity: 35, salePrice: 140.00 },
-];
-
-// Invoices Data
-const mockInvoices: Invoice[] = [];
 
 // Interface for inline item row
 interface InlineItemRow {
@@ -598,7 +541,7 @@ export const SalesInvoice = () => {
           setCustomers(filteredCustomers);
         }
       } catch (error: any) {
-        // Fall back to mockCustomers on error
+        // Set empty array on error
         setCustomers([]);
       } finally {
         setLoadingCustomers(false);

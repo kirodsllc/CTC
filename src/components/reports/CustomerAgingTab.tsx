@@ -27,7 +27,7 @@ interface AgingData {
   id: string;
   customer: string;
   type: "customer" | "distributor";
-  current: number;
+  current: number; 
   days30: number;
   days60: number;
   days90: number;

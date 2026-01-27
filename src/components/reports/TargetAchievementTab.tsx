@@ -26,7 +26,7 @@ import { useEffect } from "react";
 import { Input } from "@/components/ui/input";
 
 interface TargetData {
-  category: string;
+  category: string; 
   target: number;
   achieved: number;
   percentage: number;

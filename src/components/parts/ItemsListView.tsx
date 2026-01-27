@@ -71,6 +71,7 @@ export interface Item {
   priceUpdated?: boolean; // Track if price was recently updated
   createdAt?: string; // Creation date and time
   reservedQuantity?: number; // Reserved stock quantity
+  stock?: number; // Current stock quantity
 }
 
 interface SearchFilters {
@@ -1328,16 +1329,28 @@ export const ItemsListView = ({
                                 <div className="relative">
                                   {(() => {
                                     const firstValidImage = item.images.find(img => img && img.trim() !== '');
-                                    return firstValidImage ? (
+                                    if (!firstValidImage) return null;
+                                    
+                                    // Ensure image has proper data URL format
+                                    const imageSrc = firstValidImage.startsWith('data:') 
+                                      ? firstValidImage 
+                                      : `data:image/jpeg;base64,${firstValidImage}`;
+                                    
+                                    return (
                                       <img
-                                        src={firstValidImage}
+                                        src={imageSrc}
                                         alt="Product"
                                         className="w-8 h-8 rounded object-cover border border-border"
                                         onError={(e) => {
-                                          (e.target as HTMLImageElement).style.display = 'none';
+                                          const target = e.target as HTMLImageElement;
+                                          target.style.display = 'none';
+                                          console.error('Image failed to load:', firstValidImage?.substring(0, 50));
+                                        }}
+                                        onLoad={() => {
+                                          // Image loaded successfully
                                         }}
                                       />
-                                    ) : null;
+                                    );
                                   })()}
                                   {item.images.filter(img => img && img.trim() !== '').length > 1 && (
                                     <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-medium">
@@ -1568,7 +1581,9 @@ export const ItemsListView = ({
           <div className="relative">
             {selectedImages.length > 0 && selectedImages[currentImageIndex] && (
               <img
-                src={selectedImages[currentImageIndex]}
+                src={selectedImages[currentImageIndex].startsWith('data:') 
+                  ? selectedImages[currentImageIndex] 
+                  : `data:image/jpeg;base64,${selectedImages[currentImageIndex]}`}
                 alt="Product"
                 className="w-full h-auto max-h-[70vh] object-contain"
                 onError={(e) => {
@@ -1608,7 +1623,7 @@ export const ItemsListView = ({
                     )}
                   >
                     <img
-                      src={img}
+                      src={img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`}
                       alt=""
                       className="w-full h-full object-cover"
                       onError={(e) => {

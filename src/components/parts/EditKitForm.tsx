@@ -22,7 +22,7 @@ interface KitFormData {
   sellingPrice: string;
   status: string;
   description: string;
-}
+} 
 
 interface Part {
   id: string;

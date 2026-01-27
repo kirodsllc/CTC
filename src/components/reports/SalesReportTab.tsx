@@ -30,7 +30,7 @@ interface SalesRecord {
   customer: string;
   items: number;
   amount: number;
-  status: "paid" | "pending" | "partial";
+  status: "paid" | "pending" | "partial"; 
 }
 
 const SalesReportTab = () => {

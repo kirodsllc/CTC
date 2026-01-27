@@ -18,7 +18,7 @@ interface HistoryPopupProps {
 
 interface PriceHistoryEntry {
   id: string;
-  date: string;
+  date: string; 
   priceA?: number;
   priceB?: number;
   priceM?: number;

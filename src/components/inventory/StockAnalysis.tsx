@@ -26,7 +26,7 @@ interface StockItem {
   id: string;
   partNo: string;
   description: string;
-  category: string;
+  category: string; 
   quantity: number;
   value: number;
   daysIdle: number;

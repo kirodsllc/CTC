@@ -31,12 +31,13 @@ import vouchersRoutes from './routes/vouchers';
 import salesRoutes from './routes/sales';
 import dpoReturnsRoutes from './routes/dpo-returns';
 import salesReturnsRoutes from './routes/sales-returns';
+import advancedSearchRoutes from './routes/advanced-search';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
 
 // Middleware - CORS configuration
-const allowedOrigins = process.env.CORS_ORIGIN 
+const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
   : ['http://localhost:5173', 'http://localhost:8080', 'http://localhost:8081'];
 
@@ -46,17 +47,17 @@ app.use(cors({
     if (!origin) {
       return callback(null, true);
     }
-    
+
     // Check explicit allowed origins
     if (allowedOrigins.indexOf(origin) !== -1) {
       return callback(null, true);
     }
-    
+
     // For development, allow all localhost origins
     if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
       return callback(null, true);
     }
-    
+
     // In production, allow requests from same origin (when served through Nginx)
     // This allows the frontend served from the same domain to access the API
     const isProduction = process.env.NODE_ENV === 'production';
@@ -64,17 +65,17 @@ app.use(cors({
       // Get server origin from environment or default
       const serverOrigin = process.env.SERVER_ORIGIN || 'http://103.60.12.157';
       const serverHost = new URL(serverOrigin).hostname;
-      
+
       // Extract hostname from origin
       try {
         const originUrl = new URL(origin);
         const originHost = originUrl.hostname;
-        
+
         // Allow if hostname matches (regardless of protocol http/https)
         if (originHost === serverHost || originHost.includes(serverHost) || serverHost.includes(originHost)) {
           return callback(null, true);
         }
-        
+
         // Also allow if origin contains the server IP
         if (origin.includes('103.60.12.157') || origin.includes(serverHost)) {
           return callback(null, true);
@@ -85,11 +86,11 @@ app.use(cors({
           return callback(null, true);
         }
       }
-      
+
       // Log CORS rejection for debugging
       return callback(new Error('Not allowed by CORS'));
     }
-    
+
     // In development, be more permissive
     return callback(null, true);
   },
@@ -134,12 +135,12 @@ app.get('/api/debug/version', (req, res) => {
     const packagePath = path.join(__dirname, '../package.json');
     let version = 'unknown';
     let buildTime = 'unknown';
-    
+
     if (fs.existsSync(packagePath)) {
       const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
       version = packageJson.version || 'unknown';
     }
-    
+
     // Try to get git commit hash
     try {
       const { execSync } = require('child_process');
@@ -149,7 +150,7 @@ app.get('/api/debug/version', (req, res) => {
       // Git not available, use build time
       buildTime = new Date().toISOString();
     }
-    
+
     res.json({
       version,
       buildTime: buildTime !== 'unknown' ? buildTime : new Date().toISOString(),
@@ -172,7 +173,7 @@ app.get('/api/debug/db-info', async (req, res) => {
     const dbUrl = process.env.DATABASE_URL || 'not set';
     const dbPath = dbUrl.replace('file:', '');
     const fileExists = fs.existsSync(dbPath);
-    
+
     // Get voucher counts
     const prisma = (await import('./config/database')).default;
     const voucherCount = await prisma.voucher.count();
@@ -181,7 +182,7 @@ app.get('/api/debug/db-info', async (req, res) => {
       orderBy: { createdAt: 'desc' },
       select: { voucherNumber: true, type: true, date: true },
     });
-    
+
     res.json({
       cwd: process.cwd(),
       DATABASE_URL: dbUrl,
@@ -207,13 +208,13 @@ app.get('/api/debug/part-cost/:partNo', async (req, res) => {
     const { partNo } = req.params;
     const prisma = (await import('./config/database')).default;
     const { getCanonicalPartId } = await import('./services/partCanonical');
-    
+
     // Get DATABASE_URL (masked)
     const dbUrl = process.env.DATABASE_URL || 'not set';
-    const maskedDbUrl = dbUrl.includes('file:') 
-      ? `file:${dbUrl.split('/').pop()}` 
+    const maskedDbUrl = dbUrl.includes('file:')
+      ? `file:${dbUrl.split('/').pop()}`
       : dbUrl.replace(/:[^:@]+@/, ':****@');
-    
+
     // Get ALL parts with this partNo
     const allParts = await prisma.part.findMany({
       where: { partNo },
@@ -233,9 +234,9 @@ app.get('/api/debug/part-cost/:partNo', async (req, res) => {
         { createdAt: 'asc' },
       ],
     });
-    
+
     if (!allParts || allParts.length === 0) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: `Part ${partNo} not found`,
         databaseUrlMasked: maskedDbUrl,
         allParts: [],
@@ -243,13 +244,13 @@ app.get('/api/debug/part-cost/:partNo', async (req, res) => {
         pricingApiWillReturn: null,
       });
     }
-    
+
     // Get canonical part ID using service
     const canonicalPartId = await getCanonicalPartId(prisma, partNo);
-    
+
     // The exact row that Pricing API would return (canonical part)
     const pricingApiWillReturn = allParts.find(p => p.id === canonicalPartId) || allParts[0];
-    
+
     res.json({
       requestedPartNo: partNo,
       databaseUrlMasked: maskedDbUrl,
@@ -307,6 +308,9 @@ app.use('/api/getVouchers', vouchersRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/dpo-returns', dpoReturnsRoutes);
 app.use('/api/sales-returns', salesReturnsRoutes);
+app.use('/api/advanced-search', advancedSearchRoutes);
+
+// Trigger restart
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -315,5 +319,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 // Start server
 app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
+  console.log(`Balance Sheet endpoint: http://localhost:${PORT}/api/accounting/balance-sheet`);
 });
 

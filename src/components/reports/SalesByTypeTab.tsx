@@ -28,7 +28,7 @@ interface SalesTypeData {
   type: string;
   transactions: number;
   totalAmount: number;
-  avgTransaction: number;
+  avgTransaction: number; 
   profit: number;
   percentage: number;
 }

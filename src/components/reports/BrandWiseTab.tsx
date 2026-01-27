@@ -27,7 +27,7 @@ import { useEffect } from "react";
 
 interface BrandData {
   brand: string;
-  avgSale: number;
+  avgSale: number; 
   products: number;
   totalSales: number;
   purchases: number;

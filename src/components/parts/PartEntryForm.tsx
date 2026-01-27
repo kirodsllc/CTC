@@ -559,7 +559,10 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
           });
           
           setPartNoOptions(options);
-          setShowPartDropdown(true);
+          // Only show dropdown if it's already open (user clicked on the field)
+          if (showPartDropdown || keepPartDropdownOpen) {
+            setShowPartDropdown(true);
+          }
         } catch (error) {
           setPartNoOptions([]);
         } finally {
@@ -834,8 +837,8 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
       
       const updated = { ...prev, [field]: finalValue };
       
-      // Auto-fill Master Part No when adding new item and Part No is entered
-      if (field === "partNo" && !isEditing && !selectedPart && finalValue.trim() !== "") {
+      // Auto-fill Master Part No when adding new item (after clicking "New" button) and Part No is entered
+      if (field === "partNo" && isAddingNew && finalValue.trim() !== "") {
         // If master part is empty or was previously auto-filled, keep it in sync with part number
         if (!prev.masterPartNo || prev.masterPartNo.trim() === "" || masterPartAutoFilled) {
           updated.masterPartNo = finalValue;
@@ -1322,7 +1325,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     ref={masterPartInputRef}
-                    placeholder="Search master part no..."
+                    placeholder=""
                     value={masterPartSearch || formData.masterPartNo}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -1331,9 +1334,23 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                       handleInputChange("masterPartNo", value);
                     }}
                     onFocus={() => {
+                      // Close other dropdowns
+                      setShowPartDropdown(false);
+                      setShowBrandDropdown(false);
+                      setShowCategoryDropdown(false);
+                      setShowSubcategoryDropdown(false);
+                      setShowApplicationDropdown(false);
+                      // Open this dropdown
                       setShowMasterPartDropdown(true);
                     }}
                     onClick={() => {
+                      // Close other dropdowns
+                      setShowPartDropdown(false);
+                      setShowBrandDropdown(false);
+                      setShowCategoryDropdown(false);
+                      setShowSubcategoryDropdown(false);
+                      setShowApplicationDropdown(false);
+                      // Open this dropdown
                       setShowMasterPartDropdown(true);
                     }}
                     onKeyDown={(e) => {
@@ -1380,8 +1397,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                             
                             setFormData(prev => ({ ...prev, partNo: "" }));
                             setPartSearch("");
-                            setKeepPartDropdownOpen(true);
-                            setShowPartDropdown(true);
+                            // Don't auto-show dropdown after selecting master part
                             setTimeout(() => partInputRef.current?.focus(), 50);
                             
                             if (onPartSelected) onPartSelected(selectedOption.value);
@@ -1400,8 +1416,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                             
                             setFormData(prev => ({ ...prev, partNo: "" }));
                             setPartSearch("");
-                            setKeepPartDropdownOpen(true);
-                            setShowPartDropdown(true);
+                            // Don't auto-show dropdown after selecting master part
                             setTimeout(() => partInputRef.current?.focus(), 50);
                             
                             toast({
@@ -1440,8 +1455,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                               
                               setFormData(prev => ({ ...prev, partNo: "" }));
                               setPartSearch("");
-                              setKeepPartDropdownOpen(true);
-                              setShowPartDropdown(true);
+                              // Don't auto-show dropdown after selecting master part
                               setTimeout(() => partInputRef.current?.focus(), 50);
                               
                               toast({
@@ -1467,7 +1481,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                         }
                       }, 200);
                     }}
-                    className={cn("h-8 text-xs pl-10", showMasterPartDropdown && "ring-2 ring-primary border-primary")}
+                    className={cn("h-8 text-xs pl-10 border-input", !showMasterPartDropdown && "border-2", showMasterPartDropdown && "ring-2 ring-primary border-primary")}
                   />
                 </div>
                 {showMasterPartDropdown && (masterPartNoOptions.length > 0 || (isAddingNew && masterPartSearch && masterPartSearch.trim().length >= 2)) && (
@@ -1555,8 +1569,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                                   // Clear Part No and focus it
                                   setFormData(prev => ({ ...prev, partNo: "" }));
                                   setPartSearch("");
-                                  setKeepPartDropdownOpen(true);
-                                  setShowPartDropdown(true);
+                                  // Don't auto-show dropdown after selecting master part
                                   setTimeout(() => partInputRef.current?.focus(), 50);
 
                                   // Show notification
@@ -1599,14 +1612,13 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     ref={partInputRef}
-                    placeholder="Search part no..."
+                    placeholder=""
                     value={partSearch || formData.partNo}
                     onChange={(e) => {
                       const value = e.target.value;
                       setPartSearch(value);
                       handleInputChange("partNo", value);
-                      setShowPartDropdown(true);
-                      setKeepPartDropdownOpen(true);
+                      // Don't auto-show dropdown on change - only show on click
                     }}
                     onKeyDown={(e) => {
                       const searchTerm = partSearch.trim();
@@ -1846,14 +1858,37 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                       }
                     }}
                     onFocus={() => {
+                      // Close other dropdowns
+                      setShowMasterPartDropdown(false);
+                      setShowBrandDropdown(false);
+                      setShowCategoryDropdown(false);
+                      setShowSubcategoryDropdown(false);
+                      setShowApplicationDropdown(false);
+                      // Open this dropdown
                       setShowPartDropdown(true);
                       setKeepPartDropdownOpen(true);
                     }}
                     onClick={() => {
+                      // Close other dropdowns
+                      setShowMasterPartDropdown(false);
+                      setShowBrandDropdown(false);
+                      setShowCategoryDropdown(false);
+                      setShowSubcategoryDropdown(false);
+                      setShowApplicationDropdown(false);
+                      // Open this dropdown
                       setShowPartDropdown(true);
                       setKeepPartDropdownOpen(true);
                     }}
-                    className={cn("h-8 text-xs pl-10", showPartDropdown && "ring-2 ring-primary border-primary")}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        const isClickInDropdown = partDropdownRef?.current?.contains(document.activeElement);
+                        if (!isClickInDropdown) {
+                          setShowPartDropdown(false);
+                          setKeepPartDropdownOpen(false);
+                        }
+                      }, 200);
+                    }}
+                    className={cn("h-8 text-xs pl-10 border-input", !showPartDropdown && "border-2", showPartDropdown && "ring-2 ring-primary border-primary")}
                   />
                 </div>
                 {showPartDropdown && (() => {
@@ -2150,7 +2185,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     ref={brandInputRef}
-                    placeholder="Search brand..."
+                    placeholder=""
                     value={brandSearch || formData.brand}
                     onChange={(e) => {
                       setBrandSearch(e.target.value);
@@ -2206,17 +2241,39 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                       }
                     }}
                     onFocus={async () => {
+                      // Close other dropdowns
+                      setShowMasterPartDropdown(false);
+                      setShowPartDropdown(false);
+                      setShowCategoryDropdown(false);
+                      setShowSubcategoryDropdown(false);
+                      setShowApplicationDropdown(false);
+                      // Open this dropdown
                       setBrandSearch("");
                       setShowBrandDropdown(true);
                       // Refresh brands when dropdown opens to get newly added brands
                       await fetchBrands();
                     }}
                     onClick={async () => {
+                      // Close other dropdowns
+                      setShowMasterPartDropdown(false);
+                      setShowPartDropdown(false);
+                      setShowCategoryDropdown(false);
+                      setShowSubcategoryDropdown(false);
+                      setShowApplicationDropdown(false);
+                      // Open this dropdown
                       setShowBrandDropdown(true);
                       // Refresh brands when dropdown opens to get newly added brands
                       await fetchBrands();
                     }}
-                    className={cn("h-8 text-xs pl-10", showBrandDropdown && "ring-2 ring-primary border-primary")}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        const isClickInDropdown = brandDropdownRef.current?.contains(document.activeElement);
+                        if (!isClickInDropdown) {
+                          setShowBrandDropdown(false);
+                        }
+                      }, 200);
+                    }}
+                    className={cn("h-8 text-xs pl-10 border-input", !showBrandDropdown && "border-2", showBrandDropdown && "ring-2 ring-primary border-primary")}
                   />
                 </div>
                 {showBrandDropdown && (() => {
@@ -2272,11 +2329,20 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
             <div className="mb-3">
               <label className="block text-xs text-foreground mb-1 font-bold">Description</label>
               <Textarea
-                placeholder="Enter part description"
+                placeholder=""
                 value={formData.description}
                 onChange={(e) => handleInputChange("description", e.target.value)}
+                onFocus={() => {
+                  // Close all dropdowns when Description is focused
+                  setShowMasterPartDropdown(false);
+                  setShowPartDropdown(false);
+                  setShowBrandDropdown(false);
+                  setShowCategoryDropdown(false);
+                  setShowSubcategoryDropdown(false);
+                  setShowApplicationDropdown(false);
+                }}
                 rows={2}
-                className="text-xs min-h-[60px]"
+                className="text-xs min-h-[60px] border-2 border-input focus-visible:border"
               />
             </div>
 
@@ -2287,7 +2353,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     ref={categoryInputRef}
-                    placeholder="Search category..."
+                    placeholder=""
                     value={categorySearch || formData.category}
                     onChange={(e) => {
                       setCategorySearch(e.target.value);
@@ -2356,13 +2422,35 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                       }
                     }}
                     onFocus={() => {
+                      // Close other dropdowns
+                      setShowMasterPartDropdown(false);
+                      setShowPartDropdown(false);
+                      setShowBrandDropdown(false);
+                      setShowSubcategoryDropdown(false);
+                      setShowApplicationDropdown(false);
+                      // Open this dropdown
                       setCategorySearch("");
                       setShowCategoryDropdown(true);
                     }}
                     onClick={() => {
+                      // Close other dropdowns
+                      setShowMasterPartDropdown(false);
+                      setShowPartDropdown(false);
+                      setShowBrandDropdown(false);
+                      setShowSubcategoryDropdown(false);
+                      setShowApplicationDropdown(false);
+                      // Open this dropdown
                       setShowCategoryDropdown(true);
                     }}
-                    className={cn("h-8 text-xs pl-10", showCategoryDropdown && "ring-2 ring-primary border-primary")}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        const isClickInDropdown = categoryDropdownRef.current?.contains(document.activeElement);
+                        if (!isClickInDropdown) {
+                          setShowCategoryDropdown(false);
+                        }
+                      }, 200);
+                    }}
+                    className={cn("h-8 text-xs pl-10 border-input", !showCategoryDropdown && "border-2", showCategoryDropdown && "ring-2 ring-primary border-primary")}
                   />
                 </div>
                 {showCategoryDropdown && (
@@ -2437,7 +2525,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     ref={subcategoryInputRef}
-                    placeholder="Search sub category..."
+                    placeholder=""
                     value={subcategorySearch || formData.subCategory}
                     onChange={(e) => {
                       setSubcategorySearch(e.target.value);
@@ -2518,11 +2606,25 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                       }
                     }}
                     onFocus={() => {
+                      // Close other dropdowns
+                      setShowMasterPartDropdown(false);
+                      setShowPartDropdown(false);
+                      setShowBrandDropdown(false);
+                      setShowCategoryDropdown(false);
+                      setShowApplicationDropdown(false);
+                      // Open this dropdown
                       setSubcategorySearch("");
                       setShowSubcategoryDropdown(true);
                       setKeepSubcategoryDropdownOpen(true);
                     }}
                     onClick={() => {
+                      // Close other dropdowns
+                      setShowMasterPartDropdown(false);
+                      setShowPartDropdown(false);
+                      setShowBrandDropdown(false);
+                      setShowCategoryDropdown(false);
+                      setShowApplicationDropdown(false);
+                      // Open this dropdown
                       setShowSubcategoryDropdown(true);
                       setKeepSubcategoryDropdownOpen(true);
                     }}
@@ -2535,7 +2637,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                         }
                       }, 200);
                     }}
-                    className={cn("h-8 text-xs pl-10", showSubcategoryDropdown && "ring-2 ring-primary border-primary")}
+                    className={cn("h-8 text-xs pl-10 border-input", !showSubcategoryDropdown && "border-2", showSubcategoryDropdown && "ring-2 ring-primary border-primary")}
                   />
                 </div>
                 {showSubcategoryDropdown && (
@@ -2624,7 +2726,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     ref={applicationInputRef}
-                    placeholder="Search application..."
+                    placeholder=""
                     value={formData.application}
                     onChange={(e) => {
                       handleInputChange("application", e.target.value);
@@ -2632,12 +2734,34 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                       setApplicationHighlightedIndex(-1);
                     }}
                     onFocus={() => {
+                      // Close other dropdowns
+                      setShowMasterPartDropdown(false);
+                      setShowPartDropdown(false);
+                      setShowBrandDropdown(false);
+                      setShowCategoryDropdown(false);
+                      setShowSubcategoryDropdown(false);
+                      // Open this dropdown
                       setShowApplicationDropdown(true);
                       setApplicationHighlightedIndex(-1);
                     }}
                     onClick={() => {
+                      // Close other dropdowns
+                      setShowMasterPartDropdown(false);
+                      setShowPartDropdown(false);
+                      setShowBrandDropdown(false);
+                      setShowCategoryDropdown(false);
+                      setShowSubcategoryDropdown(false);
+                      // Open this dropdown
                       setShowApplicationDropdown(true);
                       setApplicationHighlightedIndex(-1);
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        const isClickInDropdown = applicationDropdownRef?.current?.contains(document.activeElement);
+                        if (!isClickInDropdown) {
+                          setShowApplicationDropdown(false);
+                        }
+                      }, 200);
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Escape") {
@@ -2693,7 +2817,7 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
                         setApplicationHighlightedIndex(-1);
                       }
                     }}
-                    className={cn("h-8 text-xs pl-10", showApplicationDropdown && "ring-2 ring-primary border-primary")}
+                    className={cn("h-8 text-xs pl-10 border-input", !showApplicationDropdown && "border-2", showApplicationDropdown && "ring-2 ring-primary border-primary")}
                   />
                 </div>
 
@@ -2749,10 +2873,19 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
               <div>
                 <label className="block text-xs text-foreground mb-1 font-bold">HS Code</label>
                 <Input
-                  placeholder="Enter HS code"
+                  placeholder=""
                   value={formData.hsCode}
                   onChange={(e) => handleInputChange("hsCode", e.target.value)}
-                  className="h-8 text-xs"
+                  onFocus={() => {
+                    // Close all dropdowns when HS Code is focused
+                    setShowMasterPartDropdown(false);
+                    setShowPartDropdown(false);
+                    setShowBrandDropdown(false);
+                    setShowCategoryDropdown(false);
+                    setShowSubcategoryDropdown(false);
+                    setShowApplicationDropdown(false);
+                  }}
+                  className="h-8 text-xs border-2 border-input focus-visible:border"
                 />
               </div>
               <div>
@@ -2919,19 +3052,37 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
               <div>
                 <label className="block text-xs text-foreground mb-1 font-bold">SMC</label>
                 <Input
-                  placeholder="Enter SMC"
+                  placeholder=""
                   value={formData.smc}
                   onChange={(e) => handleInputChange("smc", e.target.value)}
-                  className="h-8 text-xs"
+                  onFocus={() => {
+                    // Close all dropdowns when SMC is focused
+                    setShowMasterPartDropdown(false);
+                    setShowPartDropdown(false);
+                    setShowBrandDropdown(false);
+                    setShowCategoryDropdown(false);
+                    setShowSubcategoryDropdown(false);
+                    setShowApplicationDropdown(false);
+                  }}
+                  className="h-8 text-xs border-2 border-input focus-visible:border"
                 />
               </div>
               <div>
                 <label className="block text-xs text-foreground mb-1 font-bold">Size</label>
                 <Input
-                  placeholder="LxHxW"
+                  placeholder=""
                   value={formData.size}
                   onChange={(e) => handleInputChange("size", e.target.value)}
-                  className="h-8 text-xs"
+                  onFocus={() => {
+                    // Close all dropdowns when Size is focused
+                    setShowMasterPartDropdown(false);
+                    setShowPartDropdown(false);
+                    setShowBrandDropdown(false);
+                    setShowCategoryDropdown(false);
+                    setShowSubcategoryDropdown(false);
+                    setShowApplicationDropdown(false);
+                  }}
+                  className="h-8 text-xs border-2 border-input focus-visible:border"
                 />
               </div>
             </div>
@@ -3007,11 +3158,20 @@ export const PartEntryForm = ({ onSave, selectedPart, onClearSelection, onPartSe
             <div className="mb-4">
               <label className="block text-xs text-foreground mb-1 font-bold">Remarks</label>
               <Textarea
-                placeholder="Enter any additional remarks or notes..."
+                placeholder=""
                 value={formData.remarks}
                 onChange={(e) => handleInputChange("remarks", e.target.value)}
+                onFocus={() => {
+                  // Close all dropdowns when Remarks is focused
+                  setShowMasterPartDropdown(false);
+                  setShowPartDropdown(false);
+                  setShowBrandDropdown(false);
+                  setShowCategoryDropdown(false);
+                  setShowSubcategoryDropdown(false);
+                  setShowApplicationDropdown(false);
+                }}
                 rows={2}
-                className="text-xs min-h-[50px]"
+                className="text-xs min-h-[50px] border-2 border-input focus-visible:border"
               />
             </div>
 

@@ -29,6 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { apiClient } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface ReservedStockItem {
   id: string;
@@ -65,29 +66,29 @@ export const ReserveStock = () => {
 
       // Fetch all pages to get all stock_reservation movements
       while (hasMore) {
-        const response: any = await apiClient.getStockMovements({ 
+        const response: any = await apiClient.getStockMovements({
           page,
           limit
         });
-        
+
         const movementsData = response.data || response;
-        const movements = Array.isArray(movementsData.data) 
-          ? movementsData.data 
-          : Array.isArray(movementsData) 
-          ? movementsData 
-          : [];
+        const movements = Array.isArray(movementsData.data)
+          ? movementsData.data
+          : Array.isArray(movementsData)
+            ? movementsData
+            : [];
 
         // Filter for stock_reservation type
-        const reservedMovements = movements.filter((m: any) => 
+        const reservedMovements = movements.filter((m: any) =>
           (m.reference_type || '').toLowerCase() === 'stock_reservation'
         );
-        
+
         allMovements = [...allMovements, ...reservedMovements];
 
         // Check if there are more pages - stop if we got less than limit items
         hasMore = movements.length >= limit;
         page++;
-        
+
         // Safety limit to prevent infinite loops
         if (page > 100) {
           break;
@@ -96,11 +97,11 @@ export const ReserveStock = () => {
 
       // Group by partId and sum quantities
       const reservedMap = new Map<string, ReservedStockItem>();
-      
+
       allMovements.forEach((movement: any) => {
         const partId = movement.part_id || movement.partId;
         const quantity = movement.quantity || 0;
-        
+
         if (reservedMap.has(partId)) {
           const existing = reservedMap.get(partId)!;
           existing.reservedQuantity += quantity;
@@ -140,7 +141,7 @@ export const ReserveStock = () => {
       const response: any = await apiClient.getParts(params);
       const partsData = response.data || response;
       const partsList = Array.isArray(partsData.data) ? partsData.data : Array.isArray(partsData) ? partsData : [];
-      
+
       setAvailableParts(partsList.map((part: any) => ({
         id: part.id,
         partNo: part.master_part_no || part.part_no || '',

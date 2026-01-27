@@ -18,7 +18,7 @@ export const ExpenseManagement = () => {
 
   useEffect(() => {
     fetchStats();
-  }, [activeTab]);
+  }, [activeTab]); 
 
   const fetchStats = async () => {
     try {

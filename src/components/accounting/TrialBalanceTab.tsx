@@ -13,6 +13,7 @@ interface TrialBalanceRow {
   code?: string;
   accountCode?: string;
   accountName: string;
+  name?: string; // For mainGroup and subgroup display
   accountType?: string;
   debit: number;
   credit: number;
@@ -23,20 +24,20 @@ const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim()) {
     return import.meta.env.VITE_API_URL.trim().replace(/\/api\/?$/, '');
   }
-  
+
   if (typeof window !== 'undefined') {
     const origin = window.location.origin.replace(/\/$/, '');
     const pathname = window.location.pathname;
-    
+
     // If we're in /dev-koncepts path, use /dev-koncepts/api (routes to port 3002)
     if (pathname.startsWith('/dev-koncepts')) {
       return `${origin}/dev-koncepts`;
     }
-    
+
     // Otherwise use /api (routes to port 3001 for main app)
     return origin;
   }
-  
+
   return 'http://localhost:3001';
 };
 
@@ -61,7 +62,7 @@ export const TrialBalanceTab = () => {
       params.append("from_date", fromDate);
       params.append("to_date", toDate);
       if (filterType !== "all") params.append("type", filterType);
-      
+
       const response = await fetch(`${API_URL}/api/accounting/trial-balance?${params}`);
       if (response.ok) {
         const data = await response.json();
@@ -76,6 +77,7 @@ export const TrialBalanceTab = () => {
   };
 
   const handlePrint = () => {
+    const period = `${fromDate} to ${toDate}`;
     const printHTML = `
       <html>
         <head>
@@ -143,7 +145,7 @@ export const TrialBalanceTab = () => {
       ].join(",")),
       ["", "", "TOTAL", totalDebit, totalCredit].join(",")
     ].join("\n");
-    
+
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -155,7 +157,7 @@ export const TrialBalanceTab = () => {
 
   // Filter data (already filtered on backend, but keep for safety)
   const filteredData = trialBalanceData;
-  
+
   // Calculate totals from account rows only (exclude group headers)
   const accountRows = filteredData.filter(row => row.type === 'account' || !row.type);
   const totalDebit = accountRows.reduce((sum, row) => sum + (row.debit || 0), 0);
@@ -268,9 +270,9 @@ export const TrialBalanceTab = () => {
                   className="w-[150px]"
                 />
               </div>
-              <Button 
-                variant="default" 
-                size="sm" 
+              <Button
+                variant="default"
+                size="sm"
                 onClick={fetchTrialBalance}
                 className="transition-all duration-200 hover:scale-105"
               >
@@ -331,8 +333,8 @@ export const TrialBalanceTab = () => {
                         );
                       } else {
                         return (
-                          <TableRow 
-                            key={`acc-${row.accountCode}-${index}`} 
+                          <TableRow
+                            key={`acc-${row.accountCode}-${index}`}
                             className="transition-all duration-200 hover:bg-muted/50"
                           >
                             <TableCell className="pl-8 font-medium">{row.accountName}</TableCell>

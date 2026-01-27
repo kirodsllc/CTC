@@ -28,7 +28,7 @@ interface ComparisonData {
 }
 
 const PurchaseComparisonTab = () => {
-  const [period1Start, setPeriod1Start] = useState("");
+  const [period1Start, setPeriod1Start] = useState(""); 
   const [period1End, setPeriod1End] = useState("");
   const [period2Start, setPeriod2Start] = useState("");
   const [period2End, setPeriod2End] = useState("");

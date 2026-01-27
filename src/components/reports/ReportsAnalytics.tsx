@@ -30,7 +30,7 @@ import ImportCostSummaryTab from "./ImportCostSummaryTab";
 import ExpensesReportTab from "./ExpensesReportTab";
 import CustomerAnalysisTab from "./CustomerAnalysisTab";
 import CustomerAgingTab from "./CustomerAgingTab";
-import SupplierPerformanceTab from "./SupplierPerformanceTab";
+import SupplierPerformanceTab from "./SupplierPerformanceTab"; 
 
 type CategoryType = "overview" | "sales" | "inventory" | "financial" | "analytics";
 

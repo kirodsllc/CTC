@@ -27,7 +27,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
+  DialogHeader, 
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Search, Plus, Loader2, Package, Edit, Trash2, RefreshCw, ChevronDown, ChevronRight, Archive, Layers, MapPin, X } from "lucide-react";
@@ -460,6 +460,39 @@ export const RackAndShelf = () => {
     });
   };
 
+  // Natural sort function for alphanumeric strings (e.g., "A 1", "A 2", "A 10")
+  const naturalSort = (a: string, b: string): number => {
+    // Split strings into parts (text and numbers)
+    const aParts = a.match(/(\d+|\D+)/g) || [];
+    const bParts = b.match(/(\d+|\D+)/g) || [];
+    
+    const minLength = Math.min(aParts.length, bParts.length);
+    
+    for (let i = 0; i < minLength; i++) {
+      const aPart = aParts[i];
+      const bPart = bParts[i];
+      
+      // Check if both parts are numbers
+      const aNum = parseInt(aPart, 10);
+      const bNum = parseInt(bPart, 10);
+      
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        // Both are numbers - compare numerically
+        if (aNum !== bNum) {
+          return aNum - bNum;
+        }
+      } else {
+        // At least one is not a number - compare as strings
+        if (aPart !== bPart) {
+          return aPart.localeCompare(bPart);
+        }
+      }
+    }
+    
+    // If all parts match up to minLength, shorter string comes first
+    return aParts.length - bParts.length;
+  };
+
   // Get shelves for a specific rack
   const getShelvesForRack = (rackId: string): Shelf[] => {
     const rackShelves = shelves
@@ -474,7 +507,8 @@ export const RackAndShelf = () => {
           remainingQuantity: stock.remainingQuantity,
           items: stock.items || [],
         };
-      });
+      })
+      .sort((a, b) => naturalSort(a.shelfNo, b.shelfNo)); // Sort shelves numerically
     
     // If there's a search term, filter shelves to only show those that match
     if (searchTerm.trim()) {
@@ -1249,7 +1283,8 @@ export const RackAndShelf = () => {
         });
         
         return matchesRackName || matchesRackItems || matchesShelfNames || matchesShelfItems;
-      });
+      })
+      .sort((a, b) => naturalSort(a.codeNo, b.codeNo)); // Sort racks numerically
 
     return (
     <div className="space-y-6">

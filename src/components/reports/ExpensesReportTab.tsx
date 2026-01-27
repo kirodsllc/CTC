@@ -27,7 +27,7 @@ import { exportToCSV } from "@/utils/exportUtils";
 interface ExpenseRecord {
   id: string;
   date: string;
-  reference: string;
+  reference: string; 
   category: string;
   description: string;
   amount: number;

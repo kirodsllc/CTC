@@ -18,7 +18,6 @@ import Expenses from "./pages/Expenses";
 import Settings from "./pages/Settings";
 import Accounting from "./pages/Accounting";
 import FinancialStatements from "./pages/FinancialStatements";
-import BalanceSheet from "./pages/BalanceSheet";
 import Vouchers from "./pages/Vouchers";
 import Store from "./pages/Store";
 import Login from "./pages/Login";
@@ -56,7 +55,6 @@ const App = () => (
             <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
             <Route path="/accounting" element={<ProtectedRoute><Accounting /></ProtectedRoute>} />
             <Route path="/financial-statements" element={<ProtectedRoute><FinancialStatements /></ProtectedRoute>} />
-            <Route path="/balance-sheet" element={<ProtectedRoute><BalanceSheet /></ProtectedRoute>} />
             <Route path="/vouchers" element={<ProtectedRoute><Vouchers /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/settings/:tab" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

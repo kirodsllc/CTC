@@ -20,6 +20,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api";
@@ -52,23 +59,24 @@ export const ModelsPage = () => {
   const [unifiedSearchResults, setUnifiedSearchResults] = useState<Item[]>([]);
   const [modelSearchResults, setModelSearchResults] = useState<Array<{ modelName: string; part: Item }>>([]);
   const [searchType, setSearchType] = useState<"model" | "part" | "master" | "mixed">("mixed");
+  const [manualSearchScope, setManualSearchScope] = useState<"all" | "model" | "part" | "master" | "brand">("all");
   const [loadingUnifiedSearch, setLoadingUnifiedSearch] = useState(false);
   const unifiedDropdownRef = useRef<HTMLDivElement>(null);
-  
+
   // Models state
   const [models, setModels] = useState<Model[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
-  
+
   // Inline editing states
   const [editingModelId, setEditingModelId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editQty, setEditQty] = useState("");
-  
+
   // Add new model inline state
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newModelName, setNewModelName] = useState("");
   const [newModelQty, setNewModelQty] = useState("");
-  
+
   // Delete state
   const [deleteModelOpen, setDeleteModelOpen] = useState(false);
   const [modelToDelete, setModelToDelete] = useState<Model | null>(null);
@@ -84,16 +92,16 @@ export const ModelsPage = () => {
       setLoadingParts(true);
       try {
         const response = await apiClient.getParts({
-          limit: 1000,
+          limit: 100000, // Effectively no limit for faster initial load
           page: 1,
         });
-        
+
         if (response.error) {
           setParts([]);
         } else {
           const responseData = response.data as any;
           let partsData: any[] = [];
-          
+
           if (Array.isArray(responseData)) {
             partsData = responseData;
           } else if (responseData && Array.isArray(responseData.data)) {
@@ -128,142 +136,53 @@ export const ModelsPage = () => {
   }, []);
 
   // Detect search type based on input pattern and try both searches
-  const detectSearchType = (searchTerm: string): "model" | "part" | "master" | "mixed" => {
-    const term = searchTerm.trim();
-    
-    // Model patterns: typically short alphanumeric like "140g", "X770651", "A123", etc.
-    // Models are usually 2-10 characters, often contain letters and numbers mixed
-    // Common patterns: starts with letter, contains both letters and numbers, short length
-    const hasLetters = /[a-z]/i.test(term);
-    const hasNumbers = /[0-9]/.test(term);
-    const isShort = term.length <= 10;
-    
-    // If it's short, has both letters and numbers, likely a model
-    if (isShort && hasLetters && hasNumbers) {
-      return "model";
-    }
-    
-    // If it's very short (2-6 chars) and has letters, likely a model
-    if (term.length >= 2 && term.length <= 6 && hasLetters) {
-      return "model";
-    }
-    
-    // Longer alphanumeric strings are likely part numbers or master part numbers
-    if (term.length > 10) {
-      return "master";
-    }
-    
-    // Default to mixed - will search both
-    return "mixed";
-  };
 
+
+  // Unified search - smart detection and appropriate results
+  // Unified search - smart detection and appropriate results
+  // Unified search - smart detection and appropriate results
   // Unified search - smart detection and appropriate results
   useEffect(() => {
     const performUnifiedSearch = async () => {
-      if (!unifiedSearch || unifiedSearch.trim().length < 2) {
+      // Don't search for empty or very short strings
+      if (!unifiedSearch || unifiedSearch.trim().length < 1) {
         setUnifiedSearchResults([]);
         setModelSearchResults([]);
-        setSearchType("mixed");
+        if (manualSearchScope === 'all') {
+          setSearchType("mixed");
+        } else {
+          setSearchType(manualSearchScope as any);
+        }
+        setLoadingUnifiedSearch(false);
         return;
       }
 
       setLoadingUnifiedSearch(true);
       const searchTerm = unifiedSearch.trim();
-      const detectedType = detectSearchType(searchTerm);
-      setSearchType(detectedType);
 
-      try {
-        const allResults: Item[] = [];
-        const modelResults: Array<{ modelName: string; part: Item }> = [];
-        const processedPartIds = new Set<string>();
+      // Update local search type for UI feedback
+      const looksLikeModel = /^\d+[a-z]+$/i.test(searchTerm) || /^[a-z]+\d+$/i.test(searchTerm);
 
-        // If detected as model search, prioritize model search
-        if (detectedType === "model") {
-          try {
-            // Fetch parts and check their models
-            const modelResponse = await apiClient.getParts({
-              limit: 100,
-              page: 1,
-            });
-
-            if (!modelResponse.error) {
-              const responseData = modelResponse.data as any;
-              let partsData: any[] = [];
-              
-              if (Array.isArray(responseData)) {
-                partsData = responseData;
-              } else if (responseData && Array.isArray(responseData.data)) {
-                partsData = responseData.data;
-              }
-
-              const searchTermLower = searchTerm.toLowerCase();
-              const checkPromises = partsData.slice(0, 20).map(async (part) => {
-                if (processedPartIds.has(part.id)) return null;
-
-                try {
-                  const partResponse = await apiClient.getPart(part.id);
-                  if (!partResponse.error) {
-                    const partData = (partResponse as any).data || partResponse;
-                    if (partData.models && Array.isArray(partData.models)) {
-                      const matchingModels = partData.models.filter((model: any) => 
-                        model.name && model.name.toLowerCase().includes(searchTermLower)
-                      );
-                      
-                      if (matchingModels.length > 0) {
-                        const transformedPart: Item = {
-                          id: partData.id,
-                          masterPartNo: partData.part_no || partData.masterPartNo || "",
-                          partNo: partData.master_part_no || partData.partNo || "",
-                          brand: partData.brand_name || partData.brand || "",
-                          description: partData.description || "",
-                          category: partData.category_name || partData.category || "",
-                          subCategory: partData.subcategory_name || partData.subcategory || "",
-                          application: partData.application_name || partData.application || "",
-                          status: partData.status || "active",
-                          images: [],
-                        };
-                        
-                        // Add each matching model
-                        matchingModels.forEach((model: any) => {
-                          modelResults.push({
-                            modelName: model.name,
-                            part: transformedPart,
-                          });
-                        });
-                        
-                        return transformedPart;
-                      }
-                    }
-                  }
-                } catch (err) {
-                  return null;
-                }
-                return null;
-              });
-
-              const modelParts = await Promise.all(checkPromises);
-              modelParts.forEach((result) => {
-                if (result && !processedPartIds.has(result.id)) {
-                  allResults.push(result);
-                  processedPartIds.add(result.id);
-                }
-              });
-
-              // Set model results and exit early for model search
-              if (modelResults.length > 0) {
-                setModelSearchResults(modelResults);
-                setUnifiedSearchResults([]);
-                setLoadingUnifiedSearch(false);
-                return;
-              }
-            }
-          } catch (err) {
-            // Fall through to part search
-          }
+      if (manualSearchScope !== 'all') {
+        setSearchType(manualSearchScope as any);
+      } else {
+        if (looksLikeModel) {
+          setSearchType("model");
+        } else if (searchTerm.length > 10) {
+          setSearchType("master");
+        } else {
+          setSearchType("mixed");
         }
+      }
 
-        // Search by part number, master part number, description, brand
+      // FALLBACK SEARCH FUNCTION
+      const performLegacySearch = async () => {
         try {
+          const allResults: Item[] = [];
+          const modelResults: Array<{ modelName: string; part: Item }> = [];
+          const processedPartIds = new Set<string>();
+
+          // Search parts using standard API
           const apiResponse = await apiClient.getParts({
             search: searchTerm,
             limit: 50,
@@ -273,52 +192,217 @@ export const ModelsPage = () => {
           if (!apiResponse.error) {
             const responseData = apiResponse.data as any;
             let partsData: any[] = [];
-            
+
             if (Array.isArray(responseData)) {
               partsData = responseData;
             } else if (responseData && Array.isArray(responseData.data)) {
               partsData = responseData.data;
             }
 
-            // Transform and add API results
-            partsData.forEach((p: any) => {
-              if (!processedPartIds.has(p.id)) {
-                allResults.push({
-                  id: p.id,
-                  masterPartNo: p.part_no || p.masterPartNo || "",
-                  partNo: p.master_part_no || p.partNo || "",
-                  brand: p.brand_name || p.brand || "",
-                  description: p.description || "",
-                  category: p.category_name || p.category || "",
-                  subCategory: p.subcategory_name || p.subcategory || "",
-                  application: p.application_name || p.application || "",
-                  status: p.status || "active",
-                  images: [],
-                });
-                processedPartIds.add(p.id);
+            // Fetch detailed information for parts in parallel to get their models
+            // attributes. The standard list API doesn't return models, so we must fetch details.
+            const detailedPartsPromises = partsData.slice(0, 40).map(async (p: any) => {
+              if (processedPartIds.has(p.id)) return null;
+
+              try {
+                // We MUST fetch individual part details to see the 'models' array!
+                const detailResponse = await apiClient.getPart(p.id);
+                if (!detailResponse.error) {
+                  return (detailResponse as any).data || detailResponse;
+                }
+                return p;
+              } catch (e) {
+                return p;
+              }
+            });
+
+            const detailedParts = await Promise.all(detailedPartsPromises);
+
+            // Transform results
+            detailedParts.forEach((p: any) => {
+              if (!p || processedPartIds.has(p.id)) return;
+
+              const item = {
+                id: p.id,
+                masterPartNo: p.part_no || p.masterPartNo || p.partNo || "",
+                partNo: p.master_part_no || p.partNo || "",
+                brand: p.brand_name || p.brand || p.brand?.name || "",
+                description: p.description || "",
+                category: p.category_name || p.category || p.category?.name || "",
+                subCategory: p.subcategory_name || p.subcategory || p.subcategory?.name || "",
+                application: p.application_name || p.application || p.application?.name || "",
+                status: p.status || "active",
+                images: [],
+              };
+
+              // Filter based on scope if needed
+              if (manualSearchScope === 'part' && !item.partNo.toLowerCase().includes(searchTerm.toLowerCase())) return;
+              if (manualSearchScope === 'brand' && !item.brand.toLowerCase().includes(searchTerm.toLowerCase())) return;
+
+              allResults.push(item);
+              processedPartIds.add(p.id);
+
+              // Check if it matches model pattern
+              if ((manualSearchScope === 'all' && looksLikeModel) || manualSearchScope === 'model') {
+                if (p.models && Array.isArray(p.models)) {
+                  p.models.forEach((m: any) => {
+                    // Check if model name contains search term
+                    // OR if we are just showing all models for a part that matched differently?
+                    // User expects: Search "140G" -> Show parts for 140G.
+                    if (m.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+                      modelResults.push({ modelName: m.name, part: item });
+                    }
+                  });
+                }
               }
             });
           }
+
+          // Sort models: Exact matches first, then starts-with, then others
+          modelResults.sort((a, b) => {
+            const lowerTerm = searchTerm.toLowerCase();
+            const aName = a.modelName.toLowerCase();
+            const bName = b.modelName.toLowerCase();
+
+            // 1. Exact match priority
+            if (aName === lowerTerm && bName !== lowerTerm) return -1;
+            if (bName === lowerTerm && aName !== lowerTerm) return 1;
+
+            // 2. Starts-with priority
+            const aStarts = aName.startsWith(lowerTerm);
+            const bStarts = bName.startsWith(lowerTerm);
+            if (aStarts && !bStarts) return -1;
+            if (bStarts && !aStarts) return 1;
+
+            return aName.localeCompare(bName);
+          });
+
+          if (manualSearchScope === 'model') {
+            setModelSearchResults(modelResults);
+            setUnifiedSearchResults([]);
+          } else if (manualSearchScope === 'part' || manualSearchScope === 'brand' || manualSearchScope === 'master') {
+            setModelSearchResults([]);
+            setUnifiedSearchResults(allResults);
+          } else {
+            // ALL / Auto
+            if (modelResults.length > 0) {
+              setModelSearchResults(modelResults);
+              if (modelResults.length > 0 && looksLikeModel) {
+                setUnifiedSearchResults([]);
+                setSearchType("model");
+              } else {
+                setUnifiedSearchResults(allResults);
+              }
+            } else {
+              setModelSearchResults([]);
+              setUnifiedSearchResults(allResults);
+            }
+          }
         } catch (err) {
-          // Continue
+          console.error("Legacy search failed", err);
+          setUnifiedSearchResults([]);
+        } finally {
+          setLoadingUnifiedSearch(false);
+        }
+      };
+
+      try {
+        // Try Advanced Search API First
+        const response = await apiClient.get(`/advanced-search/search?q=${encodeURIComponent(searchTerm)}&type=${manualSearchScope}&limit=20`);
+
+        if (response.error) {
+          // If 404 or error, fallback to legacy
+          console.warn("Advanced search failed, falling back to legacy", response.error);
+          performLegacySearch();
+          return;
         }
 
-        setUnifiedSearchResults(allResults);
-        setModelSearchResults([]);
-      } catch (error: any) {
-        setUnifiedSearchResults([]);
-        setModelSearchResults([]);
-      } finally {
+        const data = (response as any).data || response;
+        if (!data || (!data.exact && !data.related)) {
+          // Invalid response structure, fallback
+          performLegacySearch();
+          return;
+        }
+
+        const exactMatches = data.exact || [];
+        const relatedMatches = data.related || [];
+
+        // Use Sets to prevent duplicates
+        const modelResults: Array<{ modelName: string; part: Item }> = [];
+        const partResults: Item[] = [];
+        const processedPartIds = new Set<string>();
+
+        const processItem = (item: any, isModel: boolean) => {
+          const part: Item = {
+            id: item.partId,
+            masterPartNo: item.masterPartNo || "",
+            partNo: item.partNo || "",
+            brand: item.brand || "",
+            description: item.description || "",
+            category: item.category || "",
+            subCategory: item.subcategory || "",
+            application: item.application || "",
+            status: item.status || "active",
+            images: []
+          };
+
+          if (isModel) {
+            modelResults.push({ modelName: item.modelName, part });
+          } else if (!processedPartIds.has(item.partId)) {
+            partResults.push(part);
+            processedPartIds.add(item.partId);
+          }
+        };
+
+        // Process results
+        exactMatches.forEach((item: any) => processItem(item, item.type === 'model'));
+        relatedMatches.forEach((item: any) => {
+          // Avoid duplicates in model results
+          if (item.type === 'model') {
+            if (!modelResults.some(m => m.modelName === item.modelName && m.part.id === item.partId)) {
+              processItem(item, true);
+            }
+          } else {
+            processItem(item, false);
+          }
+        });
+
+        // Determine display logic based on SCOPE
+        if (manualSearchScope === 'model') {
+          setModelSearchResults(modelResults);
+          setUnifiedSearchResults([]);
+        } else if (manualSearchScope === 'part' || manualSearchScope === 'brand' || manualSearchScope === 'master') {
+          setModelSearchResults([]);
+          setUnifiedSearchResults(partResults);
+        } else {
+          // Auto / All
+          if (modelResults.length > 0) {
+            setModelSearchResults(modelResults);
+            if (modelResults.length > 0 && looksLikeModel) {
+              setUnifiedSearchResults([]);
+              setSearchType("model");
+            } else {
+              setUnifiedSearchResults(partResults);
+            }
+          } else {
+            setModelSearchResults([]);
+            setUnifiedSearchResults(partResults);
+          }
+        }
         setLoadingUnifiedSearch(false);
+
+      } catch (error) {
+        console.error("Search error, falling back:", error);
+        performLegacySearch();
       }
     };
 
     const timeoutId = setTimeout(() => {
       performUnifiedSearch();
-    }, 250);
+    }, 150);
 
     return () => clearTimeout(timeoutId);
-  }, [unifiedSearch]);
+  }, [unifiedSearch, manualSearchScope]);
 
   // Get models for selected part
   const partModels = useMemo(() => {
@@ -337,7 +421,7 @@ export const ModelsPage = () => {
       setLoadingModels(true);
       try {
         const response = await apiClient.getPart(selectedPart.id);
-        
+
         if (response.error) {
           toast({
             title: "Error",
@@ -351,14 +435,14 @@ export const ModelsPage = () => {
           // So models are directly on the response object
           const responseData = (response as any).data || response;
           const apiModels = responseData?.models || [];
-          
+
           const transformedModels: Model[] = apiModels.map((m: any) => ({
             id: m.id,
             name: m.name,
             qtyUsed: m.qty_used || m.qtyUsed || 1,
             partId: selectedPart.id,
           }));
-          
+
           setModels(transformedModels);
         }
       } catch (error: any) {
@@ -413,12 +497,12 @@ export const ModelsPage = () => {
             master_part_no: unifiedSearch.trim(),
             limit: 1,
           };
-          
+
           const response = await apiClient.getParts(params);
           if (!response.error && response.data) {
             const responseData = response.data as any;
             let partsData: any[] = [];
-            
+
             if (Array.isArray(responseData)) {
               partsData = responseData;
             } else if (responseData && Array.isArray(responseData.data)) {
@@ -482,16 +566,16 @@ export const ModelsPage = () => {
 
   const handleSaveNewModel = async () => {
     if (!selectedPart || !newModelName.trim()) return;
-    
+
     const newModel: Model = {
       id: Date.now().toString(), // Temporary ID, will be replaced by backend
       name: newModelName.trim(),
       qtyUsed: parseInt(newModelQty) || 1,
       partId: selectedPart.id,
     };
-    
+
     const updatedModels = [...models, newModel];
-    
+
     try {
       await saveModelsToBackend(updatedModels);
       // Refresh models from backend to get the actual IDs
@@ -535,13 +619,13 @@ export const ModelsPage = () => {
 
   const handleSaveEdit = async () => {
     if (!editingModelId || !editName.trim()) return;
-    
+
     const updatedModels = models.map((m) =>
       m.id === editingModelId
         ? { ...m, name: editName.trim(), qtyUsed: parseInt(editQty) || 1 }
         : m
     );
-    
+
     try {
       await saveModelsToBackend(updatedModels);
       setModels(updatedModels);
@@ -567,9 +651,9 @@ export const ModelsPage = () => {
   // Delete Model
   const handleDeleteModel = async () => {
     if (!modelToDelete) return;
-    
+
     const updatedModels = models.filter((m) => m.id !== modelToDelete.id);
-    
+
     try {
       await saveModelsToBackend(updatedModels);
       setModels(updatedModels);
@@ -603,43 +687,43 @@ export const ModelsPage = () => {
       setEditName("");
       setEditQty("");
     }
-    
-      // Re-fetch models from backend
-      if (selectedPart) {
-        setLoadingModels(true);
-        try {
-          const response = await apiClient.getPart(selectedPart.id);
-          if (response.error) {
-            toast({
-              title: "Error",
-              description: response.error || "Failed to refresh models",
-              variant: "destructive",
-            });
-          } else {
-            // The API client returns the response object directly
-            const responseData = (response as any).data || response;
-            const apiModels = responseData?.models || [];
-            const transformedModels: Model[] = apiModels.map((m: any) => ({
-              id: m.id,
-              name: m.name,
-              qtyUsed: m.qty_used || m.qtyUsed || 1,
-              partId: selectedPart.id,
-            }));
-            setModels(transformedModels);
-            toast({ title: "Data refreshed" });
-          }
-        } catch (error: any) {
+
+    // Re-fetch models from backend
+    if (selectedPart) {
+      setLoadingModels(true);
+      try {
+        const response = await apiClient.getPart(selectedPart.id);
+        if (response.error) {
           toast({
             title: "Error",
-            description: error.message || "Failed to refresh models",
+            description: response.error || "Failed to refresh models",
             variant: "destructive",
           });
-        } finally {
-          setLoadingModels(false);
+        } else {
+          // The API client returns the response object directly
+          const responseData = (response as any).data || response;
+          const apiModels = responseData?.models || [];
+          const transformedModels: Model[] = apiModels.map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            qtyUsed: m.qty_used || m.qtyUsed || 1,
+            partId: selectedPart.id,
+          }));
+          setModels(transformedModels);
+          toast({ title: "Data refreshed" });
         }
-      } else {
-        toast({ title: "Data refreshed" });
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to refresh models",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingModels(false);
       }
+    } else {
+      toast({ title: "Data refreshed" });
+    }
   };
 
   return (
@@ -662,6 +746,26 @@ export const ModelsPage = () => {
         <div className="flex items-center gap-2 mb-6">
           <div className="w-1 h-6 bg-primary rounded-full" />
           <h2 className="text-lg font-semibold text-foreground">Model Selection</h2>
+        </div>
+
+        {/* Search Scope Selector */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-foreground mb-1.5">Search By</label>
+          <Select
+            value={manualSearchScope}
+            onValueChange={(v: any) => setManualSearchScope(v)}
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select search scope" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All (Auto-Detect)</SelectItem>
+              <SelectItem value="model">Machine Model</SelectItem>
+              <SelectItem value="part">Part Number</SelectItem>
+              <SelectItem value="master">Master Part Number</SelectItem>
+              <SelectItem value="brand">Brand</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Unified Search Field - Single field for all search types */}
@@ -869,7 +973,7 @@ export const ModelsPage = () => {
                             autoFocus
                           />
                         ) : (
-                          <span 
+                          <span
                             className="font-medium cursor-pointer hover:text-primary transition-colors"
                             onClick={() => handleStartEdit(model)}
                           >
@@ -922,12 +1026,12 @@ export const ModelsPage = () => {
               </TableBody>
             </Table>
           </div>
-          
+
           {/* Reset Button */}
           <div className="flex justify-center mt-4">
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="px-6"
               onClick={handleRefresh}
             >

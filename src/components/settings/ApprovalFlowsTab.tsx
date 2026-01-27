@@ -35,7 +35,7 @@ import apiClient from "@/lib/api";
 interface ApprovalStep {
   role: string;
   action: string;
-}
+} 
 
 interface ApprovalFlow {
   id: string;

@@ -5,20 +5,20 @@ const getApiBaseUrl = () => {
   if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim()) {
     return import.meta.env.VITE_API_URL.trim();
   }
-  
+
   if (typeof window !== 'undefined') {
     const origin = window.location.origin.replace(/\/$/, '');
     const pathname = window.location.pathname;
-    
+
     // If we're in /dev-koncepts path, use /dev-koncepts/api (routes to port 3002)
     if (pathname.startsWith('/dev-koncepts')) {
       return `${origin}/dev-koncepts/api`;
     }
-    
+
     // Otherwise use /api (routes to port 3001 for main app)
     return `${origin}/api`;
   }
-  
+
   return 'http://localhost:3001/api';
 };
 
@@ -51,25 +51,25 @@ class ApiClient {
     headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     headers.set('Pragma', 'no-cache');
     headers.set('Expires', '0');
-    
+
     // Add cache-busting to URL if not already present
     const separator = endpoint.includes('?') ? '&' : '?';
     const cacheBuster = `_cb=${Date.now()}`;
     const urlWithCacheBuster = endpoint.includes('_cb=') ? endpoint : `${endpoint}${separator}${cacheBuster}`;
-    
+
     // Merge headers properly - preserve existing headers from options
     const mergedHeaders = new Headers(options.headers as HeadersInit || {});
     headers.forEach((value, key) => {
       mergedHeaders.set(key, value);
     });
-    
+
     // Ensure Content-Type is set for POST/PUT requests with body
     if (options.body && (options.method === 'POST' || options.method === 'PUT' || options.method === 'PATCH')) {
       if (!mergedHeaders.has('Content-Type')) {
         mergedHeaders.set('Content-Type', 'application/json');
       }
     }
-    
+
     options.headers = mergedHeaders;
     try {
       // Ensure endpoint doesn't have leading slash if baseUrl already ends with one
@@ -85,17 +85,17 @@ class ApiClient {
         headers: mergedHeaders,
         redirect: 'follow', // Follow redirects but we'll detect them
       };
-      
+
       // Only include body if it exists (for POST/PUT/PATCH)
       if (options.body) {
         fetchOptions.body = options.body;
       }
-      
+
       // Include any other options (like signal for abort)
       if (options.signal) {
         fetchOptions.signal = options.signal;
       }
-      
+
       // Debug logging for POST requests
       if (fetchOptions.method === 'POST' || fetchOptions.method === 'PUT' || fetchOptions.method === 'PATCH') {
       }
@@ -1223,18 +1223,19 @@ class ApiClient {
   }
 
   async getBalanceSheet(params?: {
+    date?: string;
     as_of_date?: string;
   }) {
     const queryParams = new URLSearchParams();
     if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          queryParams.append(key, String(value));
-        }
-      });
+      // Use as_of_date if provided, otherwise use date
+      const dateValue = params.as_of_date || params.date;
+      if (dateValue) {
+        queryParams.append('as_of_date', String(dateValue));
+      }
     }
     const queryString = queryParams.toString();
-    return this.request(`/financial/balance-sheet${queryString ? `?${queryString}` : ''}`);
+    return this.request(`/accounting/balance-sheet${queryString ? `?${queryString}` : ''}`);
   }
 
   async getIncomeStatement(params?: {
@@ -1293,6 +1294,47 @@ class ApiClient {
     }
     const queryString = queryParams.toString();
     return this.request(`/accounting/accounts${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getMainGroups() {
+    return this.request('/accounting/main-groups');
+  }
+
+  async getSubgroups(params?: { mainGroupId?: string; isActive?: boolean }) {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      if (params.mainGroupId) queryParams.append('mainGroupId', params.mainGroupId);
+      if (params.isActive !== undefined) queryParams.append('isActive', String(params.isActive));
+    }
+    const queryString = queryParams.toString();
+    return this.request(`/accounting/subgroups${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async createSubgroup(data: {
+    mainGroupId: string;
+    code: string;
+    name: string;
+    isActive?: boolean;
+  }) {
+    return this.request('/accounting/subgroups', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async createAccount(data: {
+    subgroupId: string;
+    code: string;
+    name: string;
+    description?: string;
+    openingBalance?: number;
+    accountType?: string;
+    status?: string;
+  }) {
+    return this.request('/accounting/accounts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   // Customers API

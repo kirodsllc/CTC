@@ -24,7 +24,7 @@ export const IncomeStatementReport = () => {
   const [revenueAccounts, setRevenueAccounts] = useState<IncomeAccount[]>([]);
   const [costAccounts, setCostAccounts] = useState<IncomeAccount[]>([]);
   const [expenseAccounts, setExpenseAccounts] = useState<IncomeAccount[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); 
 
   const fetchIncomeStatement = async () => {
     setLoading(true);

@@ -16,6 +16,7 @@ import {
   FileText,
   Archive,
   Store,
+  Package,
 } from "lucide-react";
 
 // Inventory sub-modules
@@ -29,11 +30,13 @@ import { StockAnalysis } from "@/components/inventory/StockAnalysis";
 import { StockVerification } from "@/components/inventory/StockVerification";
 import { PurchaseOrder } from "@/components/inventory/PurchaseOrder";
 import { DirectPurchaseOrder } from "@/components/inventory/DirectPurchaseOrder";
+import { CurrentStock } from "@/components/inventory/CurrentStock";
 
 import { StoreManagementTab } from "@/components/settings/StoreManagementTab";
 
 type InventoryTab =
   | "dashboard"
+  | "current-stock"
   | "stock-in-out"
   | "stock-transfer"
   | "adjust-item"
@@ -54,6 +57,7 @@ interface TabConfig {
 
 const tabs: TabConfig[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, description: "Overview & analytics" },
+  { id: "current-stock", label: "Current Stock", icon: Package, description: "View current stock with prices" },
   { id: "store-management", label: "Store Management", icon: Store, description: "Manage stores & locations" },
   { id: "stock-in-out", label: "Stock In/Out", icon: ArrowRightLeft, description: "Record stock movements" },
   // { id: "stock-transfer", label: "Stock Transfer", icon: Truck, description: "Transfer between locations" }, // Hidden temporarily
@@ -86,6 +90,8 @@ const Inventory = () => {
     switch (activeTab) {
       case "dashboard":
         return <InventoryDashboard />;
+      case "current-stock":
+        return <CurrentStock />;
       case "store-management":
         return <StoreManagementTab />;
       case "stock-in-out":

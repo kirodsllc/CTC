@@ -1,258 +1,419 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { getCurrentDatePakistan } from "@/utils/dateUtils";
+import { apiClient } from "@/lib/api";
+import { Loader2 } from "lucide-react";
 
-const API_URL_RAW = import.meta.env.VITE_API_URL || 
-  (import.meta.env.DEV ? 'http://localhost:3001' : '');
-const API_URL = API_URL_RAW.replace(/\/api\/?$/, '');
-
-interface Account {
+interface BalanceSheetAccount {
+  id: string;
+  code: string;
   name: string;
-  amount: number;
+  balance: number;
 }
 
-interface SubGroup {
+interface BalanceSheetSubgroup {
+  id: string;
+  code: string;
   name: string;
-  items: Account[];
-  total: number;
+  coa_accounts: BalanceSheetAccount[];
 }
 
-interface MainGroup {
+interface BalanceSheetMainGroup {
+  id: string;
+  code: string;
   name: string;
-  items: SubGroup[];
-  total: number;
+  non_depreciation_sub_groups?: BalanceSheetSubgroup[];
+  coa_sub_groups?: BalanceSheetSubgroup[];
 }
 
 interface BalanceSheetData {
-  assets: MainGroup[];
-  liabilities: MainGroup[];
-  equity: MainGroup[];
-  netIncome: number;
-  totals: {
-    totalAssets: number;
-    totalLiabilities: number;
-    totalEquity: number;
-    totalCapital: number;
-    totalLiabilitiesAndCapital: number;
-  };
+  assets: BalanceSheetMainGroup[];
+  liabilities: BalanceSheetMainGroup[];
+  capital: BalanceSheetMainGroup[];
+  revExp: number;
+  revenue: number;
+  expense: number;
+  cost: number;
 }
 
 export const BalanceSheetTab = () => {
-  const [selectedDate, setSelectedDate] = useState(() => getCurrentDatePakistan());
-  const [data, setData] = useState<BalanceSheetData | null>(null);
+  const [date, setDate] = useState<string>(() => {
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = String(today.getFullYear()).slice(-2);
+    return `${day}/${month}/${year}`;
+  });
   const [loading, setLoading] = useState(true);
+  const [balanceSheetData, setBalanceSheetData] = useState<BalanceSheetData | null>(null);
 
   useEffect(() => {
     fetchBalanceSheet();
-  }, [selectedDate]);
+  }, [date]);
 
   const fetchBalanceSheet = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/api/accounting/balance-sheet?as_of_date=${selectedDate}`);
-      if (response.ok) {
-        const result = await response.json();
-        setData(result);
-      } else {
+      const response = await apiClient.getBalanceSheet({ date });
+      if (response.data) {
+        setBalanceSheetData(response.data);
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Error fetching balance sheet:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatNumber = (num: number): string => {
-    if (num === 0) return "0";
-    return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const formatNumber = (value: number | null | undefined): string => {
+    if (value === null || value === undefined) return "0";
+    const num = typeof value === 'number' ? value : parseFloat(value);
+    if (isNaN(num)) return "0";
+    return num.toLocaleString(undefined, {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 2,
+    });
   };
 
-  const formatDateDisplay = (dateString: string): string => {
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = String(date.getFullYear()).slice(-2);
-    return `${day}/${month}/${year}`;
+  const formatBalance = (balance: number | null | undefined, isLiability: boolean = false): string => {
+    if (balance === null || balance === undefined) return "0";
+    const num = typeof balance === 'number' ? balance : parseFloat(balance);
+    if (isNaN(num)) return "0";
+
+    if (isLiability) {
+      // For liabilities (credit normal): 
+      // balance <= 0 (normal credit balance) shows as positive
+      // balance > 0 (unusual debit balance) shows in parentheses
+      return num <= 0 ? formatNumber(Math.abs(num)) : `(${formatNumber(num)})`;
+    } else {
+      // For assets (debit normal):
+      // balance >= 0 (normal debit balance) shows as positive
+      // balance < 0 (unusual credit balance) shows in parentheses
+      return num >= 0 ? formatNumber(num) : `(${formatNumber(Math.abs(num))})`;
+    }
   };
 
-  const renderMainGroup = (mainGroup: MainGroup) => {
+  // Helper to get balance value from account (matching autohub structure)
+  const getAccountBalance = (account: any): number | null => {
+    if (typeof account.balance === 'number') return account.balance;
+    return account.balance?.balance ?? null;
+  };
+
+  const calculateSubgroupTotal = (subgroup: BalanceSheetSubgroup): number => {
+    return subgroup.coa_accounts?.reduce((sum, acc) => {
+      const balance = getAccountBalance(acc) || 0;
+      return sum + balance;
+    }, 0) || 0;
+  };
+
+  const calculateMainGroupTotal = (mainGroup: BalanceSheetMainGroup): number => {
+    const subgroups = mainGroup.non_depreciation_sub_groups || mainGroup.coa_sub_groups || [];
+    return subgroups.reduce((sum, sg) => sum + calculateSubgroupTotal(sg), 0);
+  };
+
+  const calculateTotalAssets = (): number => {
+    if (!balanceSheetData?.assets) return 0;
+    return balanceSheetData.assets.reduce((sum, mg) => sum + calculateMainGroupTotal(mg), 0);
+  };
+
+  const calculateTotalLiabilities = (): number => {
+    if (!balanceSheetData?.liabilities) return 0;
+    return balanceSheetData.liabilities.reduce((sum, mg) => sum + calculateMainGroupTotal(mg), 0);
+  };
+
+  const calculateTotalCapital = (): number => {
+    if (!balanceSheetData?.capital) return 0;
+    const capitalTotal = balanceSheetData.capital.reduce((sum, mg) => sum + calculateMainGroupTotal(mg), 0);
+    const netIncome = balanceSheetData.revExp || 0;
+    return capitalTotal + netIncome;
+  };
+
+  if (loading) {
     return (
-      <div key={mainGroup.name} className="space-y-1">
-        {/* Main Group Header */}
-        <div className="flex justify-between items-center py-2 px-2">
-          <span className="font-semibold">{mainGroup.name}</span>
-          <span className="font-semibold text-right">{formatNumber(mainGroup.total || 0)}</span>
-        </div>
-
-        {/* Subgroups */}
-        {mainGroup.items && mainGroup.items.map((subgroup) => (
-          <div key={subgroup.name} className="pl-4 space-y-1">
-            {/* Subgroup Header */}
-            <div className="flex justify-between items-center py-1.5 px-2">
-              <span className="font-medium">{subgroup.name}</span>
-              <span className="text-right">{formatNumber(subgroup.total || 0)}</span>
-            </div>
-
-            {/* Accounts under subgroup */}
-            {subgroup.items && subgroup.items.length > 0 && (
-              <div className="pl-4 space-y-0.5">
-                {subgroup.items.map((account, idx) => (
-                  <div key={`${account.name}-${idx}`} className="flex justify-between items-center py-1 px-3">
-                    <span className="text-sm">{account.name}</span>
-                    <span className="text-sm text-right font-mono">{formatNumber(account.amount || 0)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Subgroup Total */}
-            <div className="flex justify-between items-center py-1.5 px-2 border-t border-border/30">
-              <span className="font-medium">Total {subgroup.name}</span>
-              <span className="font-medium text-right">{formatNumber(subgroup.total || 0)}</span>
-            </div>
-          </div>
-        ))}
-
-        {/* Main Group Total */}
-        <div className="flex justify-between items-center py-2 px-2 border-t-2 border-border/50 font-semibold mt-1">
-          <span>Total {mainGroup.name}</span>
-          <span className="text-right">{formatNumber(mainGroup.total || 0)}</span>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
-  };
+  }
 
-  const totalAssets = data?.totals?.totalAssets || 0;
-  const totalLiabilities = data?.totals?.totalLiabilities || 0;
-  const totalEquity = data?.totals?.totalEquity || 0;
-  const netIncome = data?.netIncome || 0;
-  const totalCapital = data?.totals?.totalCapital || (totalEquity + netIncome);
-  const totalLiabilitiesAndCapital = data?.totals?.totalLiabilitiesAndCapital || (totalLiabilities + totalCapital);
+  if (!balanceSheetData) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <p className="text-muted-foreground">No balance sheet data available</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const totalAssets = calculateTotalAssets();
+  const totalLiabilities = calculateTotalLiabilities();
+  const totalCapital = calculateTotalCapital();
+  const totalLiabilitiesAndCapital = totalLiabilities + totalCapital;
   const isBalanced = Math.abs(totalAssets - totalLiabilitiesAndCapital) < 0.01;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Filter Section */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Filter</Label>
-        <div className="flex items-center gap-3">
-          <Label className="text-sm text-muted-foreground whitespace-nowrap">Date:</Label>
-          <Input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-[150px]"
-          />
-          <span className="text-sm text-muted-foreground">
-            {formatDateDisplay(selectedDate)}
-          </span>
-        </div>
-      </div>
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <Label htmlFor="balance-sheet-date" className="font-semibold">Filter</Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="balance-sheet-date">Date:</Label>
+              <Input
+                id="balance-sheet-date"
+                type="text"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                placeholder="DD/MM/YY"
+                className="w-32"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      {loading ? (
-        <div className="py-8 text-center text-muted-foreground">
-          Loading balance sheet data...
-        </div>
-      ) : !data ? (
-        <div className="py-8 text-center text-muted-foreground">
-          No data available
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column: Assets */}
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border">Assets</h2>
-              <div className="space-y-2">
-                {data.assets && data.assets.map((mainGroup) => renderMainGroup(mainGroup))}
-              </div>
-              <Separator className="my-3" />
-              <div className="flex justify-between items-center py-2 font-bold">
-                <span>Total Assets</span>
-                <span className="text-right">{formatNumber(totalAssets)}</span>
-              </div>
-            </CardContent>
-          </Card>
+      {/* Balance Sheet Content */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Assets Column */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-bold">Assets</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {balanceSheetData.assets?.map((mainGroup) => {
+              const mainGroupTotal = calculateMainGroupTotal(mainGroup);
+              return (
+                <div key={mainGroup.id} className="ml-4">
+                  <h3 className="text-base font-semibold mb-2">
+                    {mainGroup.code}-{mainGroup.name}
+                  </h3>
 
-          {/* Right Column: Liabilities + Capital */}
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              {/* Liabilities Section */}
-              <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border">Liabilities</h2>
-              <div className="space-y-2">
-                {data.liabilities && data.liabilities.map((mainGroup) => renderMainGroup(mainGroup))}
-              </div>
-              <Separator className="my-3" />
-              <div className="flex justify-between items-center py-2 font-bold">
-                <span>Total Liabilities</span>
-                <span className="text-right">{formatNumber(totalLiabilities)}</span>
-              </div>
+                  {(mainGroup.non_depreciation_sub_groups || []).map((subgroup) => {
+                    const subgroupTotal = calculateSubgroupTotal(subgroup);
+                    return (
+                      <div key={subgroup.id} className="mb-4 ml-4">
+                        <h4 className="text-sm font-medium mb-1 text-gray-700">
+                          {subgroup.code}-{subgroup.name}
+                        </h4>
 
-              {/* Capital Section */}
-              <div className="mt-6">
-                <h2 className="text-lg font-bold mb-4 pb-2 border-b border-border">Capital</h2>
-                <div className="space-y-2">
-                  {data.equity && data.equity.map((mainGroup) => {
-                    // Handle 6-Drawings separately if it exists
-                    if (mainGroup.name.includes('6-Drawings') || mainGroup.name.includes('Drawings')) {
+                        {subgroup.coa_accounts?.map((account) => {
+                          const accountBalance = getAccountBalance(account);
+                          // Show all accounts, even with zero balance (matching autohub behavior)
+                          return (
+                            <div key={account.id} className="flex justify-between items-center py-0.5 ml-4">
+                              <span className="text-xs text-gray-600">
+                                {account.code}-{account.name}
+                              </span>
+                              <span className="text-xs text-right">
+                                {formatBalance(accountBalance || 0)}
+                              </span>
+                            </div>
+                          );
+                        })}
+
+                        <div className="border-t border-gray-300 pt-1 mt-1 ml-4 flex justify-between items-center">
+                          <span className="text-sm font-medium">
+                            Total {subgroup.code}-{subgroup.name}
+                          </span>
+                          <span className="text-sm font-medium text-right">
+                            {formatBalance(subgroupTotal)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  <div className="border-t-2 border-gray-400 pt-1 flex justify-between items-center mt-2 mb-4">
+                    <span className="text-base font-semibold">
+                      Total {mainGroup.code}-{mainGroup.name}
+                    </span>
+                    <span className="text-base font-semibold text-right">
+                      {formatBalance(mainGroupTotal)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+
+            <div className="border-t-4 border-double border-gray-800 pt-2 mt-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-bold">Total Assets</h2>
+                <h2 className="text-lg font-bold text-right">
+                  {formatBalance(totalAssets)}
+                </h2>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Liabilities and Capital Column */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-bold">Liabilities</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {balanceSheetData.liabilities?.map((mainGroup) => {
+              const mainGroupTotal = calculateMainGroupTotal(mainGroup);
+              return (
+                <div key={mainGroup.id} className="ml-4">
+                  <h3 className="text-base font-semibold mb-2">
+                    {mainGroup.code}-{mainGroup.name}
+                  </h3>
+
+                  {(mainGroup.coa_sub_groups || []).map((subgroup) => {
+                    const subgroupTotal = calculateSubgroupTotal(subgroup);
+                    return (
+                      <div key={subgroup.id} className="mb-4 ml-4">
+                        <h4 className="text-sm font-medium mb-1 text-gray-700">
+                          {subgroup.code}-{subgroup.name}
+                        </h4>
+
+                        {subgroup.coa_accounts?.map((account) => {
+                          const accountBalance = getAccountBalance(account);
+                          if (accountBalance === null || accountBalance === 0) return null;
+                          return (
+                            <div key={account.id} className="flex justify-between items-center py-0.5 ml-4">
+                              <span className="text-xs text-gray-600">
+                                {account.code}-{account.name}
+                              </span>
+                              <span className="text-xs text-right">
+                                {formatBalance(accountBalance, true)}
+                              </span>
+                            </div>
+                          );
+                        })}
+
+                        <div className="border-t border-gray-300 pt-1 mt-1 ml-4 flex justify-between items-center">
+                          <span className="text-sm font-medium">
+                            Total {subgroup.code}-{subgroup.name}
+                          </span>
+                          <span className="text-sm font-medium text-right">
+                            {formatBalance(subgroupTotal, true)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  <div className="border-t-2 border-gray-400 pt-1 flex justify-between items-center mt-2 mb-4">
+                    <span className="text-base font-semibold">
+                      Total {mainGroup.code}-{mainGroup.name}
+                    </span>
+                    <span className="text-base font-semibold text-right">
+                      {formatBalance(mainGroupTotal, true)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+
+            <div className="border-t-2 border-gray-400 pt-2 mt-2">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-bold">Total Liabilities</h2>
+                <h2 className="text-lg font-bold text-right">
+                  {formatBalance(totalLiabilities, true)}
+                </h2>
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <h2 className="text-lg font-bold mb-4">Capital</h2>
+
+              {balanceSheetData.capital?.map((mainGroup) => {
+                const mainGroupTotal = calculateMainGroupTotal(mainGroup);
+                return (
+                  <div key={mainGroup.id} className="ml-4">
+                    <h3 className="text-base font-semibold mb-2">
+                      {mainGroup.code}-{mainGroup.name}
+                    </h3>
+
+                    {(mainGroup.coa_sub_groups || []).map((subgroup) => {
+                      const subgroupTotal = calculateSubgroupTotal(subgroup);
                       return (
-                        <div key={mainGroup.name} className="space-y-1">
-                          <div className="flex justify-between items-center py-2 px-2">
-                            <span className="font-semibold">{mainGroup.name}</span>
-                            <span className="font-semibold text-right">{formatNumber(mainGroup.total || 0)}</span>
-                          </div>
-                          <div className="flex justify-between items-center py-1.5 px-2 border-t border-border/30">
-                            <span className="font-medium">Total {mainGroup.name}</span>
-                            <span className="font-medium text-right">{formatNumber(mainGroup.total || 0)}</span>
+                        <div key={subgroup.id} className="mb-4 ml-4">
+                          <h4 className="text-sm font-medium mb-1 text-gray-700">
+                            {subgroup.code}-{subgroup.name}
+                          </h4>
+
+                          {subgroup.coa_accounts?.map((account) => (
+                            <div key={account.id} className="flex justify-between items-center py-0.5 ml-4">
+                              <span className="text-xs text-gray-600">
+                                {account.code}-{account.name}
+                              </span>
+                              <span className="text-xs text-right">
+                                {formatBalance(account.balance, true)}
+                              </span>
+                            </div>
+                          ))}
+
+                          <div className="border-t border-gray-300 pt-1 mt-1 ml-4 flex justify-between items-center">
+                            <span className="text-sm font-medium">
+                              Total {subgroup.code}-{subgroup.name}
+                            </span>
+                            <span className="text-sm font-medium text-right">
+                              {formatBalance(subgroupTotal, true)}
+                            </span>
                           </div>
                         </div>
                       );
-                    }
-                    return renderMainGroup(mainGroup);
-                  })}
-                </div>
-                
-                {/* Net Income */}
-                <div className="flex justify-between items-center py-2 px-2 mt-2">
-                  <span className="font-medium">Net Income</span>
-                  <span className="text-right font-mono">{formatNumber(netIncome)}</span>
-                </div>
+                    })}
 
-                <Separator className="my-3" />
-                
-                {/* Total Capital */}
-                <div className="flex justify-between items-center py-2 font-bold">
-                  <span>Total Capital</span>
-                  <span className="text-right">{formatNumber(totalCapital)}</span>
+                    <div className="border-t-2 border-gray-400 pt-1 flex justify-between items-center mt-2 mb-4">
+                      <span className="text-base font-semibold">
+                        Total {mainGroup.code}-{mainGroup.name}
+                      </span>
+                      <span className="text-base font-semibold text-right">
+                        {formatBalance(mainGroupTotal, true)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Net Income */}
+              <div className="border-b pb-1 ml-4 flex justify-between items-center mt-2">
+                <span className="text-sm">Net Income</span>
+                <span className="text-sm text-right">
+                  {formatBalance(balanceSheetData.revExp, true)}
+                </span>
+              </div>
+
+              <div className="border-t-2 pt-2 mt-2">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-lg font-bold">Total Capital</h2>
+                  <h2 className="text-lg font-bold text-right">
+                    {formatBalance(totalCapital, true)}
+                  </h2>
                 </div>
               </div>
 
-              <Separator className="my-3" />
-              
-              {/* Total Liabilities and Capital */}
-              <div className={`flex justify-between items-center py-3 font-bold text-lg ${isBalanced ? 'text-green-600' : 'text-orange-600'}`}>
-                <span>Total Liabilities and Capital</span>
-                <span className="text-right">{formatNumber(totalLiabilitiesAndCapital)}</span>
+              <div className="border-t-2 pt-2 mt-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-lg font-bold">Total Liabilities and Capital</h2>
+                  <h2 className="text-lg font-bold text-right text-green-600">
+                    {formatBalance(totalLiabilitiesAndCapital, true)}
+                  </h2>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* Balance Check */}
-      {data && (
-        <div className={`p-4 rounded-lg flex items-center justify-center gap-3 ${isBalanced ? 'bg-green-500/10 border border-green-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
-          {isBalanced ? (
-            <span className="font-medium text-green-600">Balance Sheet is balanced (Assets = Liabilities + Capital)</span>
-          ) : (
-            <span className="font-medium text-red-600">
-              Balance Sheet is not balanced. Difference: {formatNumber(Math.abs(totalAssets - totalLiabilitiesAndCapital))}
-            </span>
-          )}
-        </div>
-      )}
-    </div>
+      {/* Balance Status */}
+      <Card className={isBalanced ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}>
+        <CardContent className="p-4">
+          <p className={`text-center font-semibold ${isBalanced ? "text-green-700" : "text-red-700"}`}>
+            {isBalanced
+              ? "Balance Sheet is balanced (Assets = Liabilities + Capital)"
+              : `Balance Sheet is NOT balanced. Difference: ${formatNumber(Math.abs(totalAssets - totalLiabilitiesAndCapital))}`
+            }
+          </p>
+        </CardContent>
+      </Card>
+    </div >
   );
 };

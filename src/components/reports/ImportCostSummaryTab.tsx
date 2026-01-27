@@ -29,7 +29,7 @@ interface ImportRecord {
   date: string;
   lcNumber: string;
   supplier: string;
-  country: string;
+  country: string; 
   fobValue: number;
   freight: number;
   insurance: number;

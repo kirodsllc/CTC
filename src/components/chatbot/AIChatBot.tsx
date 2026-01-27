@@ -20,7 +20,7 @@ import {
   HistoryButton,
 } from './InteractiveComponents';
 import { HistoryPopup } from './HistoryPopup';
-
+ 
 const CHAT_STORAGE_KEY = 'ai-assistant-chat-history';
 const MAX_STORED_MESSAGES = 50;
 

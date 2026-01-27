@@ -31,7 +31,7 @@ interface PurchaseRecord {
   supplier: string;
   items: number;
   amount: number;
-  status: "completed" | "pending" | "partial";
+  status: "completed" | "pending" | "partial"; 
 }
 
 const PurchasesReportTab = () => {

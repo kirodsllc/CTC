@@ -31,7 +31,7 @@ interface AdjustmentItem {
   part_no: string;
   part_description: string;
   brand: string;
-  category: string;
+  category: string; 
   quantity: number;
   cost: number;
   rack_id?: string;

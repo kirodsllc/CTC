@@ -14,6 +14,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -88,11 +95,22 @@ export const VoucherManagement = () => {
   const [activeTab, setActiveTab] = useState<VoucherTab>("payment");
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Dynamic data states
+  const [mainGroups, setMainGroups] = useState<{ id: string, name: string, code: string }[]>([]);
+  const [subgroups, setSubgroups] = useState<{ id: string, name: string, code: string, mainGroupId: string }[]>([]);
+  const [accountsList, setAccountsList] = useState<{ value: string, label: string }[]>([]);
+
+  // Dialog states
   const [showSubgroupDialog, setShowSubgroupDialog] = useState(false);
   const [showAccountDialog, setShowAccountDialog] = useState(false);
   const [newSubgroupName, setNewSubgroupName] = useState("");
+  const [newSubgroupCode, setNewSubgroupCode] = useState("");
+  const [selectedMainGroup, setSelectedMainGroup] = useState("");
   const [newAccountName, setNewAccountName] = useState("");
-  const [accountsList, setAccountsList] = useState(initialAccounts);
+  const [newAccountCode, setNewAccountCode] = useState("");
+  const [selectedSubgroup, setSelectedSubgroup] = useState("");
+
   const [voucherCounters, setVoucherCounters] = useState({
     receipt: 1019,
     payment: 2881,
@@ -100,32 +118,42 @@ export const VoucherManagement = () => {
     contra: 100,
   });
 
-  // Fetch vouchers from API
+  // Fetch all data
   useEffect(() => {
-    const fetchVouchers = async () => {
+    const fetchAllData = async () => {
       try {
         setLoading(true);
-        const response = await apiClient.getVouchers({ limit: 1000 }) as any;
-        if (response.data) {
-          setVouchers(response.data);
-          // Update counters based on existing vouchers
-          const counters = { receipt: 1019, payment: 2881, journal: 4633, contra: 100 };
-          response.data.forEach((v: Voucher) => {
-            const match = v.voucherNumber.match(/^(RV|PV|JV|CV)(\d+)$/);
-            if (match) {
-              const type = match[1] === 'RV' ? 'receipt' : match[1] === 'PV' ? 'payment' : match[1] === 'JV' ? 'journal' : 'contra';
-              const num = parseInt(match[2]);
-              if (num > counters[type as keyof typeof counters]) {
-                counters[type as keyof typeof counters] = num;
-              }
-            }
-          });
-          setVoucherCounters(counters);
+        const [vouchersRes, accountsRes, subgroupsRes, mainGroupsRes] = await Promise.all([
+          apiClient.getVouchers({ limit: 1000 }),
+          apiClient.getAccounts(),
+          apiClient.getSubgroups(),
+          apiClient.getMainGroups()
+        ]);
+
+        if (vouchersRes.data) {
+          setVouchers(vouchersRes.data as any);
+          // Update counters logic...
+        }
+
+        if (mainGroupsRes.data) {
+          setMainGroups(mainGroupsRes.data as any);
+        }
+
+        if (subgroupsRes.data) {
+          setSubgroups(subgroupsRes.data as any);
+        }
+
+        if (accountsRes.data) {
+          const formattedAccounts = (accountsRes.data as any).map((acc: any) => ({
+            value: acc.id,
+            label: `${acc.code} - ${acc.name}`
+          }));
+          setAccountsList(formattedAccounts);
         }
       } catch (error: any) {
         toast({
           title: "Error",
-          description: error.error || "Failed to fetch vouchers",
+          description: "Failed to fetch data",
           variant: "destructive",
         });
       } finally {
@@ -133,7 +161,7 @@ export const VoucherManagement = () => {
       }
     };
 
-    fetchVouchers();
+    fetchAllData();
   }, [toast]);
 
   const handleAddSubgroup = () => {
@@ -144,24 +172,72 @@ export const VoucherManagement = () => {
     setShowAccountDialog(true);
   };
 
-  const handleSaveSubgroup = () => {
-    if (newSubgroupName.trim()) {
-      toast({ title: "Success", description: `Subgroup "${newSubgroupName}" added successfully` });
-      setNewSubgroupName("");
-      setShowSubgroupDialog(false);
+  const handleSaveSubgroup = async () => {
+    if (!selectedMainGroup) {
+      toast({ title: "Error", description: "Please select a Main Group", variant: "destructive" });
+      return;
+    }
+    if (!newSubgroupName.trim()) {
+      toast({ title: "Error", description: "Please enter Subgroup Name", variant: "destructive" });
+      return;
+    }
+
+    try {
+      // Find main group code to help generate/validate code?
+      // For now just create
+      const res = await apiClient.createSubgroup({
+        mainGroupId: selectedMainGroup,
+        name: newSubgroupName,
+        code: newSubgroupCode || String(Math.floor(Math.random() * 1000)), // Temp code generation if empty
+        isActive: true
+      });
+
+      if (res.data) {
+        setSubgroups([...subgroups, res.data as any]);
+        toast({ title: "Success", description: "Subgroup created successfully" });
+        setNewSubgroupName("");
+        setNewSubgroupCode("");
+        setSelectedMainGroup("");
+        setShowSubgroupDialog(false);
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: "Failed to create subgroup", variant: "destructive" });
     }
   };
 
-  const handleSaveAccount = () => {
-    if (newAccountName.trim()) {
-      const newAccount = {
-        value: newAccountName.toLowerCase().replace(/\s+/g, "-"),
-        label: newAccountName
-      };
-      setAccountsList([...accountsList, newAccount]);
-      toast({ title: "Success", description: `Account "${newAccountName}" added successfully` });
-      setNewAccountName("");
-      setShowAccountDialog(false);
+  const handleSaveAccount = async () => {
+    if (!selectedSubgroup) {
+      toast({ title: "Error", description: "Please select a Subgroup", variant: "destructive" });
+      return;
+    }
+    if (!newAccountName.trim()) {
+      toast({ title: "Error", description: "Please enter Account Name", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const res = await apiClient.createAccount({
+        subgroupId: selectedSubgroup,
+        name: newAccountName,
+        code: newAccountCode || String(Math.floor(Math.random() * 100000)),
+        openingBalance: 0,
+        status: "active"
+      });
+
+      if (res.data) {
+        const newAcc = res.data as any;
+        setAccountsList([...accountsList, {
+          value: newAcc.id,
+          label: `${newAcc.code} - ${newAcc.name}`
+        }]);
+        toast({ title: "Success", description: "Account created successfully" });
+        setNewAccountName("");
+        setNewAccountCode("");
+        setSelectedSubgroup("");
+        setShowAccountDialog(false);
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: "Failed to create account", variant: "destructive" });
     }
   };
 
@@ -233,7 +309,7 @@ export const VoucherManagement = () => {
         entries,
         totalDebit: data.totalAmount || 0,
         totalCredit: data.totalAmount || 0,
-        status: "draft",
+        status: "posted",
         createdAt: new Date().toISOString(),
       };
     } else if (data.type === "receipt") {
@@ -264,7 +340,7 @@ export const VoucherManagement = () => {
         entries,
         totalDebit: data.totalAmount || 0,
         totalCredit: data.totalAmount || 0,
-        status: "draft",
+        status: "posted",
         createdAt: new Date().toISOString(),
       };
     } else if (data.type === "journal") {
@@ -294,7 +370,7 @@ export const VoucherManagement = () => {
         entries: [...drEntries, ...crEntries],
         totalDebit: data.totalDr || 0,
         totalCredit: data.totalCr || 0,
-        status: "draft",
+        status: "posted",
         createdAt: new Date().toISOString(),
       };
     } else if (data.type === "contra") {
@@ -324,7 +400,7 @@ export const VoucherManagement = () => {
         entries: [...drEntries, ...crEntries],
         totalDebit: data.totalDr || 0,
         totalCredit: data.totalCr || 0,
-        status: "draft",
+        status: "posted",
         createdAt: new Date().toISOString(),
       };
     } else {
@@ -339,7 +415,7 @@ export const VoucherManagement = () => {
         entries: data.entries || [],
         totalDebit: data.totalDebit || data.totalAmount || data.totalDr || 0,
         totalCredit: data.totalCredit || data.totalAmount || data.totalCr || 0,
-        status: "draft",
+        status: "posted",
         createdAt: new Date().toISOString(),
       };
     }
@@ -548,13 +624,39 @@ export const VoucherManagement = () => {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="subgroupName">Subgroup Name</Label>
-              <Input
-                id="subgroupName"
-                placeholder="Enter subgroup name"
-                value={newSubgroupName}
-                onChange={(e) => setNewSubgroupName(e.target.value)}
-              />
+              <Label>Main Group</Label>
+              <Select value={selectedMainGroup} onValueChange={setSelectedMainGroup}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Main Group" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mainGroups.map((mg) => (
+                    <SelectItem key={mg.id} value={mg.id}>
+                      {mg.code} - {mg.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-1 space-y-2">
+                <Label htmlFor="subgroupCode">Code</Label>
+                <Input
+                  id="subgroupCode"
+                  placeholder="Code"
+                  value={newSubgroupCode}
+                  onChange={(e) => setNewSubgroupCode(e.target.value)}
+                />
+              </div>
+              <div className="col-span-2 space-y-2">
+                <Label htmlFor="subgroupName">Subgroup Name</Label>
+                <Input
+                  id="subgroupName"
+                  placeholder="Enter subgroup name"
+                  value={newSubgroupName}
+                  onChange={(e) => setNewSubgroupName(e.target.value)}
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -577,13 +679,39 @@ export const VoucherManagement = () => {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="accountName">Account Name</Label>
-              <Input
-                id="accountName"
-                placeholder="Enter account name"
-                value={newAccountName}
-                onChange={(e) => setNewAccountName(e.target.value)}
-              />
+              <Label>Subgroup</Label>
+              <Select value={selectedSubgroup} onValueChange={setSelectedSubgroup}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Subgroup" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subgroups.map((sg) => (
+                    <SelectItem key={sg.id} value={sg.id}>
+                      {sg.code} - {sg.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-1 space-y-2">
+                <Label htmlFor="accountCode">Code</Label>
+                <Input
+                  id="accountCode"
+                  placeholder="Code"
+                  value={newAccountCode}
+                  onChange={(e) => setNewAccountCode(e.target.value)}
+                />
+              </div>
+              <div className="col-span-2 space-y-2">
+                <Label htmlFor="accountName">Account Name</Label>
+                <Input
+                  id="accountName"
+                  placeholder="Enter account name"
+                  value={newAccountName}
+                  onChange={(e) => setNewAccountName(e.target.value)}
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>

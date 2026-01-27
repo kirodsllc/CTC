@@ -34,7 +34,7 @@ import {
   Download,
   LogIn,
   Plus,
-  Edit,
+  Edit, 
   Trash2,
   Eye,
   Clock,

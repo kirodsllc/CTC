@@ -30,7 +30,7 @@ interface TopSellingItem {
   rank: number;
   name: string;
   units: number;
-  value: number;
+  value: number; 
 }
 
 interface ActivityItem {
