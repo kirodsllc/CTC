@@ -1065,8 +1065,8 @@ router.post('/', async (req: Request, res: Response) => {
         // The schema has been updated to allow duplicates, but migration needs to be run
         // Return error with instructions
         return res.status(400).json({
-          error: 'Part number already exists. Please run the database migration to remove the unique constraint on part_no.',
-          details: 'Migration file: backend/src/db/migrations/002_remove_part_no_unique.sql'
+          error: 'Part number already exists. Please run Prisma migrations: npm run migrate:deploy',
+          details: 'Schema allows duplicate part_no; ensure migrations are applied.'
         });
       } else {
         return res.status(400).json({

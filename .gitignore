@@ -25,10 +25,20 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Database temp files (keep dev.db)
+# Database temp files
 *.db-journal
 *.db-wal
 *.db-shm
+
+# Backups (exclude from production)
+*.backup.*
+.env.backup.*
+*.db.before-import-*
+*_backup_*.db
+*backup*.db
+full_backup_*
+items-full_backup*.db
+items-only.db
 
 # Temporary files
 *.tmp

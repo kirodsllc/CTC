@@ -337,6 +337,43 @@ router.delete('/applications/:id', async (req: Request, res: Response) => {
   }
 });
 
+// Remove duplicate applications from the database (same masterPartId + name). Keeps one per group, reassigns parts to it, deletes the rest.
+router.post('/applications/remove-duplicates', async (req: Request, res: Response) => {
+  try {
+    const applications = await prisma.application.findMany({
+      select: { id: true, name: true, masterPartId: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Group by (masterPartId, name) — normalize null/empty
+    const key = (a: { masterPartId: string | null; name: string }) =>
+      `${a.masterPartId ?? ''}\0${(a.name || '').trim().toLowerCase()}`;
+    const groups = new Map<string, typeof applications>();
+    for (const a of applications) {
+      const k = key(a);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k)!.push(a);
+    }
+
+    let removed = 0;
+    for (const [, list] of groups) {
+      if (list.length <= 1) continue;
+      const [keep, ...duplicates] = list;
+      for (const dup of duplicates) {
+        await prisma.$transaction([
+          prisma.part.updateMany({ where: { applicationId: dup.id }, data: { applicationId: keep.id } }),
+          prisma.application.delete({ where: { id: dup.id } }),
+        ]);
+        removed++;
+      }
+    }
+
+    res.json({ removed, message: removed ? `Removed ${removed} duplicate application(s) from the database.` : 'No duplicate applications found.' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get parts by master part number (for part number dropdown)
 router.get('/parts', async (req: Request, res: Response) => {
   try {

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef, startTransition, useDeferredValue
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, ChevronDown, Loader2 } from "lucide-react";
+import { Plus, ChevronDown, Loader2, CopyMinus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -246,6 +246,8 @@ export const AttributesPage = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteType, setDeleteType] = useState<"category" | "subcategory" | "brand" | "application">("category");
   const [deleteId, setDeleteId] = useState<string>("");
+  const [removeDuplicatesDialogOpen, setRemoveDuplicatesDialogOpen] = useState(false);
+  const [removeDuplicatesLoading, setRemoveDuplicatesLoading] = useState(false);
 
   // Edit states
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -371,14 +373,23 @@ export const AttributesPage = () => {
         })));
       }
 
-      // Handle applications
+      // Handle applications — deduplicate by id so we never show duplicate applications
       if (applicationsRes.error) {
       } else {
         const applicationsArray = Array.isArray(applicationsRes) ? applicationsRes : (applicationsRes.data && Array.isArray(applicationsRes.data) ? applicationsRes.data : []);
-        setApplications(applicationsArray.map((a: any) => ({
-          ...a,
-          createdAt: a.createdAt ? new Date(a.createdAt).toLocaleDateString("en-GB") : new Date().toLocaleDateString("en-GB"),
-        })));
+        const seen = new Set<string>();
+        const deduplicated = applicationsArray
+          .filter((a: any) => {
+            const id = a?.id ?? a?._id;
+            if (!id || seen.has(id)) return false;
+            seen.add(id);
+            return true;
+          })
+          .map((a: any) => ({
+            ...a,
+            createdAt: a.createdAt ? new Date(a.createdAt).toLocaleDateString("en-GB") : new Date().toLocaleDateString("en-GB"),
+          }));
+        setApplications(deduplicated);
       }
     } catch (error: any) {
       toast({
@@ -545,6 +556,16 @@ export const AttributesPage = () => {
       toast({ title: "Error", description: "Master Part Number is required", variant: "destructive" });
       return;
     }
+    // Prevent duplicate: same name + same master part already in list
+    if (!editingApplication) {
+      const existing = applications.find(
+        (a) => a.name.toLowerCase() === name.toLowerCase() && (a.masterPartNo ?? "").trim().toLowerCase() === masterPartNo.toLowerCase()
+      );
+      if (existing) {
+        toast({ title: "Duplicate application", description: "An application with this name and master part number already exists.", variant: "destructive" });
+        return;
+      }
+    }
     
     try {
       if (editingApplication) {
@@ -707,6 +728,26 @@ export const AttributesPage = () => {
     setDeleteType(type);
     setDeleteId(id);
     setDeleteDialogOpen(true);
+  };
+
+  const handleRemoveApplicationDuplicates = async () => {
+    setRemoveDuplicatesLoading(true);
+    try {
+      const res = await apiClient.removeApplicationDuplicates();
+      if ((res as any)?.error) {
+        toast({ title: "Error", description: (res as any).error, variant: "destructive" });
+        return;
+      }
+      const removed = (res as any)?.removed ?? 0;
+      const msg = (res as any)?.message ?? (removed ? `Removed ${removed} duplicate application(s) from the database.` : "No duplicate applications found.");
+      toast({ title: removed ? "Duplicates removed" : "No duplicates", description: msg });
+      setRemoveDuplicatesDialogOpen(false);
+      await fetchAllData();
+    } catch (e: any) {
+      toast({ title: "Error", description: e?.message ?? "Failed to remove duplicates", variant: "destructive" });
+    } finally {
+      setRemoveDuplicatesLoading(false);
+    }
   };
 
   // Status toggle handlers
@@ -1033,14 +1074,26 @@ export const AttributesPage = () => {
               <div>
                 <h3 className="text-base font-semibold text-foreground">Applications List</h3>
               </div>
-              <Button
-                size="sm"
-                className="gap-1 h-8 text-xs shrink-0"
-                onClick={() => setApplicationDialogOpen(true)}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add New
-              </Button>
+              <div className="flex gap-1 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 h-8 text-xs hidden"
+                  onClick={() => setRemoveDuplicatesDialogOpen(true)}
+                  title="Remove duplicate applications from the database"
+                >
+                  <CopyMinus className="w-3.5 h-3.5" />
+                  Remove duplicates
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-1 h-8 text-xs"
+                  onClick={() => setApplicationDialogOpen(true)}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add New
+                </Button>
+              </div>
             </div>
             <div className="flex gap-2">
               <Input
@@ -1214,6 +1267,23 @@ export const AttributesPage = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={removeDuplicatesDialogOpen} onOpenChange={(open) => !removeDuplicatesLoading && setRemoveDuplicatesDialogOpen(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove duplicate applications from database</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will find applications with the same master part and name, keep one per group, reassign any parts to that one, and delete the duplicate rows from the database. This cannot be undone for the removed rows.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removeDuplicatesLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRemoveApplicationDuplicates} disabled={removeDuplicatesLoading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {removeDuplicatesLoading ? "Removing…" : "Remove duplicates"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -459,6 +459,12 @@ class ApiClient {
     });
   }
 
+  async removeApplicationDuplicates(): Promise<{ removed?: number; message?: string; error?: string }> {
+    return this.request('/dropdowns/applications/remove-duplicates', {
+      method: 'POST',
+    });
+  }
+
   // Inventory API
   async getInventoryDashboard() {
     return this.request('/inventory/dashboard');

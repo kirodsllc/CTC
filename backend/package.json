@@ -10,8 +10,6 @@
     "migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "migrate:reset": "prisma migrate reset",
-    "seed": "echo 'Seed disabled - use npm run seed:force to re-enable'",
-    "seed:force": "tsx src/db/seed.ts",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio"
   },
