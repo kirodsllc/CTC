@@ -1,0 +1,42 @@
+module.exports = {
+  apps: [
+    {
+      name: 'dev-koncepts-backend',
+      cwd: '/var/www/Dev-Koncepts/backend',
+      script: 'npm',
+      args: 'run dev',
+      interpreter: 'none',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 3002,
+      },
+      error_file: '/var/www/Dev-Koncepts/logs/backend-error.log',
+      out_file: '/var/www/Dev-Koncepts/logs/backend-out.log',
+      log_file: '/var/www/Dev-Koncepts/logs/backend-combined.log',
+      time: true,
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '1G',
+    },
+    {
+      name: 'dev-koncepts-frontend',
+      cwd: '/var/www/Dev-Koncepts',
+      script: 'npm',
+      args: 'run dev',
+      interpreter: 'none',
+      env: {
+        NODE_ENV: 'development',
+        PORT: 8081,
+      },
+      error_file: '/var/www/Dev-Koncepts/logs/frontend-error.log',
+      out_file: '/var/www/Dev-Koncepts/logs/frontend-out.log',
+      log_file: '/var/www/Dev-Koncepts/logs/frontend-combined.log',
+      time: true,
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '1G',
+    },
+  ],
+};
