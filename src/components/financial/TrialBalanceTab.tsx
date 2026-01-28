@@ -4,10 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCurrentDatePakistan } from "@/utils/dateUtils";
+import { getApiBaseUrl } from "@/lib/api";
 
-const API_URL_RAW = import.meta.env.VITE_API_URL || 
-  (import.meta.env.DEV ? 'http://localhost:3001' : '');
-const API_URL = API_URL_RAW.replace(/\/api\/?$/, '');
+// Use shared API base URL so /dev-koncepts routes through Nginx to port 3002
+const API_BASE_URL = getApiBaseUrl(); // includes trailing "/api" (or "/dev-koncepts/api")
 
 interface TrialBalanceAccount {
   accountId: string;
@@ -45,7 +45,10 @@ export const TrialBalanceTab = () => {
     try {
       setLoading(true);
       // Use the existing accounting endpoint with to_date set to selected date
-      const response = await fetch(`${API_URL}/api/accounting/trial-balance?to_date=${selectedDate}`);
+      const response = await fetch(`${API_BASE_URL}/accounting/trial-balance?to_date=${selectedDate}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache, no-store' },
+      });
       if (response.ok) {
         const flatData = await response.json();
         
@@ -223,21 +226,6 @@ export const TrialBalanceTab = () => {
           </div>
         </CardContent>
       </Card>
-
-      {/* Balance Check */}
-      {data && (
-        <div className={`p-4 rounded-lg flex items-center justify-center gap-3 ${data.totalDebit === data.totalCredit ? 'bg-green-500/10 border border-green-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
-          {data.totalDebit === data.totalCredit ? (
-            <span className="font-medium text-green-600">
-              ✓ Trial Balance is balanced - Debits equal Credits
-            </span>
-          ) : (
-            <span className="font-medium text-red-600">
-              ⚠ Trial Balance is not balanced - Difference: {formatNumber(Math.abs(data.totalDebit - data.totalCredit))}
-            </span>
-          )}
-        </div>
-      )}
     </div>
   );
 };

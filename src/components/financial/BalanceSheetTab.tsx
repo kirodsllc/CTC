@@ -151,7 +151,6 @@ export const BalanceSheetTab = () => {
   const totalLiabilities = calculateTotalLiabilities();
   const totalCapital = calculateTotalCapital();
   const totalLiabilitiesAndCapital = totalLiabilities + totalCapital;
-  const isBalanced = Math.abs(totalAssets - totalLiabilitiesAndCapital) < 0.01;
 
   return (
     <div className="space-y-4">
@@ -402,18 +401,6 @@ export const BalanceSheetTab = () => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Balance Status */}
-      <Card className={isBalanced ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}>
-        <CardContent className="p-4">
-          <p className={`text-center font-semibold ${isBalanced ? "text-green-700" : "text-red-700"}`}>
-            {isBalanced
-              ? "Balance Sheet is balanced (Assets = Liabilities + Capital)"
-              : `Balance Sheet is NOT balanced. Difference: ${formatNumber(Math.abs(totalAssets - totalLiabilitiesAndCapital))}`
-            }
-          </p>
-        </CardContent>
-      </Card>
-    </div >
+    </div>
   );
 };

@@ -270,16 +270,6 @@ export const TrialBalanceReport = () => {
             </TableBody>
           </Table>
         </div>
-
-        {/* Balance Check */}
-        <div className={`p-4 rounded-lg ${totalDebit === totalCredit ? 'bg-green-500/10 border border-green-500/30' : 'bg-destructive/10 border border-destructive/30'}`}>
-          <p className={`font-medium ${totalDebit === totalCredit ? 'text-green-600' : 'text-destructive'}`}>
-            {totalDebit === totalCredit 
-              ? '✓ Trial Balance is balanced - Debits equal Credits'
-              : `⚠ Trial Balance is not balanced - Difference: Rs ${formatNumber(Math.abs(totalDebit - totalCredit))}`
-            }
-          </p>
-        </div>
       </CardContent>
     </Card>
   );
