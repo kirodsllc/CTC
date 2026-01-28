@@ -22,6 +22,7 @@ import Vouchers from "./pages/Vouchers";
 import Store from "./pages/Store";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import Documentation from "./pages/Documentation";
 import AIChatBot from "./components/chatbot/AIChatBot";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -60,6 +61,8 @@ const App = () => (
             <Route path="/settings/:tab" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/store" element={<ProtectedRoute><Store /></ProtectedRoute>} />
             <Route path="/store/:tab" element={<ProtectedRoute><Store /></ProtectedRoute>} />
+            <Route path="/docs" element={<ProtectedRoute><Documentation /></ProtectedRoute>} />
+            <Route path="/documentation" element={<ProtectedRoute><Documentation /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<ProtectedRoute><NotFound /></ProtectedRoute>} />
           </Routes>

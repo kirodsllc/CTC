@@ -12,6 +12,7 @@ import {
   BookOpen,
   ClipboardList,
   Store as StoreIcon,
+  BookMarked,
   LucideIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -57,6 +58,7 @@ interface MenuItem {
   Icon: LucideIcon;
   path: string;
   label: string;
+  alsoMatch?: string;
 }
 
 export const Sidebar = () => {
@@ -64,9 +66,11 @@ export const Sidebar = () => {
   const location = useLocation();
   const currentPath = location.pathname;
 
-  const isActivePath = (basePath: string) => {
+  const isActivePath = (basePath: string, alsoMatch?: string) => {
     if (basePath === "/") return currentPath === "/";
-    return currentPath === basePath || currentPath.startsWith(`${basePath}/`);
+    const match = currentPath === basePath || currentPath.startsWith(`${basePath}/`);
+    if (alsoMatch) return match || currentPath === alsoMatch || currentPath.startsWith(`${alsoMatch}/`);
+    return match;
   };
 
   const menuItems: MenuItem[] = [
@@ -81,6 +85,7 @@ export const Sidebar = () => {
     { Icon: ClipboardList, path: "/financial-statements", label: "Financial Statements" },
     { Icon: Settings2, path: "/manage", label: "Manage" },
     { Icon: Tag, path: "/vouchers", label: "Vouchers" },
+    { Icon: BookMarked, path: "/docs", label: "Documentation" },
     // { Icon: BarChart3, path: "/reports", label: "Reports" },
     // { Icon: Settings, path: "/settings", label: "Settings" },
   ];
@@ -103,7 +108,7 @@ export const Sidebar = () => {
               <SidebarItem
                 Icon={item.Icon}
                 label={item.label}
-                active={isActivePath(item.path)}
+                active={isActivePath(item.path, item.alsoMatch)}
                 onClick={() => navigate(item.path)}
               />
             </div>

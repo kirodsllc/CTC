@@ -321,6 +321,8 @@ const AIChatBot: React.FC = () => {
     'dashboard': { path: '/', description: 'Main dashboard with overview' },
     'home': { path: '/', description: 'Main dashboard' },
     'overview': { path: '/', description: 'Dashboard overview' },
+    'docs': { path: '/docs', description: 'Developer documentation' },
+    'documentation': { path: '/docs', description: 'Developer documentation (API, database, etc.)' },
     
     // Parts
     'parts': { path: '/parts', description: 'Parts management' },

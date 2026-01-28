@@ -66,6 +66,9 @@ const searchData: SearchResult[] = [
   { id: "27", title: "Settings", description: "Configure system settings", category: "Settings", path: "/settings", icon: Settings, keywords: ["config", "preferences", "setup"] },
   { id: "28", title: "User Management", description: "Manage users and roles", category: "Settings", path: "/settings", icon: Settings, keywords: ["users", "roles", "permissions", "access"] },
   { id: "29", title: "Company Profile", description: "Configure company information", category: "Settings", path: "/settings", icon: Settings, keywords: ["company", "business", "profile"] },
+
+  // Documentation
+  { id: "30", title: "Developer Documentation", description: "API, database, frontend & backend reference", category: "Navigation", path: "/docs", icon: FileText, keywords: ["docs", "documentation", "api", "developer", "backend", "frontend", "database"] },
 ];
 
 // Simple fuzzy search algorithm
